@@ -5,7 +5,7 @@ package ansi
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/tui/event"
 )
 
 func TestKeyDecoder_PrintableASCII(t *testing.T) {
@@ -14,12 +14,12 @@ func TestKeyDecoder_PrintableASCII(t *testing.T) {
 	tests := []struct {
 		b   byte
 		r   rune
-		key tui.Key
+		key event.Key
 	}{
-		{'a', 'a', tui.KeyRune},
-		{'Z', 'Z', tui.KeyRune},
-		{' ', ' ', tui.KeyRune},
-		{'@', '@', tui.KeyRune},
+		{'a', 'a', event.KeyRune},
+		{'Z', 'Z', event.KeyRune},
+		{' ', ' ', event.KeyRune},
+		{'@', '@', event.KeyRune},
 	}
 
 	for _, tt := range tests {
@@ -42,12 +42,12 @@ func TestKeyDecoder_SpecialKeys(t *testing.T) {
 
 	tests := []struct {
 		b   byte
-		key tui.Key
+		key event.Key
 	}{
-		{'\t', tui.KeyTab},
-		{'\n', tui.KeyEnter},
-		{'\r', tui.KeyEnter},
-		{0x7f, tui.KeyBackspace},
+		{'\t', event.KeyTab},
+		{'\n', event.KeyEnter},
+		{'\r', event.KeyEnter},
+		{0x7f, event.KeyBackspace},
 	}
 
 	for _, tt := range tests {
@@ -66,17 +66,17 @@ func TestKeyDecoder_SpecialKeys(t *testing.T) {
 func TestKeyDecoder_ArrowKeys(t *testing.T) {
 	tests := []struct {
 		seq []byte
-		key tui.Key
+		key event.Key
 	}{
-		{[]byte{0x1b, '[', 'A'}, tui.KeyUp},
-		{[]byte{0x1b, '[', 'B'}, tui.KeyDown},
-		{[]byte{0x1b, '[', 'C'}, tui.KeyRight},
-		{[]byte{0x1b, '[', 'D'}, tui.KeyLeft},
+		{[]byte{0x1b, '[', 'A'}, event.KeyUp},
+		{[]byte{0x1b, '[', 'B'}, event.KeyDown},
+		{[]byte{0x1b, '[', 'C'}, event.KeyRight},
+		{[]byte{0x1b, '[', 'D'}, event.KeyLeft},
 	}
 
 	for _, tt := range tests {
 		d := &KeyDecoder{}
-		var evt tui.KeyEvent
+		var evt event.KeyEvent
 		var ok bool
 
 		for i, b := range tt.seq {
@@ -110,7 +110,7 @@ func TestKeyDecoder_Esc(t *testing.T) {
 	if !ok {
 		t.Errorf("ESC + 'x' returned false, want true")
 	}
-	if evt.Key != tui.KeyEsc {
+	if evt.Key != event.KeyEsc {
 		t.Errorf("ESC + 'x' key = %v, want KeyEsc", evt.Key)
 	}
 }
@@ -129,7 +129,7 @@ func TestKeyDecoder_UTF8(t *testing.T) {
 
 	for _, tt := range tests {
 		d := &KeyDecoder{}
-		var evt tui.KeyEvent
+		var evt event.KeyEvent
 		var ok bool
 
 		for i, b := range tt.seq {
@@ -138,7 +138,7 @@ func TestKeyDecoder_UTF8(t *testing.T) {
 				if !ok {
 					t.Errorf("%s: last byte returned false", tt.name)
 				}
-				if evt.Key != tui.KeyRune {
+				if evt.Key != event.KeyRune {
 					t.Errorf("%s: key = %v, want KeyRune", tt.name, evt.Key)
 				}
 				if evt.Rune != tt.r {
@@ -168,7 +168,7 @@ func TestKeyDecoder_Reset(t *testing.T) {
 	if !ok {
 		t.Errorf("After reset, PushByte('a') returned false")
 	}
-	if evt.Key != tui.KeyRune || evt.Rune != 'a' {
+	if evt.Key != event.KeyRune || evt.Rune != 'a' {
 		t.Errorf("After reset, got unexpected event: key=%v rune=%c", evt.Key, evt.Rune)
 	}
 }

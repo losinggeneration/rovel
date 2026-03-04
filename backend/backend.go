@@ -1,7 +1,7 @@
 package backend
 
 import (
-	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/tui/event"
 	"github.com/losinggeneration/tui/geom"
 )
 
@@ -20,7 +20,7 @@ type Backend interface {
 	Flush() error
 
 	// ReadEvent reads and returns the next event, blocking until one is available.
-	ReadEvent() tui.Event
+	ReadEvent() event.Event
 
 	// Size returns the current terminal size.
 	Size() geom.Size

@@ -3,7 +3,7 @@
 package ansi
 
 import (
-	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/tui/event"
 )
 
 // decodeState represents the state of the key decoder state machine.
@@ -28,7 +28,7 @@ type KeyDecoder struct {
 
 // PushByte processes a single byte and returns a KeyEvent if one is complete.
 // The second return value is true if a complete event was decoded.
-func (d *KeyDecoder) PushByte(b byte) (tui.KeyEvent, bool) {
+func (d *KeyDecoder) PushByte(b byte) (event.KeyEvent, bool) {
 	switch d.state {
 	case stateGround:
 		return d.ground(b)
@@ -40,32 +40,32 @@ func (d *KeyDecoder) PushByte(b byte) (tui.KeyEvent, bool) {
 		return d.utf8(b)
 	default:
 		d.Reset()
-		return tui.KeyEvent{}, false
+		return event.KeyEvent{}, false
 	}
 }
 
 // ground is the default state - waiting for any input.
-func (d *KeyDecoder) ground(b byte) (tui.KeyEvent, bool) {
+func (d *KeyDecoder) ground(b byte) (event.KeyEvent, bool) {
 	switch b {
 	case 0x1b: // ESC
 		d.state = stateEsc
 		d.csiN = 0
-		return tui.KeyEvent{}, false
+		return event.KeyEvent{}, false
 
 	case '\t':
-		return tui.KeyEvent{Key: tui.KeyTab}, true
+		return event.KeyEvent{Key: event.KeyTab}, true
 
 	case '\n', '\r':
-		return tui.KeyEvent{Key: tui.KeyEnter}, true
+		return event.KeyEvent{Key: event.KeyEnter}, true
 
 	case 0x7f: // DEL (backspace)
-		return tui.KeyEvent{Key: tui.KeyBackspace}, true
+		return event.KeyEvent{Key: event.KeyBackspace}, true
 
 	case 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x0b, 0x0c, 0x0e, 0x0f,
 		0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a,
 		0x1c, 0x1d, 0x1e, 0x1f:
 		// Control characters - could map to Ctrl+Key combinations
-		return tui.KeyEvent{}, false
+		return event.KeyEvent{}, false
 
 	default:
 		// Check for UTF-8 lead byte
@@ -84,25 +84,25 @@ func (d *KeyDecoder) ground(b byte) (tui.KeyEvent, bool) {
 			} else {
 				// Invalid UTF-8 lead byte, reset
 				d.Reset()
-				return tui.KeyEvent{}, false
+				return event.KeyEvent{}, false
 			}
-			return tui.KeyEvent{}, false
+			return event.KeyEvent{}, false
 		}
 
 		// Printable ASCII
-		return tui.KeyEvent{
-			Key:  tui.KeyRune,
+		return event.KeyEvent{
+			Key:  event.KeyRune,
 			Rune: rune(b),
 		}, true
 	}
 }
 
 // esc handles input after ESC.
-func (d *KeyDecoder) esc(b byte) (tui.KeyEvent, bool) {
+func (d *KeyDecoder) esc(b byte) (event.KeyEvent, bool) {
 	if b == '[' {
 		d.state = stateCSI
 		d.csiN = 0
-		return tui.KeyEvent{}, false
+		return event.KeyEvent{}, false
 	}
 
 	// ESC followed by anything else could be:
@@ -111,11 +111,11 @@ func (d *KeyDecoder) esc(b byte) (tui.KeyEvent, bool) {
 
 	// For MVP, treat as ESC key
 	d.state = stateGround
-	return tui.KeyEvent{Key: tui.KeyEsc}, true
+	return event.KeyEvent{Key: event.KeyEsc}, true
 }
 
 // csi handles CSI (Control Sequence Introducer) sequences like ESC [ A
-func (d *KeyDecoder) csi(b byte) (tui.KeyEvent, bool) {
+func (d *KeyDecoder) csi(b byte) (event.KeyEvent, bool) {
 	// Store CSI parameter bytes
 	if d.csiN < len(d.csiBuf) {
 		d.csiBuf[d.csiN] = b
@@ -128,29 +128,29 @@ func (d *KeyDecoder) csi(b byte) (tui.KeyEvent, bool) {
 		return d.decodeCSI(b)
 	}
 
-	return tui.KeyEvent{}, false
+	return event.KeyEvent{}, false
 }
 
 // decodeCSI decodes a complete CSI sequence.
-func (d *KeyDecoder) decodeCSI(final byte) (tui.KeyEvent, bool) {
+func (d *KeyDecoder) decodeCSI(final byte) (event.KeyEvent, bool) {
 	// Simple CSI sequences don't have parameters (or we ignore them for MVP)
 	switch final {
 	case 'A':
-		return tui.KeyEvent{Key: tui.KeyUp}, true
+		return event.KeyEvent{Key: event.KeyUp}, true
 	case 'B':
-		return tui.KeyEvent{Key: tui.KeyDown}, true
+		return event.KeyEvent{Key: event.KeyDown}, true
 	case 'C':
-		return tui.KeyEvent{Key: tui.KeyRight}, true
+		return event.KeyEvent{Key: event.KeyRight}, true
 	case 'D':
-		return tui.KeyEvent{Key: tui.KeyLeft}, true
+		return event.KeyEvent{Key: event.KeyLeft}, true
 	default:
 		// Unknown CSI sequence
-		return tui.KeyEvent{}, false
+		return event.KeyEvent{}, false
 	}
 }
 
 // utf8 handles UTF-8 continuation bytes.
-func (d *KeyDecoder) utf8(b byte) (tui.KeyEvent, bool) {
+func (d *KeyDecoder) utf8(b byte) (event.KeyEvent, bool) {
 	d.utf8N++
 	d.utf8Buf[d.utf8N] = b
 
@@ -180,22 +180,22 @@ func (d *KeyDecoder) utf8(b byte) (tui.KeyEvent, bool) {
 			n = 4
 		default:
 			d.Reset()
-			return tui.KeyEvent{}, false
+			return event.KeyEvent{}, false
 		}
 
 		// Validate the rune
 		if r == utf8RuneError || n != d.utf8Need {
 			d.Reset()
-			return tui.KeyEvent{}, false
+			return event.KeyEvent{}, false
 		}
 
-		return tui.KeyEvent{
-			Key:  tui.KeyRune,
+		return event.KeyEvent{
+			Key:  event.KeyRune,
 			Rune: r,
 		}, true
 	}
 
-	return tui.KeyEvent{}, false
+	return event.KeyEvent{}, false
 }
 
 // Reset resets the decoder to ground state.

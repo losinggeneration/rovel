@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/tui/event"
 	"github.com/losinggeneration/tui/geom"
 	"golang.org/x/sys/unix"
 )
@@ -24,10 +24,8 @@ type ansiBackend struct {
 	decoder     KeyDecoder
 	size        geom.Size
 	signals     *signalHandler
-	eventCh     chan tui.Event
-	escTimer    *time.Timer
+	eventCh     chan event.Event
 	lastWasESC  bool
-	escPending  []byte
 }
 
 // New creates a new ANSI backend.
@@ -43,8 +41,7 @@ func New() (*ansiBackend, error) {
 		r:          os.Stdin,
 		w:          w,
 		size:       size,
-		eventCh:    make(chan tui.Event, 8),
-		escPending: make([]byte, 0, 8),
+		eventCh:    make(chan event.Event, 8),
 	}
 
 	return b, nil
@@ -104,7 +101,7 @@ func (b *ansiBackend) Flush() error {
 }
 
 // ReadEvent reads and returns the next event, blocking until one is available.
-func (b *ansiBackend) ReadEvent() tui.Event {
+func (b *ansiBackend) ReadEvent() event.Event {
 	return <-b.eventCh
 }
 
@@ -124,7 +121,7 @@ func (b *ansiBackend) readEvents() {
 		case size, ok := <-b.signals.ResizeChan():
 			if ok {
 				b.size = size
-				b.eventCh <- tui.ResizeEvent{W: size.W, H: size.H}
+				b.eventCh <- event.ResizeEvent{W: size.W, H: size.H}
 			}
 		default:
 		}
@@ -133,9 +130,8 @@ func (b *ansiBackend) readEvents() {
 		select {
 		case <-escTimeoutCh:
 			// ESC timeout expired - treat as standalone ESC
-			b.eventCh <- tui.KeyEvent{Key: tui.KeyEsc}
+			b.eventCh <- event.KeyEvent{Key: event.KeyEsc}
 			b.decoder.Reset()
-			b.escPending = b.escPending[:0]
 		default:
 		}
 
@@ -172,7 +168,6 @@ func (b *ansiBackend) readEvents() {
 			if ok {
 				b.lastWasESC = false
 				b.eventCh <- evt
-				b.escPending = b.escPending[:0]
 				continue
 			}
 

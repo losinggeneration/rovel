@@ -1,6 +1,9 @@
 package tui
 
-import "github.com/losinggeneration/tui/style"
+import (
+	"github.com/losinggeneration/tui/backend"
+	"github.com/losinggeneration/tui/style"
+)
 
 // Theme defines the base style for rendering.
 type Theme struct {
@@ -19,9 +22,8 @@ func DefaultTheme() Theme {
 
 // AppOpts holds application options.
 type AppOpts struct {
-	Theme Theme
-	// Backend is optional; nil means use default backend/ansi on unix builds.
-	// Backend interface.Backend
+	Theme   Theme
+	Backend backend.Backend // Optional: custom backend, nil uses default backend/ansi
 }
 
 // DefaultAppOpts returns default application options.

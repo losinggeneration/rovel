@@ -1,0 +1,386 @@
+package tui
+
+import (
+	"github.com/losinggeneration/tui/backend"
+	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/tui/render"
+)
+
+// App represents a TUI application.
+type App struct {
+	opts     AppOpts
+	backend  backend.Backend
+	size     geom.Size
+
+	// Buffers for double-buffered rendering
+	backBuf  *render.Buffer
+	frontBuf *render.Buffer
+	damage   *render.Damage
+	flusher  *render.ANSIFlusher
+
+	// View management
+	root     View
+	views    map[ID]View
+
+	// Layout state
+	layoutDirty bool
+
+	// Invalidation tracking
+	invalidRects []geom.Rect
+
+	// Focus
+	focusedID ID
+
+	// Event channel
+	eventCh chan Event
+
+	// Running state
+	running bool
+
+	// Backend writer adapter
+	backendWriter *backendWriter
+}
+
+// backendWriter adapts a backend.Backend to io.Writer.
+type backendWriter struct {
+	b backend.Backend
+}
+
+func (w *backendWriter) Write(p []byte) (int, error) {
+	n, err := w.b.Write(p)
+	if err != nil {
+		return n, err
+	}
+	// Flush after each write to ensure output is sent
+	return n, w.b.Flush()
+}
+
+// New creates a new App with the given options.
+func New(opts AppOpts) (*App, error) {
+	size := geom.Size{W: 80, H: 24} // Default, will be updated on Enable
+
+	app := &App{
+		opts:         opts,
+		size:         size,
+		backBuf:      render.NewBuffer(size.W, size.H),
+		frontBuf:     render.NewBuffer(size.W, size.H),
+		damage:       render.NewDamage(size.W, size.H),
+		views:        make(map[ID]View),
+		eventCh:      make(chan Event, 16),
+	}
+
+	// Create flusher - will be set to backend writer on Enable
+	app.flusher = render.NewANSIFlusher(nil)
+
+	return app, nil
+}
+
+// SetRoot sets the root view of the application.
+func (a *App) SetRoot(v View) {
+	a.root = v
+	a.addView(v)
+	a.layoutDirty = true
+}
+
+// addView adds a view to the view registry.
+func (a *App) addView(v View) {
+	a.views[v.ID()] = v
+
+	// Recursively add child views if this is a container
+	if container, ok := v.(interface{ Children() []View }); ok {
+		for _, child := range container.Children() {
+			a.addView(child)
+		}
+	}
+}
+
+// Enable enables the terminal and starts the application.
+func (a *App) Enable() error {
+	// Create backend if not provided
+	if a.opts.Backend == nil {
+		b, err := defaultBackend()
+		if err != nil {
+			return err
+		}
+		a.opts.Backend = b
+	}
+	a.backend = a.opts.Backend
+
+	// Enable the backend
+	size, err := a.backend.Enable()
+	if err != nil {
+		return err
+	}
+	a.size = size
+
+	// Resize buffers to terminal size
+	a.resizeBuffers(size.W, size.H)
+
+	// Create backend writer adapter and flusher
+	a.backendWriter = &backendWriter{b: a.backend}
+	a.flusher = render.NewANSIFlusher(a.backendWriter)
+
+	// Clear screen and hide cursor
+	a.flusher.ClearScreen()
+	a.flusher.HideCursor()
+	a.flusher.Flush()
+
+	// Initial layout
+	a.layout()
+
+	// Initial paint and flush
+	a.doInitialPaint()
+
+	return nil
+}
+
+// Restore restores the terminal to its original state.
+func (a *App) Restore() error {
+	// Show cursor before restoring
+	a.flusher.ShowCursor()
+	a.flusher.Flush()
+
+	if a.backend != nil {
+		return a.backend.Restore()
+	}
+	return nil
+}
+
+// doInitialPaint performs the initial paint of the screen.
+func (a *App) doInitialPaint() {
+	if a.root == nil {
+		return
+	}
+
+	// For initial paint, ensure front buffer has zero cells (different from painted content)
+	// Buffers are already zero-initialized, so we just need to make sure they're the right size.
+
+	// Mark entire screen as dirty
+	a.damage.Clear()
+	a.damage.AddRect(geom.Rect{X: 0, Y: 0, W: a.size.W, H: a.size.H})
+
+	// Clear damaged spans to theme base (Paint Contract A)
+	a.clearDamagedSpans()
+
+	// Paint the root view
+	a.paintViews()
+
+	// Flush everything
+	a.flush()
+}
+
+// resizeBuffers resizes the render buffers when the terminal size changes.
+func (a *App) resizeBuffers(w, h int) {
+	a.backBuf.Resize(w, h)
+	a.frontBuf.Resize(w, h)
+	a.damage.Reset(w, h)
+	a.size = geom.Size{W: w, H: h}
+}
+
+// layout performs a full layout pass from the root.
+func (a *App) layout() {
+	if a.root == nil {
+		return
+	}
+
+	// Layout the root view to fill the entire screen
+	fullRect := geom.Rect{X: 0, Y: 0, W: a.size.W, H: a.size.H}
+	a.root.Layout(fullRect)
+
+	a.layoutDirty = false
+}
+
+// Run starts the main event loop and blocks until the application quits.
+func (a *App) Run() error {
+	a.running = true
+
+	// Start event reader goroutine
+	go a.readEvents()
+
+	// Main event loop
+	for a.running {
+		// Wait for an event or a tick
+		select {
+		case e := <-a.eventCh:
+			a.handleEvent(e)
+
+			// After handling events, render if needed
+			a.render()
+		}
+	}
+
+	return nil
+}
+
+// readEvents reads events from the backend and sends them to the event channel.
+func (a *App) readEvents() {
+	for a.running {
+		e := a.backend.ReadEvent()
+		a.eventCh <- e
+	}
+}
+
+// handleEvent processes a single event.
+func (a *App) handleEvent(e Event) {
+	switch evt := e.(type) {
+	case KeyEvent:
+		a.handleKeyEvent(evt)
+	case ResizeEvent:
+		a.handleResizeEvent(evt)
+	}
+}
+
+// handleKeyEvent processes a key event.
+func (a *App) handleKeyEvent(e KeyEvent) {
+	// If we have a focused view, send the event to it first
+	if focused, ok := a.views[a.focusedID]; ok {
+		ctx := a.mkCtx(focused)
+		if focused.Handle(e, ctx) {
+			return
+		}
+	}
+
+	// If not handled, try the root
+	if a.root != nil {
+		ctx := a.mkCtx(a.root)
+		a.root.Handle(e, ctx)
+	}
+}
+
+// handleResizeEvent processes a resize event.
+func (a *App) handleResizeEvent(e ResizeEvent) {
+	// Resize buffers
+	a.resizeBuffers(e.W, e.H)
+
+	// Full layout pass
+	a.layout()
+
+	// Mark entire screen as damaged
+	a.Invalidate(geom.Rect{X: 0, Y: 0, W: e.W, H: e.H})
+}
+
+// Invalidate marks a rect as needing repaint.
+func (a *App) Invalidate(r geom.Rect) {
+	a.invalidRects = append(a.invalidRects, r)
+}
+
+// InvalidateAll marks the entire screen as needing repaint.
+func (a *App) InvalidateAll() {
+	a.Invalidate(geom.Rect{X: 0, Y: 0, W: a.size.W, H: a.size.H})
+}
+
+// InvalidateLayout marks that a layout pass is needed.
+func (a *App) InvalidateLayout(id ID) {
+	a.layoutDirty = true
+}
+
+// mkCtx creates a context for a view.
+func (a *App) mkCtx(v View) *Ctx {
+	return &Ctx{
+		invalidate:       func(r geom.Rect) { a.Invalidate(r) },
+		invalidateAll:    func() { a.InvalidateAll() },
+		invalidateLayout: func(id ID) { a.InvalidateLayout(id) },
+		requestFocus:     func(id ID) { a.setRequestFocus(id) },
+		focusedID:        a.focusedID,
+	}
+}
+
+// setRequestFocus requests focus for a view.
+func (a *App) setRequestFocus(id ID) {
+	a.focusedID = id
+	// Invalidate to show focus change
+	a.InvalidateAll()
+}
+
+// render performs a single render frame.
+func (a *App) render() {
+	// If no damage and no layout needed, nothing to do
+	if len(a.invalidRects) == 0 && !a.layoutDirty {
+		return
+	}
+
+	// If layout is dirty, do a layout pass
+	if a.layoutDirty {
+		a.layout()
+		// Layout may move things, so invalidate everything for correctness in MVP
+		a.InvalidateAll()
+	}
+
+	// Coalesce invalidations into damage
+	a.damage.Clear()
+	for _, r := range a.invalidRects {
+		a.damage.AddRect(r)
+	}
+	a.invalidRects = a.invalidRects[:0]
+
+	// If still no damage, nothing to do
+	if a.damage.IsEmpty() {
+		return
+	}
+
+	// Paint Contract A: Clear damaged spans to theme base
+	a.clearDamagedSpans()
+
+	// Paint intersecting views
+	a.paintViews()
+
+	// Diff and flush
+	a.flush()
+}
+
+// clearDamagedSpans implements Paint Contract A by clearing damaged regions
+// to the theme's base style before painting.
+func (a *App) clearDamagedSpans() {
+	baseCell := render.Cell{
+		R:     ' ',
+		Style: a.opts.Theme.Base,
+		Wide:  false,
+	}
+
+	for y := 0; y < a.damage.H; y++ {
+		spans := a.damage.Rows[y]
+		for _, sp := range spans {
+			for x := sp.X0; x < sp.X1; x++ {
+				cell := a.backBuf.At(x, y)
+				*cell = baseCell
+			}
+		}
+	}
+}
+
+// paintViews paints all views that intersect with damaged regions.
+func (a *App) paintViews() {
+	if a.root == nil {
+		return
+	}
+
+	ctx := a.mkCtx(a.root)
+
+	// Create a painter for each damaged region
+	// For MVP, we'll create one painter with full clip and let views paint
+	// The clipping will happen in the render.Painter
+	clip := geom.Rect{X: 0, Y: 0, W: a.size.W, H: a.size.H}
+	rp := render.NewPainter(a.backBuf, clip, a.damage)
+	p := NewPainter(rp, a.opts.Theme.Base)
+
+	// Paint the root (which will paint its children)
+	a.root.Paint(p, ctx)
+}
+
+// flush diffs the buffers and flushes changes to the terminal.
+func (a *App) flush() {
+	runs := render.DiffRuns(a.backBuf, a.frontBuf, a.damage)
+	if len(runs) > 0 {
+		a.flusher.FlushRuns(a.backBuf, a.frontBuf, runs)
+	}
+}
+
+// Quit stops the application.
+func (a *App) Quit() {
+	a.running = false
+}
+
+// Size returns the current terminal size.
+func (a *App) Size() geom.Size {
+	return a.size
+}

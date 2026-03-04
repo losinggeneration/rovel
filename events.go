@@ -1,58 +1,43 @@
 package tui
 
 import (
-	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/tui/event"
 )
 
+// Event types re-exported from event package for API convenience.
+
 // Event is the interface for all events.
-type Event interface{}
+type Event = event.Event
 
 // Key represents a key press.
-type Key int
+type Key = event.Key
 
+// Key constants re-exported for convenience.
 const (
-	KeyNone Key = iota
-
-	// KeyRune is a special key for printable characters.
-	// The actual rune is in KeyEvent.Rune.
-	KeyRune
-
-	// Special keys
-	KeyEnter
-	KeyEsc
-	KeyTab
-	KeyBackspace
-
-	// Arrow keys
-	KeyUp
-	KeyDown
-	KeyLeft
-	KeyRight
+	KeyNone      = event.KeyNone
+	KeyRune      = event.KeyRune
+	KeyEnter     = event.KeyEnter
+	KeyEsc       = event.KeyEsc
+	KeyTab       = event.KeyTab
+	KeyBackspace = event.KeyBackspace
+	KeyUp        = event.KeyUp
+	KeyDown      = event.KeyDown
+	KeyLeft      = event.KeyLeft
+	KeyRight     = event.KeyRight
 )
 
 // ModMask represents keyboard modifiers.
-type ModMask uint8
+type ModMask = event.ModMask
 
+// ModMask constants re-exported for convenience.
 const (
-	ModShift ModMask = 1 << iota
-	ModAlt
-	ModCtrl
+	ModShift = event.ModShift
+	ModAlt   = event.ModAlt
+	ModCtrl  = event.ModCtrl
 )
 
 // KeyEvent represents a key press event.
-type KeyEvent struct {
-	Key  Key
-	Rune rune
-	Mod  ModMask
-}
+type KeyEvent = event.KeyEvent
 
 // ResizeEvent represents a terminal resize event.
-type ResizeEvent struct {
-	W int
-	H int
-}
-
-// Size returns the size as a geom.Size.
-func (e ResizeEvent) Size() geom.Size {
-	return geom.Size{W: e.W, H: e.H}
-}
+type ResizeEvent = event.ResizeEvent
