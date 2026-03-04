@@ -3,13 +3,14 @@ package render
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/tui/style"
 )
 
 func TestNewPainter(t *testing.T) {
 	buf := NewBuffer(10, 5)
 	damage := NewDamage(10, 5)
-	clip := tui.Rect{X: 0, Y: 0, W: 10, H: 5}
+	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 5}
 
 	p := NewPainter(buf, clip, damage)
 
@@ -27,10 +28,10 @@ func TestNewPainter(t *testing.T) {
 func TestPainter_SetCell(t *testing.T) {
 	buf := NewBuffer(10, 5)
 	damage := NewDamage(10, 5)
-	clip := tui.Rect{X: 0, Y: 0, W: 10, H: 5}
+	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 5}
 	p := NewPainter(buf, clip, damage)
 
-	style := tui.Style{FG: tui.ColorRed}
+	style := style.Style{FG: style.ColorRed}
 	p.SetCell(5, 3, 'A', style)
 
 	cell := buf.At(5, 3)
@@ -56,10 +57,10 @@ func TestPainter_SetCell(t *testing.T) {
 func TestPainter_SetCell_Clipped(t *testing.T) {
 	buf := NewBuffer(10, 5)
 	damage := NewDamage(10, 5)
-	clip := tui.Rect{X: 2, Y: 2, W: 5, H: 3}
+	clip := geom.Rect{X: 2, Y: 2, W: 5, H: 3}
 	p := NewPainter(buf, clip, damage)
 
-	style := tui.Style{FG: tui.ColorRed}
+	style := style.Style{FG: style.ColorRed}
 
 	// Should be clipped (outside clip region)
 	p.SetCell(0, 0, 'A', style)
@@ -83,10 +84,10 @@ func TestPainter_SetCell_Clipped(t *testing.T) {
 func TestPainter_SetCell_Wide(t *testing.T) {
 	buf := NewBuffer(10, 5)
 	damage := NewDamage(10, 5)
-	clip := tui.Rect{X: 0, Y: 0, W: 10, H: 5}
+	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 5}
 	p := NewPainter(buf, clip, damage)
 
-	style := tui.Style{FG: tui.ColorRed}
+	style := style.Style{FG: style.ColorRed}
 
 	// Write a wide character (CJK)
 	p.SetCell(5, 3, '中', style)
@@ -118,10 +119,10 @@ func TestPainter_SetCell_Wide(t *testing.T) {
 func TestPainter_SetCell_WideAtEdge(t *testing.T) {
 	buf := NewBuffer(10, 5)
 	damage := NewDamage(10, 5)
-	clip := tui.Rect{X: 0, Y: 0, W: 10, H: 5}
+	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 5}
 	p := NewPainter(buf, clip, damage)
 
-	style := tui.Style{FG: tui.ColorRed}
+	style := style.Style{FG: style.ColorRed}
 
 	// Write wide char at right edge - should become placeholder
 	p.SetCell(9, 3, '中', style)
@@ -138,10 +139,10 @@ func TestPainter_SetCell_WideAtEdge(t *testing.T) {
 func TestPainter_SetCell_OverwriteWideLead(t *testing.T) {
 	buf := NewBuffer(10, 5)
 	damage := NewDamage(10, 5)
-	clip := tui.Rect{X: 0, Y: 0, W: 10, H: 5}
+	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 5}
 	p := NewPainter(buf, clip, damage)
 
-	style := tui.Style{FG: tui.ColorRed}
+	style := style.Style{FG: style.ColorRed}
 
 	// Write wide character
 	p.SetCell(5, 3, '中', style)
@@ -171,10 +172,10 @@ func TestPainter_SetCell_OverwriteWideLead(t *testing.T) {
 func TestPainter_SetCell_OverwriteWideCont(t *testing.T) {
 	buf := NewBuffer(10, 5)
 	damage := NewDamage(10, 5)
-	clip := tui.Rect{X: 0, Y: 0, W: 10, H: 5}
+	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 5}
 	p := NewPainter(buf, clip, damage)
 
-	style := tui.Style{FG: tui.ColorRed}
+	style := style.Style{FG: style.ColorRed}
 
 	// Write wide character
 	p.SetCell(5, 3, '中', style)
@@ -201,10 +202,10 @@ func TestPainter_SetCell_OverwriteWideCont(t *testing.T) {
 func TestPainter_Text(t *testing.T) {
 	buf := NewBuffer(10, 5)
 	damage := NewDamage(10, 5)
-	clip := tui.Rect{X: 0, Y: 0, W: 10, H: 5}
+	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 5}
 	p := NewPainter(buf, clip, damage)
 
-	style := tui.Style{FG: tui.ColorRed}
+	style := style.Style{FG: style.ColorRed}
 	p.Text(2, 3, "Hello", style)
 
 	// Check each character
@@ -225,10 +226,10 @@ func TestPainter_Text(t *testing.T) {
 func TestPainter_Text_Clipped(t *testing.T) {
 	buf := NewBuffer(10, 5)
 	damage := NewDamage(10, 5)
-	clip := tui.Rect{X: 2, Y: 2, W: 5, H: 3}
+	clip := geom.Rect{X: 2, Y: 2, W: 5, H: 3}
 	p := NewPainter(buf, clip, damage)
 
-	style := tui.Style{FG: tui.ColorRed}
+	style := style.Style{FG: style.ColorRed}
 
 	// Text that extends beyond clip region
 	p.Text(5, 3, "HelloWorld", style)
@@ -251,11 +252,11 @@ func TestPainter_Text_Clipped(t *testing.T) {
 func TestPainter_Fill(t *testing.T) {
 	buf := NewBuffer(10, 5)
 	damage := NewDamage(10, 5)
-	clip := tui.Rect{X: 0, Y: 0, W: 10, H: 5}
+	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 5}
 	p := NewPainter(buf, clip, damage)
 
-	style := tui.Style{FG: tui.ColorRed}
-	rect := tui.Rect{X: 2, Y: 1, W: 5, H: 3}
+	style := style.Style{FG: style.ColorRed}
+	rect := geom.Rect{X: 2, Y: 1, W: 5, H: 3}
 	p.Fill(rect, 'X', style)
 
 	// Check filled area
@@ -277,13 +278,13 @@ func TestPainter_Fill(t *testing.T) {
 func TestPainter_Fill_Clipped(t *testing.T) {
 	buf := NewBuffer(10, 5)
 	damage := NewDamage(10, 5)
-	clip := tui.Rect{X: 2, Y: 2, W: 5, H: 3}
+	clip := geom.Rect{X: 2, Y: 2, W: 5, H: 3}
 	p := NewPainter(buf, clip, damage)
 
-	style := tui.Style{FG: tui.ColorRed}
+	style := style.Style{FG: style.ColorRed}
 
 	// Fill that extends beyond clip region
-	rect := tui.Rect{X: 0, Y: 0, W: 10, H: 5}
+	rect := geom.Rect{X: 0, Y: 0, W: 10, H: 5}
 	p.Fill(rect, 'X', style)
 
 	// Should only fill within clip
@@ -305,10 +306,10 @@ func TestPainter_Fill_Clipped(t *testing.T) {
 func TestPainter_HLine(t *testing.T) {
 	buf := NewBuffer(10, 5)
 	damage := NewDamage(10, 5)
-	clip := tui.Rect{X: 0, Y: 0, W: 10, H: 5}
+	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 5}
 	p := NewPainter(buf, clip, damage)
 
-	style := tui.Style{FG: tui.ColorRed}
+	style := style.Style{FG: style.ColorRed}
 	p.HLine(2, 3, 5, '-', style)
 
 	for x := 2; x < 7; x++ {
@@ -330,10 +331,10 @@ func TestPainter_HLine(t *testing.T) {
 func TestPainter_VLine(t *testing.T) {
 	buf := NewBuffer(10, 10)
 	damage := NewDamage(10, 10)
-	clip := tui.Rect{X: 0, Y: 0, W: 10, H: 10}
+	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 10}
 	p := NewPainter(buf, clip, damage)
 
-	style := tui.Style{FG: tui.ColorRed}
+	style := style.Style{FG: style.ColorRed}
 	p.VLine(5, 2, 4, '|', style)
 
 	for y := 2; y < 6; y++ {
@@ -355,11 +356,11 @@ func TestPainter_VLine(t *testing.T) {
 func TestPainter_Box(t *testing.T) {
 	buf := NewBuffer(10, 10)
 	damage := NewDamage(10, 10)
-	clip := tui.Rect{X: 0, Y: 0, W: 10, H: 10}
+	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 10}
 	p := NewPainter(buf, clip, damage)
 
-	style := tui.Style{FG: tui.ColorRed}
-	rect := tui.Rect{X: 2, Y: 3, W: 6, H: 4}
+	style := style.Style{FG: style.ColorRed}
+	rect := geom.Rect{X: 2, Y: 3, W: 6, H: 4}
 	p.Box(rect, style)
 
 	// Check corners
@@ -367,10 +368,10 @@ func TestPainter_Box(t *testing.T) {
 		x, y int
 		ch   rune
 	}{
-		{2, 3, '┌'},  // Top-left
-		{7, 3, '┐'},  // Top-right
-		{2, 6, '└'},  // Bottom-left
-		{7, 6, '┘'},  // Bottom-right
+		{2, 3, '┌'}, // Top-left
+		{7, 3, '┐'}, // Top-right
+		{2, 6, '└'}, // Bottom-left
+		{7, 6, '┘'}, // Bottom-right
 	}
 
 	for _, c := range corners {
@@ -412,11 +413,11 @@ func TestPainter_Box(t *testing.T) {
 func TestPainter_Box_SingleCell(t *testing.T) {
 	buf := NewBuffer(10, 10)
 	damage := NewDamage(10, 10)
-	clip := tui.Rect{X: 0, Y: 0, W: 10, H: 10}
+	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 10}
 	p := NewPainter(buf, clip, damage)
 
-	style := tui.Style{FG: tui.ColorRed}
-	rect := tui.Rect{X: 5, Y: 5, W: 1, H: 1}
+	style := style.Style{FG: style.ColorRed}
+	rect := geom.Rect{X: 5, Y: 5, W: 1, H: 1}
 	p.Box(rect, style)
 
 	// Single cell box: top-left and top-right are at same position
@@ -430,14 +431,14 @@ func TestPainter_Box_SingleCell(t *testing.T) {
 func TestPainter_Box_EmptyRect(t *testing.T) {
 	buf := NewBuffer(10, 10)
 	damage := NewDamage(10, 10)
-	clip := tui.Rect{X: 0, Y: 0, W: 10, H: 10}
+	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 10}
 	p := NewPainter(buf, clip, damage)
 
-	style := tui.Style{FG: tui.ColorRed}
+	style := style.Style{FG: style.ColorRed}
 
 	// Empty rect should do nothing
-	p.Box(tui.Rect{X: 5, Y: 5, W: 0, H: 5}, style)
-	p.Box(tui.Rect{X: 5, Y: 5, W: 5, H: 0}, style)
+	p.Box(geom.Rect{X: 5, Y: 5, W: 0, H: 5}, style)
+	p.Box(geom.Rect{X: 5, Y: 5, W: 5, H: 0}, style)
 
 	// Buffer should be empty
 	for y := 0; y < buf.H; y++ {

@@ -1,4 +1,10 @@
-package tui
+// Package style provides color and style types for the tui library.
+//
+// These types are shared across render, backend, and the root tui package
+// to avoid import cycles.
+//
+// This package is unstable before v0.1.0.
+package style
 
 // Color represents a terminal color.
 type Color uint16

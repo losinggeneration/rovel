@@ -3,7 +3,8 @@ package render
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/tui/style"
 )
 
 func TestDiffRuns_EmptyDamage(t *testing.T) {
@@ -26,11 +27,11 @@ func TestDiffRuns_NoChanges(t *testing.T) {
 	// Set same content in both buffers
 	for y := 0; y < 5; y++ {
 		for x := 0; x < 10; x++ {
-			*back.At(x, y) = Cell{R: 'A', Style: tui.Style{FG: tui.ColorRed}}
-			*front.At(x, y) = Cell{R: 'A', Style: tui.Style{FG: tui.ColorRed}}
+			*back.At(x, y) = Cell{R: 'A', Style: style.Style{FG: style.ColorRed}}
+			*front.At(x, y) = Cell{R: 'A', Style: style.Style{FG: style.ColorRed}}
 		}
 	}
-	dmg.AddRect(tui.Rect{X: 0, Y: 0, W: 10, H: 5})
+	dmg.AddRect(geom.Rect{X: 0, Y: 0, W: 10, H: 5})
 
 	runs := DiffRuns(back, front, dmg)
 
@@ -41,7 +42,7 @@ func TestDiffRuns_NoChanges(t *testing.T) {
 
 func TestDiffRuns_NilBuffers(t *testing.T) {
 	dmg := NewDamage(10, 5)
-	dmg.AddRect(tui.Rect{X: 0, Y: 0, W: 10, H: 5})
+	dmg.AddRect(geom.Rect{X: 0, Y: 0, W: 10, H: 5})
 
 	if runs := DiffRuns(nil, NewBuffer(10, 5), dmg); runs != nil {
 		t.Errorf("DiffRuns() with nil back = %v, want nil", runs)
@@ -55,7 +56,7 @@ func TestDiffRuns_SizeMismatch(t *testing.T) {
 	back := NewBuffer(10, 5)
 	front := NewBuffer(8, 5)
 	dmg := NewDamage(10, 5)
-	dmg.AddRect(tui.Rect{X: 0, Y: 0, W: 10, H: 5})
+	dmg.AddRect(geom.Rect{X: 0, Y: 0, W: 10, H: 5})
 
 	runs := DiffRuns(back, front, dmg)
 
@@ -69,8 +70,8 @@ func TestDiffRuns_SingleCellChange(t *testing.T) {
 	front := NewBuffer(10, 5)
 	dmg := NewDamage(10, 5)
 
-	*back.At(5, 2) = Cell{R: 'X', Style: tui.Style{FG: tui.ColorBlue}}
-	*front.At(5, 2) = Cell{R: 'A', Style: tui.Style{FG: tui.ColorRed}}
+	*back.At(5, 2) = Cell{R: 'X', Style: style.Style{FG: style.ColorBlue}}
+	*front.At(5, 2) = Cell{R: 'A', Style: style.Style{FG: style.ColorRed}}
 	dmg.AddSpan(2, 5, 6)
 
 	runs := DiffRuns(back, front, dmg)
@@ -90,8 +91,8 @@ func TestDiffRuns_ContiguousChangesMerged(t *testing.T) {
 
 	// Change cells 3,4,5 in row 2
 	for x := 3; x <= 5; x++ {
-		*back.At(x, 2) = Cell{R: 'X', Style: tui.Style{FG: tui.ColorBlue}}
-		*front.At(x, 2) = Cell{R: 'A', Style: tui.Style{FG: tui.ColorRed}}
+		*back.At(x, 2) = Cell{R: 'X', Style: style.Style{FG: style.ColorBlue}}
+		*front.At(x, 2) = Cell{R: 'A', Style: style.Style{FG: style.ColorRed}}
 	}
 	dmg.AddSpan(2, 3, 6)
 
@@ -135,7 +136,7 @@ func TestDiffRuns_MultipleRows(t *testing.T) {
 	// Change cell in row 3
 	*back.At(5, 3) = Cell{R: 'Y'}
 	*front.At(5, 3) = Cell{R: 'B'}
-	dmg.AddRect(tui.Rect{X: 0, Y: 0, W: 10, H: 5})
+	dmg.AddRect(geom.Rect{X: 0, Y: 0, W: 10, H: 5})
 
 	runs := DiffRuns(back, front, dmg)
 
@@ -294,7 +295,7 @@ func TestCoalesceRuns_Single(t *testing.T) {
 }
 
 func TestCellsDiffer_AllFields(t *testing.T) {
-	base := Cell{R: 'A', Style: tui.Style{FG: tui.ColorRed}, Wide: true, WideCont: false}
+	base := Cell{R: 'A', Style: style.Style{FG: style.ColorRed}, Wide: true, WideCont: false}
 
 	tests := []struct {
 		name string
@@ -310,37 +311,37 @@ func TestCellsDiffer_AllFields(t *testing.T) {
 		{
 			name: "different rune",
 			a:    base,
-			b:    Cell{R: 'B', Style: tui.Style{FG: tui.ColorRed}, Wide: true, WideCont: false},
+			b:    Cell{R: 'B', Style: style.Style{FG: style.ColorRed}, Wide: true, WideCont: false},
 			want: true,
 		},
 		{
 			name: "different style FG",
 			a:    base,
-			b:    Cell{R: 'A', Style: tui.Style{FG: tui.ColorBlue}, Wide: true, WideCont: false},
+			b:    Cell{R: 'A', Style: style.Style{FG: style.ColorBlue}, Wide: true, WideCont: false},
 			want: true,
 		},
 		{
 			name: "different style BG",
 			a:    base,
-			b:    Cell{R: 'A', Style: tui.Style{FG: tui.ColorRed, BG: tui.ColorBlue}, Wide: true, WideCont: false},
+			b:    Cell{R: 'A', Style: style.Style{FG: style.ColorRed, BG: style.ColorBlue}, Wide: true, WideCont: false},
 			want: true,
 		},
 		{
 			name: "different style Attr",
 			a:    base,
-			b:    Cell{R: 'A', Style: tui.Style{FG: tui.ColorRed, Attr: tui.AttrBold}, Wide: true, WideCont: false},
+			b:    Cell{R: 'A', Style: style.Style{FG: style.ColorRed, Attr: style.AttrBold}, Wide: true, WideCont: false},
 			want: true,
 		},
 		{
 			name: "different Wide",
 			a:    base,
-			b:    Cell{R: 'A', Style: tui.Style{FG: tui.ColorRed}, Wide: false, WideCont: false},
+			b:    Cell{R: 'A', Style: style.Style{FG: style.ColorRed}, Wide: false, WideCont: false},
 			want: true,
 		},
 		{
 			name: "different WideCont",
 			a:    base,
-			b:    Cell{R: 'A', Style: tui.Style{FG: tui.ColorRed}, Wide: true, WideCont: true},
+			b:    Cell{R: 'A', Style: style.Style{FG: style.ColorRed}, Wide: true, WideCont: true},
 			want: true,
 		},
 	}

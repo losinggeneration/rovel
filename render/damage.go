@@ -1,6 +1,6 @@
 package render
 
-import "github.com/losinggeneration/tui"
+import "github.com/losinggeneration/tui/geom"
 
 type Span struct {
 	X0 int // inclusive
@@ -50,7 +50,7 @@ func (d *Damage) IsEmpty() bool {
 	return true
 }
 
-func (d *Damage) AddRect(r tui.Rect) {
+func (d *Damage) AddRect(r geom.Rect) {
 	// Clamp to [0..d.W), [0..d.H) and expand to row spans.
 	if r.W <= 0 || r.H <= 0 {
 		return

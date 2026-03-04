@@ -3,7 +3,7 @@ package render
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/tui/style"
 )
 
 func TestNewBuffer(t *testing.T) {
@@ -68,7 +68,7 @@ func TestBuffer_Resize(t *testing.T) {
 		for x := 0; x < 10; x++ {
 			cell := b.At(x, y)
 			cell.R = rune('A' + x%26)
-			cell.Style = tui.Style{FG: tui.Color(x % 16)}
+			cell.Style = style.Style{FG: style.Color(x % 16)}
 		}
 	}
 
@@ -134,12 +134,12 @@ func TestBuffer_Clear(t *testing.T) {
 		for x := 0; x < 10; x++ {
 			cell := b.At(x, y)
 			cell.R = 'X'
-			cell.Style = tui.Style{FG: tui.ColorRed}
+			cell.Style = style.Style{FG: style.ColorRed}
 		}
 	}
 
 	// Clear with specific style
-	clearStyle := tui.Style{FG: tui.ColorBlue, BG: tui.ColorWhite}
+	clearStyle := style.Style{FG: style.ColorBlue, BG: style.ColorWhite}
 	clearCell := Cell{R: ' ', Style: clearStyle}
 	b.Clear(clearCell)
 

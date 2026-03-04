@@ -3,7 +3,7 @@ package render
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/tui/geom"
 )
 
 func TestNewDamage(t *testing.T) {
@@ -92,14 +92,14 @@ func TestDamage_AddRect(t *testing.T) {
 	tests := []struct {
 		name     string
 		w, h     int
-		rect     tui.Rect
+		rect     geom.Rect
 		expected []RowSpans
 	}{
 		{
 			name: "simple rect",
 			w:    10,
 			h:    10,
-			rect: tui.Rect{X: 2, Y: 3, W: 4, H: 2},
+			rect: geom.Rect{X: 2, Y: 3, W: 4, H: 2},
 			expected: []RowSpans{
 				nil, nil, nil,
 				{{X0: 2, X1: 6}},
@@ -111,7 +111,7 @@ func TestDamage_AddRect(t *testing.T) {
 			name: "empty rect (zero width)",
 			w:    10,
 			h:    10,
-			rect: tui.Rect{X: 2, Y: 3, W: 0, H: 2},
+			rect: geom.Rect{X: 2, Y: 3, W: 0, H: 2},
 			expected: []RowSpans{
 				nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 			},
@@ -120,7 +120,7 @@ func TestDamage_AddRect(t *testing.T) {
 			name: "rect clamped to bounds",
 			w:    10,
 			h:    10,
-			rect: tui.Rect{X: 5, Y: 5, W: 10, H: 10},
+			rect: geom.Rect{X: 5, Y: 5, W: 10, H: 10},
 			expected: []RowSpans{
 				nil, nil, nil, nil, nil,
 				{{X0: 5, X1: 10}},
@@ -134,7 +134,7 @@ func TestDamage_AddRect(t *testing.T) {
 			name: "rect completely out of bounds",
 			w:    10,
 			h:    10,
-			rect: tui.Rect{X: 20, Y: 20, W: 5, H: 5},
+			rect: geom.Rect{X: 20, Y: 20, W: 5, H: 5},
 			expected: []RowSpans{
 				nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 			},

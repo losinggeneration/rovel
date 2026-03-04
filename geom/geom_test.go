@@ -1,8 +1,6 @@
-package tui
+package geom
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestRect_Contains(t *testing.T) {
 	tests := []struct {
@@ -151,18 +149,5 @@ func TestRect_Empty(t *testing.T) {
 				t.Errorf("Rect.Empty() = %v, want %v", got, tt.expected)
 			}
 		})
-	}
-}
-
-func TestNewID(t *testing.T) {
-	id1 := NewID()
-	id2 := NewID()
-
-	if id1 == id2 {
-		t.Error("NewID() should generate unique IDs")
-	}
-
-	if id1 == 0 {
-		t.Error("NewID() should not return zero")
 	}
 }

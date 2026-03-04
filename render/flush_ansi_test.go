@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/tui/style"
 )
 
 func TestANSIFlusher_New(t *testing.T) {
@@ -65,7 +65,7 @@ func TestANSIFlusher_emitSGR_Default(t *testing.T) {
 	var buf bytes.Buffer
 	f := NewANSIFlusher(&buf)
 
-	err := f.emitSGR(tui.Style{})
+	err := f.emitSGR(style.Style{})
 
 	if err != nil {
 		t.Errorf("emitSGR() unexpected error: %v", err)
@@ -81,35 +81,35 @@ func TestANSIFlusher_emitSGR_Default(t *testing.T) {
 func TestANSIFlusher_emitSGR_BasicColors(t *testing.T) {
 	tests := []struct {
 		name     string
-		fg       tui.Color
-		bg       tui.Color
+		fg       style.Color
+		bg       style.Color
 		expected string
 	}{
 		{
 			name:     "red foreground",
-			fg:       tui.ColorRed,
+			fg:       style.ColorRed,
 			expected: "\x1b[0;31m",
 		},
 		{
 			name:     "blue foreground",
-			fg:       tui.ColorBlue,
+			fg:       style.ColorBlue,
 			expected: "\x1b[0;34m",
 		},
 		{
 			name:     "green background",
-			bg:       tui.ColorGreen,
+			bg:       style.ColorGreen,
 			expected: "\x1b[0;42m",
 		},
 		{
 			name:     "red on blue",
-			fg:       tui.ColorRed,
-			bg:       tui.ColorBlue,
+			fg:       style.ColorRed,
+			bg:       style.ColorBlue,
 			expected: "\x1b[0;31;44m",
 		},
 		{
 			name:     "white fg yellow bg",
-			fg:       tui.ColorWhite,
-			bg:       tui.ColorYellow,
+			fg:       style.ColorWhite,
+			bg:       style.ColorYellow,
 			expected: "\x1b[0;37;43m",
 		},
 	}
@@ -119,7 +119,7 @@ func TestANSIFlusher_emitSGR_BasicColors(t *testing.T) {
 			var buf bytes.Buffer
 			f := NewANSIFlusher(&buf)
 
-			err := f.emitSGR(tui.Style{FG: tt.fg, BG: tt.bg})
+			err := f.emitSGR(style.Style{FG: tt.fg, BG: tt.bg})
 
 			if err != nil {
 				t.Errorf("emitSGR() unexpected error: %v", err)
@@ -135,29 +135,29 @@ func TestANSIFlusher_emitSGR_BasicColors(t *testing.T) {
 func TestANSIFlusher_emitSGR_BrightColors(t *testing.T) {
 	tests := []struct {
 		name     string
-		fg       tui.Color
-		bg       tui.Color
+		fg       style.Color
+		bg       style.Color
 		expected string
 	}{
 		{
 			name:     "bright red foreground",
-			fg:       tui.ColorBrightRed,
+			fg:       style.ColorBrightRed,
 			expected: "\x1b[0;91m",
 		},
 		{
 			name:     "bright blue foreground",
-			fg:       tui.ColorBrightBlue,
+			fg:       style.ColorBrightBlue,
 			expected: "\x1b[0;94m",
 		},
 		{
 			name:     "bright green background",
-			bg:       tui.ColorBrightGreen,
+			bg:       style.ColorBrightGreen,
 			expected: "\x1b[0;102m",
 		},
 		{
 			name:     "bright red on bright blue",
-			fg:       tui.ColorBrightRed,
-			bg:       tui.ColorBrightBlue,
+			fg:       style.ColorBrightRed,
+			bg:       style.ColorBrightBlue,
 			expected: "\x1b[0;91;104m",
 		},
 	}
@@ -167,7 +167,7 @@ func TestANSIFlusher_emitSGR_BrightColors(t *testing.T) {
 			var buf bytes.Buffer
 			f := NewANSIFlusher(&buf)
 
-			err := f.emitSGR(tui.Style{FG: tt.fg, BG: tt.bg})
+			err := f.emitSGR(style.Style{FG: tt.fg, BG: tt.bg})
 
 			if err != nil {
 				t.Errorf("emitSGR() unexpected error: %v", err)
@@ -185,7 +185,7 @@ func TestANSIFlusher_emitSGR_256Color(t *testing.T) {
 	f := NewANSIFlusher(&buf)
 
 	// Color 232 (first of 256-color range)
-	err := f.emitSGR(tui.Style{FG: 232})
+	err := f.emitSGR(style.Style{FG: 232})
 
 	if err != nil {
 		t.Errorf("emitSGR() unexpected error: %v", err)
@@ -200,47 +200,47 @@ func TestANSIFlusher_emitSGR_256Color(t *testing.T) {
 func TestANSIFlusher_emitSGR_Attributes(t *testing.T) {
 	tests := []struct {
 		name     string
-		attr     tui.AttrMask
+		attr     style.AttrMask
 		expected string
 	}{
 		{
 			name:     "bold",
-			attr:     tui.AttrBold,
+			attr:     style.AttrBold,
 			expected: "\x1b[0;1m",
 		},
 		{
 			name:     "dim",
-			attr:     tui.AttrDim,
+			attr:     style.AttrDim,
 			expected: "\x1b[0;2m",
 		},
 		{
 			name:     "italic",
-			attr:     tui.AttrItalic,
+			attr:     style.AttrItalic,
 			expected: "\x1b[0;3m",
 		},
 		{
 			name:     "underline",
-			attr:     tui.AttrUnderline,
+			attr:     style.AttrUnderline,
 			expected: "\x1b[0;4m",
 		},
 		{
 			name:     "blink",
-			attr:     tui.AttrBlink,
+			attr:     style.AttrBlink,
 			expected: "\x1b[0;5m",
 		},
 		{
 			name:     "reverse",
-			attr:     tui.AttrReverse,
+			attr:     style.AttrReverse,
 			expected: "\x1b[0;7m",
 		},
 		{
 			name:     "bold underline",
-			attr:     tui.AttrBold | tui.AttrUnderline,
+			attr:     style.AttrBold | style.AttrUnderline,
 			expected: "\x1b[0;1;4m",
 		},
 		{
 			name:     "all attributes",
-			attr:     tui.AttrBold | tui.AttrDim | tui.AttrItalic | tui.AttrUnderline | tui.AttrBlink | tui.AttrReverse,
+			attr:     style.AttrBold | style.AttrDim | style.AttrItalic | style.AttrUnderline | style.AttrBlink | style.AttrReverse,
 			expected: "\x1b[0;1;2;3;4;5;7m",
 		},
 	}
@@ -250,7 +250,7 @@ func TestANSIFlusher_emitSGR_Attributes(t *testing.T) {
 			var buf bytes.Buffer
 			f := NewANSIFlusher(&buf)
 
-			err := f.emitSGR(tui.Style{Attr: tt.attr})
+			err := f.emitSGR(style.Style{Attr: tt.attr})
 
 			if err != nil {
 				t.Errorf("emitSGR() unexpected error: %v", err)
@@ -271,10 +271,10 @@ func TestANSIFlusher_emitSGR_Complete(t *testing.T) {
 	var buf bytes.Buffer
 	f := NewANSIFlusher(&buf)
 
-	style := tui.Style{
-		FG:   tui.ColorRed,
-		BG:   tui.ColorBlue,
-		Attr: tui.AttrBold | tui.AttrUnderline,
+	style := style.Style{
+		FG:   style.ColorRed,
+		BG:   style.ColorBlue,
+		Attr: style.AttrBold | style.AttrUnderline,
 	}
 	err := f.emitSGR(style)
 
@@ -341,7 +341,7 @@ func TestANSIFlusher_FlushRuns_Simple(t *testing.T) {
 	back := NewBuffer(10, 5)
 	front := NewBuffer(10, 5)
 
-	*back.At(2, 1) = Cell{R: 'X', Style: tui.Style{FG: tui.ColorRed}}
+	*back.At(2, 1) = Cell{R: 'X', Style: style.Style{FG: style.ColorRed}}
 	*front.At(2, 1) = Cell{R: 'A'} // different
 
 	runs := []Run{{Y: 1, X0: 2, X1: 3}}
@@ -365,8 +365,8 @@ func TestANSIFlusher_FlushRuns_StyleChanges(t *testing.T) {
 	back := NewBuffer(10, 5)
 	front := NewBuffer(10, 5)
 
-	*back.At(2, 1) = Cell{R: 'A', Style: tui.Style{FG: tui.ColorRed}}
-	*back.At(3, 1) = Cell{R: 'B', Style: tui.Style{FG: tui.ColorBlue}}
+	*back.At(2, 1) = Cell{R: 'A', Style: style.Style{FG: style.ColorRed}}
+	*back.At(3, 1) = Cell{R: 'B', Style: style.Style{FG: style.ColorBlue}}
 	*front.At(2, 1) = Cell{R: 'X'}
 	*front.At(3, 1) = Cell{R: 'Y'}
 
@@ -392,8 +392,8 @@ func TestANSIFlusher_FlushRuns_WideChar(t *testing.T) {
 	front := NewBuffer(10, 5)
 
 	// Wide character at position 2
-	*back.At(2, 1) = Cell{R: '日', Wide: true, Style: tui.Style{FG: tui.ColorRed}}
-	*back.At(3, 1) = Cell{R: 0, WideCont: true, Style: tui.Style{FG: tui.ColorRed}}
+	*back.At(2, 1) = Cell{R: '日', Wide: true, Style: style.Style{FG: style.ColorRed}}
+	*back.At(3, 1) = Cell{R: 0, WideCont: true, Style: style.Style{FG: style.ColorRed}}
 	*front.At(2, 1) = Cell{R: 'A'}
 	*front.At(3, 1) = Cell{R: ' '}
 
@@ -417,7 +417,7 @@ func TestANSIFlusher_FlushRuns_UpdatesFront(t *testing.T) {
 	back := NewBuffer(10, 5)
 	front := NewBuffer(10, 5)
 
-	style := tui.Style{FG: tui.ColorRed, BG: tui.ColorBlue}
+	style := style.Style{FG: style.ColorRed, BG: style.ColorBlue}
 	*back.At(2, 1) = Cell{R: 'X', Style: style, Wide: false, WideCont: false}
 	*front.At(2, 1) = Cell{R: 'A'}
 
@@ -438,21 +438,21 @@ func TestANSIFlusher_FlushRuns_UpdatesFront(t *testing.T) {
 func TestAppendFGColor(t *testing.T) {
 	tests := []struct {
 		name     string
-		color    tui.Color
+		color    style.Color
 		expected []int
 	}{
-		{"default", tui.ColorDefault, []int{}},
-		{"black", tui.ColorBlack, []int{30}},
-		{"red", tui.ColorRed, []int{31}},
-		{"green", tui.ColorGreen, []int{32}},
-		{"yellow", tui.ColorYellow, []int{33}},
-		{"blue", tui.ColorBlue, []int{34}},
-		{"magenta", tui.ColorMagenta, []int{35}},
-		{"cyan", tui.ColorCyan, []int{36}},
-		{"white", tui.ColorWhite, []int{37}},
-		{"bright black", tui.ColorBrightBlack, []int{90}},
-		{"bright red", tui.ColorBrightRed, []int{91}},
-		{"bright white", tui.ColorBrightWhite, []int{97}},
+		{"default", style.ColorDefault, []int{}},
+		{"black", style.ColorBlack, []int{30}},
+		{"red", style.ColorRed, []int{31}},
+		{"green", style.ColorGreen, []int{32}},
+		{"yellow", style.ColorYellow, []int{33}},
+		{"blue", style.ColorBlue, []int{34}},
+		{"magenta", style.ColorMagenta, []int{35}},
+		{"cyan", style.ColorCyan, []int{36}},
+		{"white", style.ColorWhite, []int{37}},
+		{"bright black", style.ColorBrightBlack, []int{90}},
+		{"bright red", style.ColorBrightRed, []int{91}},
+		{"bright white", style.ColorBrightWhite, []int{97}},
 	}
 
 	for _, tt := range tests {
@@ -475,21 +475,21 @@ func TestAppendFGColor(t *testing.T) {
 func TestAppendBGColor(t *testing.T) {
 	tests := []struct {
 		name     string
-		color    tui.Color
+		color    style.Color
 		expected []int
 	}{
-		{"default", tui.ColorDefault, []int{}},
-		{"black", tui.ColorBlack, []int{40}},
-		{"red", tui.ColorRed, []int{41}},
-		{"green", tui.ColorGreen, []int{42}},
-		{"yellow", tui.ColorYellow, []int{43}},
-		{"blue", tui.ColorBlue, []int{44}},
-		{"magenta", tui.ColorMagenta, []int{45}},
-		{"cyan", tui.ColorCyan, []int{46}},
-		{"white", tui.ColorWhite, []int{47}},
-		{"bright black", tui.ColorBrightBlack, []int{100}},
-		{"bright red", tui.ColorBrightRed, []int{101}},
-		{"bright white", tui.ColorBrightWhite, []int{107}},
+		{"default", style.ColorDefault, []int{}},
+		{"black", style.ColorBlack, []int{40}},
+		{"red", style.ColorRed, []int{41}},
+		{"green", style.ColorGreen, []int{42}},
+		{"yellow", style.ColorYellow, []int{43}},
+		{"blue", style.ColorBlue, []int{44}},
+		{"magenta", style.ColorMagenta, []int{45}},
+		{"cyan", style.ColorCyan, []int{46}},
+		{"white", style.ColorWhite, []int{47}},
+		{"bright black", style.ColorBrightBlack, []int{100}},
+		{"bright red", style.ColorBrightRed, []int{101}},
+		{"bright white", style.ColorBrightWhite, []int{107}},
 	}
 
 	for _, tt := range tests {

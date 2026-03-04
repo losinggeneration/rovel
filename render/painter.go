@@ -1,16 +1,19 @@
 package render
 
-import "github.com/losinggeneration/tui"
+import (
+	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/tui/style"
+)
 
 // Painter provides an immediate-mode drawing API for rendering to a buffer.
 type Painter struct {
 	buf    *Buffer
-	clip   tui.Rect
+	clip   geom.Rect
 	damage *Damage
 }
 
 // NewPainter creates a new painter.
-func NewPainter(buf *Buffer, clip tui.Rect, damage *Damage) *Painter {
+func NewPainter(buf *Buffer, clip geom.Rect, damage *Damage) *Painter {
 	return &Painter{
 		buf:    buf,
 		clip:   clip,
@@ -19,7 +22,7 @@ func NewPainter(buf *Buffer, clip tui.Rect, damage *Damage) *Painter {
 }
 
 // SetCell writes a single cell with proper wide-char handling.
-func (p *Painter) SetCell(x, y int, r rune, style tui.Style) {
+func (p *Painter) SetCell(x, y int, r rune, style style.Style) {
 	if IsClipped(x, y, p.clip) {
 		return
 	}
@@ -89,7 +92,7 @@ func (p *Painter) SetCell(x, y int, r rune, style tui.Style) {
 }
 
 // Text writes a string at position, advancing by rune width.
-func (p *Painter) Text(x, y int, s string, style tui.Style) {
+func (p *Painter) Text(x, y int, s string, style style.Style) {
 	for _, r := range s {
 		if IsClipped(x, y, p.clip) {
 			break
@@ -100,7 +103,7 @@ func (p *Painter) Text(x, y int, s string, style tui.Style) {
 }
 
 // Fill fills a rect with a repeated rune.
-func (p *Painter) Fill(r tui.Rect, ch rune, style tui.Style) {
+func (p *Painter) Fill(r geom.Rect, ch rune, style style.Style) {
 	r = ClipRect(r, p.clip)
 	if r.Empty() {
 		return
@@ -114,19 +117,19 @@ func (p *Painter) Fill(r tui.Rect, ch rune, style tui.Style) {
 }
 
 // HLine draws a horizontal line.
-func (p *Painter) HLine(x, y, w int, ch rune, style tui.Style) {
-	r := tui.Rect{X: x, Y: y, W: w, H: 1}
+func (p *Painter) HLine(x, y, w int, ch rune, style style.Style) {
+	r := geom.Rect{X: x, Y: y, W: w, H: 1}
 	p.Fill(r, ch, style)
 }
 
 // VLine draws a vertical line.
-func (p *Painter) VLine(x, y, h int, ch rune, style tui.Style) {
-	r := tui.Rect{X: x, Y: y, W: 1, H: h}
+func (p *Painter) VLine(x, y, h int, ch rune, style style.Style) {
+	r := geom.Rect{X: x, Y: y, W: 1, H: h}
 	p.Fill(r, ch, style)
 }
 
 // Box draws a box border.
-func (p *Painter) Box(r tui.Rect, style tui.Style) {
+func (p *Painter) Box(r geom.Rect, style style.Style) {
 	if r.Empty() {
 		return
 	}
@@ -145,11 +148,11 @@ func (p *Painter) Box(r tui.Rect, style tui.Style) {
 
 	// Corners
 	if r.W > 0 && r.H > 0 {
-		p.SetCell(r.X, r.Y, '┌', style)                       // Top-left
-		p.SetCell(r.X+r.W-1, r.Y, '┐', style)                 // Top-right
+		p.SetCell(r.X, r.Y, '┌', style)       // Top-left
+		p.SetCell(r.X+r.W-1, r.Y, '┐', style) // Top-right
 	}
 	if r.W > 0 && r.H > 1 {
-		p.SetCell(r.X, r.Y+r.H-1, '└', style)                 // Bottom-left
-		p.SetCell(r.X+r.W-1, r.Y+r.H-1, '┘', style)           // Bottom-right
+		p.SetCell(r.X, r.Y+r.H-1, '└', style)       // Bottom-left
+		p.SetCell(r.X+r.W-1, r.Y+r.H-1, '┘', style) // Bottom-right
 	}
 }
