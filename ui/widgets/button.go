@@ -1,0 +1,250 @@
+package widgets
+
+import (
+	"unicode/utf8"
+
+	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/tui/style"
+)
+
+// ButtonOpts holds options for creating a Button.
+type ButtonOpts struct {
+	ID tui.ID
+
+	Label string
+
+	// Called when the button is "activated" (Enter or Space) while focused.
+	OnPress func(ctx *tui.Ctx)
+
+	Disabled bool
+
+	// Optional styles. If left as zero values, these defaults are used:
+	// - Normal:   default fg/bg, no attrs
+	// - Focused:  Normal + AttrReverse
+	// - Disabled: Normal + AttrUnderline
+	StyleNormal   style.Style
+	StyleFocused  style.Style
+	StyleDisabled style.Style
+}
+
+// Button is a clickable button widget.
+type Button struct {
+	id       tui.ID
+	rect     tui.Rect
+	label    string
+	disabled bool
+	onPress  func(ctx *tui.Ctx)
+
+	stNormal   style.Style
+	stFocused  style.Style
+	stDisabled style.Style
+}
+
+// NewButton creates a new button with the given label.
+// For more control, use NewButtonOpts.
+func NewButton(label string) *Button {
+	return NewButtonOpts(ButtonOpts{Label: label})
+}
+
+// NewButtonOpts creates a new button with options.
+func NewButtonOpts(opts ButtonOpts) *Button {
+	id := opts.ID
+	if id == (tui.ID(0)) {
+		id = tui.NewID()
+	}
+
+	normal := opts.StyleNormal
+	if normal == (style.Style{}) {
+		normal = style.Style{
+			FG:   style.ColorDefault,
+			BG:   style.ColorDefault,
+			Attr: 0,
+		}
+	}
+
+	focused := opts.StyleFocused
+	if focused == (style.Style{}) {
+		focused = normal
+		focused.Attr |= style.AttrReverse
+	}
+
+	disabled := opts.StyleDisabled
+	if disabled == (style.Style{}) {
+		disabled = normal
+		disabled.Attr |= style.AttrUnderline
+	}
+
+	return &Button{
+		id:         id,
+		label:      opts.Label,
+		disabled:   opts.Disabled,
+		onPress:    opts.OnPress,
+		stNormal:   normal,
+		stFocused:  focused,
+		stDisabled: disabled,
+	}
+}
+
+func (b *Button) ID() tui.ID { return b.id }
+
+func (b *Button) Rect() tui.Rect { return b.rect }
+
+func (b *Button) Layout(r tui.Rect) { b.rect = r }
+
+// MinSize returns the minimum size needed for the button.
+// Render form is: "[ " + label + " ]" => 4 extra columns.
+// Note: rune-count is an approximation for wide chars; good enough for MVP.
+func (b *Button) MinSize() tui.Size {
+	w := 4 + utf8.RuneCountInString(b.label)
+	if w < 4 {
+		w = 4
+	}
+	return tui.Size{W: w, H: 1}
+}
+
+// SetLabel sets the button's label and invalidates the rect.
+func (b *Button) SetLabel(ctx *tui.Ctx, s string) {
+	if b.label == s {
+		return
+	}
+	b.label = s
+	if ctx != nil {
+		ctx.Invalidate(b.rect)
+	}
+}
+
+// SetDisabled sets the disabled state and invalidates the rect.
+func (b *Button) SetDisabled(ctx *tui.Ctx, v bool) {
+	if b.disabled == v {
+		return
+	}
+	b.disabled = v
+	if ctx != nil {
+		ctx.Invalidate(b.rect)
+	}
+}
+
+// SetOnPress sets the callback function for when the button is pressed.
+func (b *Button) SetOnPress(fn func(ctx *tui.Ctx)) {
+	b.onPress = fn
+}
+
+func (b *Button) Paint(p *tui.Painter, ctx *tui.Ctx) {
+	r := b.rect
+	if r.W <= 0 || r.H <= 0 {
+		return
+	}
+
+	focused := ctx != nil && ctx.FocusedID == b.id
+
+	st := b.stNormal
+	if b.disabled {
+		st = b.stDisabled
+	} else if focused {
+		st = b.stFocused
+	}
+
+	// Paint full rect (Paint Contract A already clears damaged spans, but this
+	// keeps the widget visually self-contained when invalidated).
+	p.Fill(r, ' ', st)
+
+	y := r.Y + r.H/2
+
+	text := b.renderText(r.W)
+	x := r.X + (r.W-approxWidth(text))/2
+	if x < r.X {
+		x = r.X
+	}
+
+	p.Text(x, y, text, st)
+}
+
+func (b *Button) Handle(e tui.Event, ctx *tui.Ctx) bool {
+	ke, ok := e.(tui.KeyEvent)
+	if !ok {
+		return false
+	}
+
+	if b.disabled {
+		return false
+	}
+
+	switch ke.Key {
+	case tui.KeyEnter:
+		if b.onPress != nil {
+			b.onPress(ctx)
+		}
+		if ctx != nil {
+			ctx.Invalidate(b.rect)
+		}
+		return true
+
+	case tui.KeyRune:
+		// Space activates buttons in many TUIs.
+		if ke.Rune == ' ' {
+			if b.onPress != nil {
+				b.onPress(ctx)
+			}
+			if ctx != nil {
+				ctx.Invalidate(b.rect)
+			}
+			return true
+		}
+		return false
+
+	default:
+		return false
+	}
+}
+
+// Focusable returns true - buttons can receive focus.
+func (b *Button) Focusable() bool {
+	return true
+}
+
+func (b *Button) renderText(maxW int) string {
+	// Desired: "[ " + label + " ]"
+	// Layout for small widths:
+	// 1: "["
+	// 2: "[]"
+	// 3: "[ ]"
+	// 4+: "[ " + label(truncated) + " ]"
+	if maxW <= 0 {
+		return ""
+	}
+	if maxW == 1 {
+		return "["
+	}
+	if maxW == 2 {
+		return "[]"
+	}
+	if maxW == 3 {
+		return "[ ]"
+	}
+
+	maxLabel := maxW - 4
+	lbl := truncateRunes(b.label, maxLabel)
+	return "[ " + lbl + " ]"
+}
+
+func truncateRunes(s string, max int) string {
+	if max <= 0 || s == "" {
+		return ""
+	}
+	if utf8.RuneCountInString(s) <= max {
+		return s
+	}
+	out := make([]rune, 0, max)
+	for _, r := range s {
+		out = append(out, r)
+		if len(out) == max {
+			break
+		}
+	}
+	return string(out)
+}
+
+func approxWidth(s string) int {
+	// MVP approximation: rune count, not wcwidth.
+	return utf8.RuneCountInString(s)
+}

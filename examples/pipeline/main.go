@@ -29,8 +29,9 @@ func main() {
 	// Create a clip rect for the full buffer
 	clip := tui.Rect{X: 0, Y: 0, W: 80, H: 24}
 
-	// Create a painter
-	painter := render.NewPainter(buf, clip, damage)
+	// Create a painter (no damage tracking — damage is explicit)
+	baseStyle := tui.Style{FG: tui.ColorDefault, BG: tui.ColorDefault}
+	painter := render.NewPainter(buf, clip, baseStyle)
 
 	// Create an ANSI flusher that writes to stdout
 	flusher := render.NewANSIFlusher(os.Stdout)
@@ -43,18 +44,21 @@ func main() {
 
 	// Frame 1: Header box with "loading" message
 	damage.Clear()
+	damage.AddRect(clip)
 	drawHeaderBox(painter, "Loading...")
 	flushAndShowDiff(buf, front, damage, flusher)
 	time.Sleep(750 * time.Millisecond)
 
 	// Frame 2 & 3: Add the rendering pipeline box and diff engine box
 	damage.Clear()
+	damage.AddRect(clip)
 	drawHeaderBox(painter, "Loading...")
 	drawPipelineBox(painter)
 	flushAndShowDiff(buf, front, damage, flusher)
 	time.Sleep(750 * time.Millisecond)
 
 	damage.Clear()
+	damage.AddRect(clip)
 	drawHeaderBox(painter, "Loading...")
 	drawPipelineBox(painter)
 	drawDiffBox(painter)
@@ -63,6 +67,7 @@ func main() {
 
 	// Frame 4 & Wide chars: Add the filled box and wide character test
 	damage.Clear()
+	damage.AddRect(clip)
 	drawHeaderBox(painter, "Loading...")
 	drawPipelineBox(painter)
 	drawDiffBox(painter)
@@ -71,6 +76,7 @@ func main() {
 	time.Sleep(750 * time.Millisecond)
 
 	damage.Clear()
+	damage.AddRect(clip)
 	drawHeaderBox(painter, "Loading...")
 	drawPipelineBox(painter)
 	drawDiffBox(painter)
@@ -81,6 +87,7 @@ func main() {
 
 	// Update frame 3 (diff box): Add text and change size
 	damage.Clear()
+	damage.AddRect(clip)
 	drawHeaderBox(painter, "Loading...")
 	drawPipelineBox(painter)
 	drawDiffBoxUpdated(painter)
@@ -91,8 +98,7 @@ func main() {
 
 	// Update frames 1 & 4: Update header to DONE, add text to filled box
 	damage.Clear()
-	// NOTE: Manual clear needed here because this is a low-level pipeline demo.
-	// With the higher level ctx.Invalidate() & Paint, it will be handled with that.
+	damage.AddRect(clip)
 	clearText := tui.Rect{X: 4, Y: 3, W: 14, H: 1}
 	painter.Fill(clearText, ' ', whiteBlack)
 	drawHeaderBox(painter, "DONE!")
@@ -105,6 +111,7 @@ func main() {
 
 	// Add "Press Enter to exit" text
 	damage.Clear()
+	damage.AddRect(clip)
 	drawHeaderBox(painter, "DONE!")
 	drawPipelineBox(painter)
 	drawDiffBoxUpdated(painter)

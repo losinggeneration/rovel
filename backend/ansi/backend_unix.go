@@ -38,10 +38,10 @@ func New() (*ansiBackend, error) {
 	}
 
 	b := &ansiBackend{
-		r:          os.Stdin,
-		w:          w,
-		size:       size,
-		eventCh:    make(chan event.Event, 8),
+		r:       os.Stdin,
+		w:       w,
+		size:    size,
+		eventCh: make(chan event.Event, 8),
 	}
 
 	return b, nil

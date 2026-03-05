@@ -7,17 +7,17 @@ import (
 
 // Painter provides an immediate-mode drawing API for rendering to a buffer.
 type Painter struct {
-	buf    *Buffer
-	clip   geom.Rect
-	damage *Damage
+	buf       *Buffer
+	clip      geom.Rect
+	baseStyle style.Style
 }
 
 // NewPainter creates a new painter.
-func NewPainter(buf *Buffer, clip geom.Rect, damage *Damage) *Painter {
+func NewPainter(buf *Buffer, clip geom.Rect, baseStyle style.Style) *Painter {
 	return &Painter{
-		buf:    buf,
-		clip:   clip,
-		damage: damage,
+		buf:       buf,
+		clip:      clip,
+		baseStyle: baseStyle,
 	}
 }
 
@@ -46,18 +46,14 @@ func (p *Painter) SetCell(x, y int, r rune, style style.Style) {
 	if cell.WideCont && x > 0 {
 		leadCell := p.buf.At(x-1, y)
 		if leadCell.Wide {
-			leadCell.R = ' '
-			leadCell.Wide = false
-			p.damage.AddSpan(y, x-1, x)
+			*leadCell = Cell{R: ' ', Style: p.baseStyle}
 		}
 	}
 
 	// Rule 2: Clear continuation if we're overwriting a wide lead with narrow
 	if cell.Wide && width == 1 && x+1 < p.buf.W {
 		contCell := p.buf.At(x+1, y)
-		contCell.R = ' '
-		contCell.WideCont = false
-		p.damage.AddSpan(y, x+1, x+2)
+		*contCell = Cell{R: ' ', Style: p.baseStyle}
 	}
 
 	// Rule 3: Check for wide-glyph collision
@@ -66,9 +62,7 @@ func (p *Painter) SetCell(x, y int, r rune, style style.Style) {
 		// If next cell is a wide lead, clear its continuation
 		if nextCell.Wide && x+2 < p.buf.W {
 			contCell := p.buf.At(x+2, y)
-			contCell.R = ' '
-			contCell.WideCont = false
-			p.damage.AddSpan(y, x+2, x+3)
+			*contCell = Cell{R: ' ', Style: p.baseStyle}
 		}
 	}
 
@@ -78,9 +72,6 @@ func (p *Painter) SetCell(x, y int, r rune, style style.Style) {
 	cell.Wide = (width == 2)
 	cell.WideCont = false
 
-	// Mark damage
-	p.damage.AddSpan(y, x, x+width)
-
 	// Write continuation cell for wide characters
 	if width == 2 && x+1 < p.buf.W {
 		contCell := p.buf.At(x+1, y)
@@ -89,6 +80,16 @@ func (p *Painter) SetCell(x, y int, r rune, style style.Style) {
 		contCell.Wide = false
 		contCell.WideCont = true
 	}
+}
+
+// ClipRect returns the current clip rect.
+func (p *Painter) ClipRect() geom.Rect {
+	return p.clip
+}
+
+// SetClipRect sets the clip rect (no normalization, caller responsible).
+func (p *Painter) SetClipRect(r geom.Rect) {
+	p.clip = r
 }
 
 // Text writes a string at position, advancing by rune width.

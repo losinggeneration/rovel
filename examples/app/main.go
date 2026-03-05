@@ -82,8 +82,8 @@ func (v *DemoView) Rect() geom.Rect {
 func (v *DemoView) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	// Draw a border box
 	p.Box(v.rect, tui.Style{
-		FG: tui.ColorCyan,
-		BG: tui.ColorBlack,
+		FG:   tui.ColorCyan,
+		BG:   tui.ColorBlack,
 		Attr: tui.AttrBold,
 	})
 
@@ -91,16 +91,16 @@ func (v *DemoView) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	title := " Demo View "
 	titleX := v.rect.X + (v.rect.W-len(title))/2
 	p.Text(titleX, v.rect.Y, title, tui.Style{
-		FG: tui.ColorYellow,
-		BG: tui.ColorBlue,
+		FG:   tui.ColorYellow,
+		BG:   tui.ColorBlue,
 		Attr: tui.AttrBold,
 	})
 
 	// Draw counter text
 	counterText := fmt.Sprintf("Counter: %d", v.ctr)
 	p.Text(v.rect.X+2, v.rect.Y+2, counterText, tui.Style{
-		FG: tui.ColorGreen,
-		BG: tui.ColorBlack,
+		FG:   tui.ColorGreen,
+		BG:   tui.ColorBlack,
 		Attr: tui.AttrBold,
 	})
 
@@ -126,8 +126,8 @@ func (v *DemoView) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	if v.ticker {
 		tickerText := "[ticker ON]"
 		p.Text(v.rect.X+v.rect.W-len(tickerText)-2, v.rect.Y, tickerText, tui.Style{
-			FG: tui.ColorGreen,
-			BG: tui.ColorBlack,
+			FG:   tui.ColorGreen,
+			BG:   tui.ColorBlack,
 			Attr: tui.AttrBold,
 		})
 	}

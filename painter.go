@@ -58,3 +58,23 @@ func (p *Painter) VLine(x, y, h int, ch rune, st style.Style) {
 func (p *Painter) Box(r geom.Rect, st style.Style) {
 	p.paint.Box(r, st)
 }
+
+// ClipRect returns the current clip rect for this painter.
+func (p *Painter) ClipRect() geom.Rect {
+	return p.paint.ClipRect()
+}
+
+// WithClip intersects the current clip with r, sets it for the duration of fn,
+// then restores the previous clip. Skips calling fn if intersection is empty.
+func (p *Painter) WithClip(r geom.Rect, fn func(p *Painter)) {
+	cur := p.paint.ClipRect()
+	next := cur.Intersect(r)
+	if next.W <= 0 || next.H <= 0 {
+		return
+	}
+
+	p.paint.SetClipRect(next)
+	defer p.paint.SetClipRect(cur)
+
+	fn(p)
+}

@@ -7,16 +7,22 @@ import (
 
 // Theme defines the base style for rendering.
 type Theme struct {
-	Base style.Style
+	Base  style.Style
+	Focus style.Style
 }
 
 // DefaultTheme returns the default theme with sensible defaults.
 func DefaultTheme() Theme {
+	base := style.Style{
+		FG: style.ColorDefault,
+		BG: style.ColorDefault,
+	}
+	focus := base
+	focus.Attr |= style.AttrReverse
+
 	return Theme{
-		Base: style.Style{
-			FG: style.ColorWhite,
-			BG: style.ColorBlack,
-		},
+		Base:  base,
+		Focus: focus,
 	}
 }
 

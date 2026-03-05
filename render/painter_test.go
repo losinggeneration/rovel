@@ -9,10 +9,10 @@ import (
 
 func TestNewPainter(t *testing.T) {
 	buf := NewBuffer(10, 5)
-	damage := NewDamage(10, 5)
 	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 5}
+	base := style.Style{FG: style.ColorRed}
 
-	p := NewPainter(buf, clip, damage)
+	p := NewPainter(buf, clip, base)
 
 	if p.buf != buf {
 		t.Error("NewPainter() buf not set correctly")
@@ -20,16 +20,15 @@ func TestNewPainter(t *testing.T) {
 	if p.clip != clip {
 		t.Error("NewPainter() clip not set correctly")
 	}
-	if p.damage != damage {
-		t.Error("NewPainter() damage not set correctly")
+	if p.baseStyle != base {
+		t.Error("NewPainter() baseStyle not set correctly")
 	}
 }
 
 func TestPainter_SetCell(t *testing.T) {
 	buf := NewBuffer(10, 5)
-	damage := NewDamage(10, 5)
 	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 5}
-	p := NewPainter(buf, clip, damage)
+	p := NewPainter(buf, clip, style.Style{})
 
 	style := style.Style{FG: style.ColorRed}
 	p.SetCell(5, 3, 'A', style)
@@ -47,18 +46,12 @@ func TestPainter_SetCell(t *testing.T) {
 	if cell.WideCont {
 		t.Error("SetCell() WideCont should be false for narrow rune")
 	}
-
-	// Check damage
-	if len(damage.Rows[3]) != 1 {
-		t.Errorf("SetCell() damage rows = %d, want 1", len(damage.Rows[3]))
-	}
 }
 
 func TestPainter_SetCell_Clipped(t *testing.T) {
 	buf := NewBuffer(10, 5)
-	damage := NewDamage(10, 5)
 	clip := geom.Rect{X: 2, Y: 2, W: 5, H: 3}
-	p := NewPainter(buf, clip, damage)
+	p := NewPainter(buf, clip, style.Style{})
 
 	style := style.Style{FG: style.ColorRed}
 
@@ -83,9 +76,8 @@ func TestPainter_SetCell_Clipped(t *testing.T) {
 
 func TestPainter_SetCell_Wide(t *testing.T) {
 	buf := NewBuffer(10, 5)
-	damage := NewDamage(10, 5)
 	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 5}
-	p := NewPainter(buf, clip, damage)
+	p := NewPainter(buf, clip, style.Style{})
 
 	style := style.Style{FG: style.ColorRed}
 
@@ -118,9 +110,8 @@ func TestPainter_SetCell_Wide(t *testing.T) {
 
 func TestPainter_SetCell_WideAtEdge(t *testing.T) {
 	buf := NewBuffer(10, 5)
-	damage := NewDamage(10, 5)
 	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 5}
-	p := NewPainter(buf, clip, damage)
+	p := NewPainter(buf, clip, style.Style{})
 
 	style := style.Style{FG: style.ColorRed}
 
@@ -138,9 +129,8 @@ func TestPainter_SetCell_WideAtEdge(t *testing.T) {
 
 func TestPainter_SetCell_OverwriteWideLead(t *testing.T) {
 	buf := NewBuffer(10, 5)
-	damage := NewDamage(10, 5)
 	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 5}
-	p := NewPainter(buf, clip, damage)
+	p := NewPainter(buf, clip, style.Style{})
 
 	style := style.Style{FG: style.ColorRed}
 
@@ -171,9 +161,8 @@ func TestPainter_SetCell_OverwriteWideLead(t *testing.T) {
 
 func TestPainter_SetCell_OverwriteWideCont(t *testing.T) {
 	buf := NewBuffer(10, 5)
-	damage := NewDamage(10, 5)
 	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 5}
-	p := NewPainter(buf, clip, damage)
+	p := NewPainter(buf, clip, style.Style{})
 
 	style := style.Style{FG: style.ColorRed}
 
@@ -201,9 +190,8 @@ func TestPainter_SetCell_OverwriteWideCont(t *testing.T) {
 
 func TestPainter_Text(t *testing.T) {
 	buf := NewBuffer(10, 5)
-	damage := NewDamage(10, 5)
 	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 5}
-	p := NewPainter(buf, clip, damage)
+	p := NewPainter(buf, clip, style.Style{})
 
 	style := style.Style{FG: style.ColorRed}
 	p.Text(2, 3, "Hello", style)
@@ -217,17 +205,12 @@ func TestPainter_Text(t *testing.T) {
 		}
 	}
 
-	// Check damage spans
-	if len(damage.Rows[3]) != 1 {
-		t.Errorf("Text() should create one damage span, got %d", len(damage.Rows[3]))
-	}
 }
 
 func TestPainter_Text_Clipped(t *testing.T) {
 	buf := NewBuffer(10, 5)
-	damage := NewDamage(10, 5)
 	clip := geom.Rect{X: 2, Y: 2, W: 5, H: 3}
-	p := NewPainter(buf, clip, damage)
+	p := NewPainter(buf, clip, style.Style{})
 
 	style := style.Style{FG: style.ColorRed}
 
@@ -251,9 +234,8 @@ func TestPainter_Text_Clipped(t *testing.T) {
 
 func TestPainter_Fill(t *testing.T) {
 	buf := NewBuffer(10, 5)
-	damage := NewDamage(10, 5)
 	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 5}
-	p := NewPainter(buf, clip, damage)
+	p := NewPainter(buf, clip, style.Style{})
 
 	style := style.Style{FG: style.ColorRed}
 	rect := geom.Rect{X: 2, Y: 1, W: 5, H: 3}
@@ -277,9 +259,8 @@ func TestPainter_Fill(t *testing.T) {
 
 func TestPainter_Fill_Clipped(t *testing.T) {
 	buf := NewBuffer(10, 5)
-	damage := NewDamage(10, 5)
 	clip := geom.Rect{X: 2, Y: 2, W: 5, H: 3}
-	p := NewPainter(buf, clip, damage)
+	p := NewPainter(buf, clip, style.Style{})
 
 	style := style.Style{FG: style.ColorRed}
 
@@ -305,9 +286,8 @@ func TestPainter_Fill_Clipped(t *testing.T) {
 
 func TestPainter_HLine(t *testing.T) {
 	buf := NewBuffer(10, 5)
-	damage := NewDamage(10, 5)
 	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 5}
-	p := NewPainter(buf, clip, damage)
+	p := NewPainter(buf, clip, style.Style{})
 
 	style := style.Style{FG: style.ColorRed}
 	p.HLine(2, 3, 5, '-', style)
@@ -330,9 +310,8 @@ func TestPainter_HLine(t *testing.T) {
 
 func TestPainter_VLine(t *testing.T) {
 	buf := NewBuffer(10, 10)
-	damage := NewDamage(10, 10)
 	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 10}
-	p := NewPainter(buf, clip, damage)
+	p := NewPainter(buf, clip, style.Style{})
 
 	style := style.Style{FG: style.ColorRed}
 	p.VLine(5, 2, 4, '|', style)
@@ -355,9 +334,8 @@ func TestPainter_VLine(t *testing.T) {
 
 func TestPainter_Box(t *testing.T) {
 	buf := NewBuffer(10, 10)
-	damage := NewDamage(10, 10)
 	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 10}
-	p := NewPainter(buf, clip, damage)
+	p := NewPainter(buf, clip, style.Style{})
 
 	style := style.Style{FG: style.ColorRed}
 	rect := geom.Rect{X: 2, Y: 3, W: 6, H: 4}
@@ -412,9 +390,8 @@ func TestPainter_Box(t *testing.T) {
 
 func TestPainter_Box_SingleCell(t *testing.T) {
 	buf := NewBuffer(10, 10)
-	damage := NewDamage(10, 10)
 	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 10}
-	p := NewPainter(buf, clip, damage)
+	p := NewPainter(buf, clip, style.Style{})
 
 	style := style.Style{FG: style.ColorRed}
 	rect := geom.Rect{X: 5, Y: 5, W: 1, H: 1}
@@ -430,9 +407,8 @@ func TestPainter_Box_SingleCell(t *testing.T) {
 
 func TestPainter_Box_EmptyRect(t *testing.T) {
 	buf := NewBuffer(10, 10)
-	damage := NewDamage(10, 10)
 	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 10}
-	p := NewPainter(buf, clip, damage)
+	p := NewPainter(buf, clip, style.Style{})
 
 	style := style.Style{FG: style.ColorRed}
 

@@ -8,9 +8,9 @@ import (
 
 // App represents a TUI application.
 type App struct {
-	opts     AppOpts
-	backend  backend.Backend
-	size     geom.Size
+	opts    AppOpts
+	backend backend.Backend
+	size    geom.Size
 
 	// Buffers for double-buffered rendering
 	backBuf  *render.Buffer
@@ -19,8 +19,12 @@ type App struct {
 	flusher  *render.ANSIFlusher
 
 	// View management
-	root     View
-	views    map[ID]View
+	root  View
+	views map[ID]View
+
+	// Rect tracking for bounded focus invalidation.
+	// Populated after layout via updateRectTracking().
+	rectByID map[ID]geom.Rect
 
 	// Layout state
 	layoutDirty bool
@@ -33,6 +37,10 @@ type App struct {
 
 	// Event channel
 	eventCh chan Event
+
+	// Posted work channel for cross-goroutine updates
+	postCh chan func(*Ctx)
+	wakeCh chan struct{}
 
 	// Running state
 	running bool
@@ -47,12 +55,7 @@ type backendWriter struct {
 }
 
 func (w *backendWriter) Write(p []byte) (int, error) {
-	n, err := w.b.Write(p)
-	if err != nil {
-		return n, err
-	}
-	// Flush after each write to ensure output is sent
-	return n, w.b.Flush()
+	return w.b.Write(p)
 }
 
 // New creates a new App with the given options.
@@ -60,13 +63,16 @@ func New(opts AppOpts) (*App, error) {
 	size := geom.Size{W: 80, H: 24} // Default, will be updated on Enable
 
 	app := &App{
-		opts:         opts,
-		size:         size,
-		backBuf:      render.NewBuffer(size.W, size.H),
-		frontBuf:     render.NewBuffer(size.W, size.H),
-		damage:       render.NewDamage(size.W, size.H),
-		views:        make(map[ID]View),
-		eventCh:      make(chan Event, 16),
+		opts:     opts,
+		size:     size,
+		backBuf:  render.NewBuffer(size.W, size.H),
+		frontBuf: render.NewBuffer(size.W, size.H),
+		damage:   render.NewDamage(size.W, size.H),
+		views:    make(map[ID]View),
+		rectByID: make(map[ID]geom.Rect),
+		eventCh:  make(chan Event, 16),
+		postCh:   make(chan func(*Ctx), 32),
+		wakeCh:   make(chan struct{}, 1),
 	}
 
 	// Create flusher - will be set to backend writer on Enable
@@ -85,6 +91,11 @@ func (a *App) SetRoot(v View) {
 // addView adds a view to the view registry.
 func (a *App) addView(v View) {
 	a.views[v.ID()] = v
+
+	// Track rect for focus invalidation (will be updated during layout).
+	if _, ok := a.rectByID[v.ID()]; !ok {
+		a.rectByID[v.ID()] = geom.Rect{} // Empty until first layout
+	}
 
 	// Recursively add child views if this is a container
 	if container, ok := v.(interface{ Children() []View }); ok {
@@ -177,6 +188,34 @@ func (a *App) resizeBuffers(w, h int) {
 	a.size = geom.Size{W: w, H: h}
 }
 
+// updateRectTracking walks the view tree and records rects for bounded focus
+// invalidation. Must be called after layout.
+func (a *App) updateRectTracking() {
+	if a.root == nil {
+		return
+	}
+	visited := make(map[ID]struct{}, 64)
+	a.updateRectTrackingView(a.root, visited)
+}
+
+// updateRectTrackingView recursively updates rect tracking for a view and its children.
+func (a *App) updateRectTrackingView(v View, visited map[ID]struct{}) {
+	id := v.ID()
+	if _, ok := visited[id]; ok {
+		return
+	}
+	visited[id] = struct{}{}
+
+	a.rectByID[id] = v.Rect()
+
+	// Recursively update children
+	if c, ok := v.(interface{ Children() []View }); ok {
+		for _, child := range c.Children() {
+			a.updateRectTrackingView(child, visited)
+		}
+	}
+}
+
 // layout performs a full layout pass from the root.
 func (a *App) layout() {
 	if a.root == nil {
@@ -186,6 +225,9 @@ func (a *App) layout() {
 	// Layout the root view to fill the entire screen
 	fullRect := geom.Rect{X: 0, Y: 0, W: a.size.W, H: a.size.H}
 	a.root.Layout(fullRect)
+
+	// Update rect tracking for bounded focus invalidation.
+	a.updateRectTracking()
 
 	a.layoutDirty = false
 }
@@ -199,12 +241,28 @@ func (a *App) Run() error {
 
 	// Main event loop
 	for a.running {
-		// Wait for an event or a tick
+		ctx := a.mkCtx(a.root)
+
+		// Drain posted work
+		for {
+			select {
+			case fn := <-a.postCh:
+				fn(ctx)
+			default:
+				goto done
+			}
+		}
+	done:
+
+		// Handle events or wake signal
 		select {
 		case e := <-a.eventCh:
 			a.handleEvent(e)
 
 			// After handling events, render if needed
+			a.render()
+		case <-a.wakeCh:
+			// Just wake up, will render in next iteration if needed
 			a.render()
 		}
 	}
@@ -230,17 +288,9 @@ func (a *App) handleEvent(e Event) {
 	}
 }
 
-// handleKeyEvent processes a key event.
+// handleKeyEvent processes a key event by dispatching through the root.
+// Containers route to their focused descendant, then handle Tab cycling.
 func (a *App) handleKeyEvent(e KeyEvent) {
-	// If we have a focused view, send the event to it first
-	if focused, ok := a.views[a.focusedID]; ok {
-		ctx := a.mkCtx(focused)
-		if focused.Handle(e, ctx) {
-			return
-		}
-	}
-
-	// If not handled, try the root
 	if a.root != nil {
 		ctx := a.mkCtx(a.root)
 		a.root.Handle(e, ctx)
@@ -277,19 +327,43 @@ func (a *App) InvalidateLayout(id ID) {
 // mkCtx creates a context for a view.
 func (a *App) mkCtx(v View) *Ctx {
 	return &Ctx{
-		invalidate:       func(r geom.Rect) { a.Invalidate(r) },
-		invalidateAll:    func() { a.InvalidateAll() },
-		invalidateLayout: func(id ID) { a.InvalidateLayout(id) },
-		requestFocus:     func(id ID) { a.setRequestFocus(id) },
-		focusedID:        a.focusedID,
+		Theme:            a.opts.Theme,
+		Invalidate:       func(r geom.Rect) { a.Invalidate(r) },
+		InvalidateAll:    func() { a.InvalidateAll() },
+		InvalidateLayout: func(id ID) { a.InvalidateLayout(id) },
+		RequestFocus:     func(id ID) { a.setRequestFocus(id) },
+		FocusedID:        a.focusedID,
 	}
 }
 
-// setRequestFocus requests focus for a view.
+// setRequestFocus requests focus for a view, using bounded invalidation when
+// rects are known.
 func (a *App) setRequestFocus(id ID) {
+	old := a.focusedID
+	if old == id {
+		return
+	}
+
 	a.focusedID = id
-	// Invalidate to show focus change
-	a.InvalidateAll()
+
+	oldRect, okOld := a.rectByID[old]
+	newRect, okNew := a.rectByID[id]
+
+	// Treat empty rect as unknown (handles pre-layout focus requests)
+	unknownOld := !okOld || oldRect.Empty()
+	unknownNew := !okNew || newRect.Empty()
+
+	if !unknownOld {
+		a.Invalidate(oldRect)
+	}
+	if !unknownNew {
+		a.Invalidate(newRect)
+	}
+
+	// Fallback for early startup / unknown IDs (should be rare).
+	if unknownOld || unknownNew {
+		a.InvalidateAll()
+	}
 }
 
 // render performs a single render frame.
@@ -360,7 +434,7 @@ func (a *App) paintViews() {
 	// For MVP, we'll create one painter with full clip and let views paint
 	// The clipping will happen in the render.Painter
 	clip := geom.Rect{X: 0, Y: 0, W: a.size.W, H: a.size.H}
-	rp := render.NewPainter(a.backBuf, clip, a.damage)
+	rp := render.NewPainter(a.backBuf, clip, a.opts.Theme.Base)
 	p := NewPainter(rp, a.opts.Theme.Base)
 
 	// Paint the root (which will paint its children)
@@ -373,11 +447,36 @@ func (a *App) flush() {
 	if len(runs) > 0 {
 		a.flusher.FlushRuns(a.backBuf, a.frontBuf, runs)
 	}
+	a.backend.Flush()
 }
 
 // Quit stops the application.
 func (a *App) Quit() {
 	a.running = false
+}
+
+// Post runs fn on the app goroutine before the next frame.
+// Safe to call from any goroutine.
+func (a *App) Post(fn func(*Ctx)) bool {
+	if fn == nil {
+		return false
+	}
+	select {
+	case a.postCh <- fn:
+		a.Wake()
+		return true
+	default:
+		return false
+	}
+}
+
+// Wake wakes up the event loop without posting any work.
+// Useful for signaling that external state has changed.
+func (a *App) Wake() {
+	select {
+	case a.wakeCh <- struct{}{}:
+	default:
+	}
 }
 
 // Size returns the current terminal size.
