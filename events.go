@@ -20,6 +20,7 @@ const (
 	KeyEsc       = event.KeyEsc
 	KeyTab       = event.KeyTab
 	KeyBackspace = event.KeyBackspace
+	KeyCtrlC     = event.KeyCtrlC
 	KeyUp        = event.KeyUp
 	KeyDown      = event.KeyDown
 	KeyLeft      = event.KeyLeft

@@ -22,6 +22,7 @@ const (
 	KeyEsc
 	KeyTab
 	KeyBackspace
+	KeyCtrlC // Ctrl+C for quit
 
 	// Arrow keys
 	KeyUp

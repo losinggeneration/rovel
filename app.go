@@ -256,10 +256,19 @@ func (a *App) Run() error {
 
 		// Handle events or wake signal
 		select {
-		case e := <-a.eventCh:
+		case e, ok := <-a.eventCh:
+			if !ok {
+				// Channel closed, exit
+				return nil
+			}
 			a.handleEvent(e)
 
-			// After handling events, render if needed
+			// After handling events, check if we should quit
+			if !a.running {
+				return nil
+			}
+
+			// Render if needed
 			a.render()
 		case <-a.wakeCh:
 			// Just wake up, will render in next iteration if needed
@@ -272,8 +281,15 @@ func (a *App) Run() error {
 
 // readEvents reads events from the backend and sends them to the event channel.
 func (a *App) readEvents() {
+	defer close(a.eventCh)
+
 	for a.running {
 		e := a.backend.ReadEvent()
+		if e == nil {
+			// Backend shutdown/EOF.
+			// Contract: Backend.ReadEvent() returns nil only on shutdown/EOF.
+			return
+		}
 		a.eventCh <- e
 	}
 }
