@@ -108,7 +108,7 @@ func expandForWide(back, front *Buffer, y, x0, x1 int) (int, int) {
 }
 
 func coalesceRuns(runs []Run) []Run {
-	// MVP: simple O(n log n) sort by (Y, X0) and merge.
+	// For now: simple O(n log n) sort by (Y, X0) and merge.
 	// TODO: implement; for now assume produced in sorted order by scan.
 	if len(runs) <= 1 {
 		return runs

@@ -16,23 +16,18 @@ type signalHandler struct {
 	resizeCh chan geom.Size
 	stopCh   chan struct{}
 	once     sync.Once
+	wakePipe *os.File // write end of wake pipe
 }
 
-// setupResizeHandler sets up a SIGWINCH signal handler.
-// It returns an initial size event on the channel.
-func setupResizeHandler() (*signalHandler, error) {
-	size, err := getTerminalSize()
-	if err != nil {
-		return nil, err
-	}
-
+// setupResizeHandler sets up a SIGWINCH signal handler for future resize events.
+// It does not synthesize an initial ResizeEvent; the initial terminal size is
+// obtained synchronously from Enable() / Size().
+func setupResizeHandler(wakePipe *os.File) (*signalHandler, error) {
 	h := &signalHandler{
 		resizeCh: make(chan geom.Size, 1),
 		stopCh:   make(chan struct{}),
+		wakePipe: wakePipe,
 	}
-
-	// Send initial size
-	h.resizeCh <- size
 
 	// Start signal listener
 	sigCh := make(chan os.Signal, 1)
@@ -45,11 +40,13 @@ func setupResizeHandler() (*signalHandler, error) {
 				if newSize, err := getTerminalSize(); err == nil {
 					select {
 					case h.resizeCh <- newSize:
+						h.wakePoll()
 					default:
 						// Channel full, drop old size
 						select {
 						case <-h.resizeCh:
 							h.resizeCh <- newSize
+							h.wakePoll()
 						default:
 						}
 					}
@@ -68,6 +65,16 @@ func setupResizeHandler() (*signalHandler, error) {
 // ResizeChan returns the read-only channel for resize events.
 func (h *signalHandler) ResizeChan() <-chan geom.Size {
 	return h.resizeCh
+}
+
+// wakePoll writes a byte to the wake pipe to unblock a blocking poll call.
+// Best-effort: all errors are ignored (pipe may be full or already closed).
+func (h *signalHandler) wakePoll() {
+	if h.wakePipe != nil {
+		var b [1]byte
+		b[0] = 1
+		h.wakePipe.Write(b[:])
+	}
 }
 
 // Stop stops the signal handler.

@@ -29,6 +29,12 @@ const (
 	KeyDown
 	KeyLeft
 	KeyRight
+
+	// Function keys (SS3 P/Q/R/S)
+	KeyF1
+	KeyF2
+	KeyF3
+	KeyF4
 )
 
 // ModMask represents keyboard modifiers.

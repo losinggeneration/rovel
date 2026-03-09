@@ -63,9 +63,9 @@ func TestRuneWidth_Emoji(t *testing.T) {
 
 	for _, r := range emoji {
 		width := RuneWidth(r)
-		// In our MVP implementation, these default to width 1
+		// In our current implementation, these default to width 1
 		// (they're outside the CJK ranges we check)
-		// This is acceptable for MVP
+		// This is acceptable for now
 		if width < 0 || width > 2 {
 			t.Errorf("RuneWidth(%c) = %d, want 1 or 2", r, width)
 		}

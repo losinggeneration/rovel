@@ -8,27 +8,34 @@ import (
 	"github.com/losinggeneration/tui/event"
 )
 
+// KeyDecoder decodes deterministic byte streams into KeyEvents.
+//
+// INVARIANT: The decoder must never silently drop bytes.
+// If a byte or buffered sequence cannot be interpreted in the current state,
+// it must either:
+//  1. Be emitted as one or more literal/semantic KeyEvents, or
+//  2. Be replayed in stateGround.
+type KeyDecoder struct {
+	state decodeState
+
+	utf8Buf  [4]byte
+	utf8N    int
+	utf8Need int
+	utf8Mod  event.ModMask
+
+	csiBuf [8]byte
+	csiN   int
+}
+
 type decodeState uint8
 
 const (
 	stateGround decodeState = iota
+	stateEsc
 	stateUTF8
 	stateCSI
+	stateSS3
 )
-
-// KeyDecoder decodes deterministic byte streams into KeyEvents.
-//
-// Important:
-// - ESC disambiguation is handled by the backend, not here.
-// - This decoder only enters CSI mode after the backend has already seen ESC [.
-type KeyDecoder struct {
-	state    decodeState
-	utf8Buf  [4]byte
-	utf8N    int
-	utf8Need int
-	csiBuf   [8]byte
-	csiN     int
-}
 
 // Reset resets the decoder to ground state.
 func (d *KeyDecoder) Reset() {
@@ -40,39 +47,6 @@ func (d *KeyDecoder) State() decodeState {
 	return d.state
 }
 
-// Abort finalizes the current decoder state mid-stream and resets to ground.
-// Returns any recovery events for the incomplete state.
-func (d *KeyDecoder) Abort(dst []event.KeyEvent) []event.KeyEvent {
-	switch d.state {
-	case stateUTF8:
-		// Truncated UTF-8 mid-stream: emit replacement rune.
-		dst = append(dst, event.KeyEvent{
-			Key:  event.KeyRune,
-			Rune: utf8.RuneError,
-		})
-	case stateCSI:
-		// Incomplete CSI sequence mid-stream: preserve as literal.
-		dst = append(dst,
-			event.KeyEvent{Key: event.KeyEsc},
-			event.KeyEvent{Key: event.KeyRune, Rune: '['},
-		)
-		for i := 0; i < d.csiN; i++ {
-			dst = append(dst, event.KeyEvent{
-				Key:  event.KeyRune,
-				Rune: rune(d.csiBuf[i]),
-			})
-		}
-	}
-	d.Reset()
-	return dst
-}
-
-// StartCSI begins decoding a CSI sequence after ESC [ has already been seen.
-func (d *KeyDecoder) StartCSI() {
-	d.state = stateCSI
-	d.csiN = 0
-}
-
 // PushByte processes one byte and appends any generated events to dst.
 func (d *KeyDecoder) PushByte(
 	dst []event.KeyEvent,
@@ -80,98 +54,266 @@ func (d *KeyDecoder) PushByte(
 ) []event.KeyEvent {
 	switch d.state {
 	case stateGround:
-		return d.pushGround(dst, b)
+		return d.handleGround(dst, b)
+	case stateEsc:
+		return d.handleEsc(dst, b)
 	case stateUTF8:
 		return d.pushUTF8(dst, b)
 	case stateCSI:
 		return d.pushCSI(dst, b)
+	case stateSS3:
+		return d.handleSS3(dst, b)
 	default:
 		return dst
 	}
 }
 
+// FlushPending emits events that are safe to resolve at an input boundary
+// without assuming end-of-stream. This only flushes standalone ESC.
+// Partial CSI/SS3/UTF-8 remain pending.
+func (d *KeyDecoder) FlushPending(
+	dst []event.KeyEvent,
+) []event.KeyEvent {
+	if d.state == stateEsc {
+		d.state = stateGround
+		return append(dst, event.KeyEvent{Key: event.KeyEsc})
+	}
+	return dst
+}
+
 // Finalize flushes any incomplete state at end-of-stream.
 func (d *KeyDecoder) Finalize(dst []event.KeyEvent) []event.KeyEvent {
 	switch d.state {
+	case stateEsc:
+		dst = append(dst, event.KeyEvent{Key: event.KeyEsc})
+
+	case stateSS3:
+		dst = append(dst,
+			event.KeyEvent{Key: event.KeyEsc},
+			event.KeyEvent{Key: event.KeyRune, Rune: 'O'},
+		)
+
 	case stateUTF8:
 		dst = append(dst, event.KeyEvent{
 			Key:  event.KeyRune,
 			Rune: utf8.RuneError,
+			Mod:  d.utf8Mod,
 		})
 
 	case stateCSI:
-		// Preserve incomplete ESC [ ... literally.
-		dst = append(dst,
-			event.KeyEvent{Key: event.KeyEsc},
-			event.KeyEvent{Key: event.KeyRune, Rune: '['},
-		)
-		for i := 0; i < d.csiN; i++ {
-			dst = append(dst, event.KeyEvent{
-				Key:  event.KeyRune,
-				Rune: rune(d.csiBuf[i]),
-			})
-		}
+		dst = d.emitLiteralCSI(dst, nil)
 	}
 
 	d.Reset()
 	return dst
 }
 
-func (d *KeyDecoder) pushGround(
-	dst []event.KeyEvent,
-	b byte,
-) []event.KeyEvent {
+func dispatchCSI(final byte) event.Key {
+	switch final {
+	case 'A':
+		return event.KeyUp
+	case 'B':
+		return event.KeyDown
+	case 'C':
+		return event.KeyRight
+	case 'D':
+		return event.KeyLeft
+	default:
+		return event.KeyNone
+	}
+}
+
+func dispatchSS3(final byte) event.Key {
+	switch final {
+	case 'A':
+		return event.KeyUp
+	case 'B':
+		return event.KeyDown
+	case 'C':
+		return event.KeyRight
+	case 'D':
+		return event.KeyLeft
+	case 'P':
+		return event.KeyF1
+	case 'Q':
+		return event.KeyF2
+	case 'R':
+		return event.KeyF3
+	case 'S':
+		return event.KeyF4
+	default:
+		return event.KeyNone
+	}
+}
+
+// interpretSingleByte interprets a single raw byte as a KeyEvent.
+// This is the canonical mapping for single-byte input, used by both
+// normal processing (pushGround) and literal recovery (appendLiteralByte).
+// It handles control characters, printable ASCII, and invalid bytes.
+func interpretSingleByte(dst []event.KeyEvent, b byte) []event.KeyEvent {
+	// Handle special control characters first
 	switch b {
-	case '\t':
+	case 0x09: // \t
 		return append(dst, event.KeyEvent{Key: event.KeyTab})
-
-	case '\r', '\n':
+	case 0x0d, 0x0a: // \r, \n
 		return append(dst, event.KeyEvent{Key: event.KeyEnter})
-
-	case 0x7f, 0x08:
+	case 0x7f, 0x08: // DEL, BS
 		return append(dst, event.KeyEvent{Key: event.KeyBackspace})
-
-	case 0x03:
+	case 0x1b: // ESC
+		return append(dst, event.KeyEvent{Key: event.KeyEsc})
+	case 0x03: // Ctrl+C
 		return append(dst, event.KeyEvent{Key: event.KeyCtrlC})
 	}
 
-	if b >= 0x20 && b <= 0x7e {
+	// Printable ASCII range (space through ~, excluding DEL)
+	if b >= 0x20 && b < 0x7f {
 		return append(dst, event.KeyEvent{
 			Key:  event.KeyRune,
 			Rune: rune(b),
 		})
 	}
 
-	switch {
-	case b < 0x20:
-		// Ignore other control bytes in MVP.
-		return dst
-
-	case b < 0x80:
-		// DEL and other odd single-byte control-ish cases already handled above.
-		return dst
-	}
-
-	// UTF-8 start byte.
-	if n := utf8StartLen(b); n > 1 {
-		d.state = stateUTF8
-		d.utf8Buf[0] = b
-		d.utf8N = 1
-		d.utf8Need = n
-		return dst
-	}
-
-	// Invalid UTF-8 start: emit replacement rune.
+	// Other control bytes (< 0x20 or 0x7f+)
 	return append(dst, event.KeyEvent{
 		Key:  event.KeyRune,
 		Rune: utf8.RuneError,
 	})
 }
 
+// appendLiteralByte appends a single byte as a literal KeyEvent.
+// Delegates to interpretSingleByte for the canonical mapping.
+func appendLiteralByte(dst []event.KeyEvent, b byte) []event.KeyEvent {
+	return interpretSingleByte(dst, b)
+}
+
+func (d *KeyDecoder) emitLiteralCSI(
+	dst []event.KeyEvent,
+	final *byte,
+) []event.KeyEvent {
+	dst = append(dst, event.KeyEvent{Key: event.KeyEsc})
+	dst = append(dst, event.KeyEvent{Key: event.KeyRune, Rune: '['})
+	// CSI non-final bytes are in 0x20..0x3F (all printable ASCII including
+	// private markers like ?, >, =), so appendLiteralByte maps them correctly.
+	for i := 0; i < d.csiN; i++ {
+		dst = appendLiteralByte(dst, d.csiBuf[i])
+	}
+	if final != nil {
+		dst = appendLiteralByte(dst, *final)
+	}
+	d.csiN = 0
+	d.state = stateGround
+	return dst
+}
+
+func (d *KeyDecoder) handleGround(
+	dst []event.KeyEvent,
+	b byte,
+) []event.KeyEvent {
+	if b == 0x1b {
+		d.state = stateEsc
+		return dst
+	}
+	return d.pushGround(dst, b)
+}
+
+func (d *KeyDecoder) handleEsc(
+	dst []event.KeyEvent,
+	b byte,
+) []event.KeyEvent {
+	switch b {
+	case '[':
+		d.state = stateCSI
+		d.csiN = 0
+		return dst
+
+	case 'O':
+		d.state = stateSS3
+		return dst
+
+	case 0x1b:
+		// ESC ESC -> emit one ESC, stay in Esc state.
+		return append(dst, event.KeyEvent{Key: event.KeyEsc})
+	}
+
+	// ESC + UTF-8 start -> Alt+UTF-8
+	if n := utf8StartLen(b); n > 1 {
+		d.state = stateUTF8
+		d.utf8Mod = event.ModAlt
+		d.utf8Buf[0] = b
+		d.utf8N = 1
+		d.utf8Need = n
+		return dst
+	}
+
+	// ESC + printable ASCII -> Alt+Rune
+	if b >= 0x20 && b < 0x7f {
+		d.state = stateGround
+		return append(dst, event.KeyEvent{
+			Key:  event.KeyRune,
+			Rune: rune(b),
+			Mod:  event.ModAlt,
+		})
+	}
+
+	// ESC + other byte -> emit ESC, replay byte in Ground.
+	d.state = stateGround
+	dst = append(dst, event.KeyEvent{Key: event.KeyEsc})
+	return d.PushByte(dst, b)
+}
+
+func isUTF8Cont(b byte) bool {
+	return b >= 0x80 && b <= 0xBF
+}
+
+// isValidUTF8NextByte validates the next byte of an in-progress UTF-8 sequence.
+// first is the lead byte and have is how many bytes are already buffered,
+// including the lead byte. Special constraints apply only to the second byte
+// of certain lead bytes to reject overlong and surrogate encodings.
+func isValidUTF8NextByte(first byte, have int, b byte) bool {
+	if have <= 0 {
+		return false
+	}
+	// Special constraints only apply to the second byte.
+	if have == 1 {
+		switch first {
+		case 0xE0:
+			return b >= 0xA0 && b <= 0xBF
+		case 0xED:
+			return b >= 0x80 && b <= 0x9F
+		case 0xF0:
+			return b >= 0x90 && b <= 0xBF
+		case 0xF4:
+			return b >= 0x80 && b <= 0x8F
+		default:
+			return isUTF8Cont(b)
+		}
+	}
+	return isUTF8Cont(b)
+}
+
 func (d *KeyDecoder) pushUTF8(
 	dst []event.KeyEvent,
 	b byte,
 ) []event.KeyEvent {
+	// First byte is already validated by the caller that entered stateUTF8.
+	// For continuation bytes, validate incrementally so malformed UTF-8 does not
+	// consume unrelated following bytes.
+	if d.utf8N > 0 && !isValidUTF8NextByte(d.utf8Buf[0], d.utf8N, b) {
+		mod := d.utf8Mod
+
+		d.state = stateGround
+		d.utf8N = 0
+		d.utf8Need = 0
+		d.utf8Mod = 0
+
+		dst = append(dst, event.KeyEvent{
+			Key:  event.KeyRune,
+			Rune: utf8.RuneError,
+			Mod:  mod,
+		})
+		return d.PushByte(dst, b)
+	}
+
 	d.utf8Buf[d.utf8N] = b
 	d.utf8N++
 
@@ -181,66 +323,186 @@ func (d *KeyDecoder) pushUTF8(
 
 	r, _ := utf8.DecodeRune(d.utf8Buf[:d.utf8Need])
 
+	mod := d.utf8Mod
 	d.state = stateGround
 	d.utf8N = 0
 	d.utf8Need = 0
+	d.utf8Mod = 0
 
 	if r == utf8.RuneError {
 		return append(dst, event.KeyEvent{
 			Key:  event.KeyRune,
 			Rune: utf8.RuneError,
+			Mod:  mod,
 		})
 	}
 
 	return append(dst, event.KeyEvent{
 		Key:  event.KeyRune,
 		Rune: r,
+		Mod:  mod,
 	})
+}
+
+// parseCSIParams2 parses at most two semicolon-separated numeric CSI params.
+// It rejects private markers, intermediates, empty groups, and more than two
+// params.
+//
+// Returns p0, p1: parsed params; n: count (0, 1, or 2); ok: whether parsing
+// succeeded.
+func parseCSIParams2(buf []byte) (p0, p1, n int, ok bool) {
+	if len(buf) == 0 {
+		return 0, 0, 0, true
+	}
+
+	cur := -1
+	commit := func(v int) bool {
+		switch n {
+		case 0:
+			p0 = v
+		case 1:
+			p1 = v
+		default:
+			return false
+		}
+		n++
+		return true
+	}
+
+	for _, b := range buf {
+		switch {
+		case b >= '0' && b <= '9':
+			if cur < 0 {
+				cur = 0
+			}
+			cur = cur*10 + int(b-'0')
+		case b == ';':
+			if cur < 0 {
+				return 0, 0, 0, false
+			}
+			if !commit(cur) {
+				return 0, 0, 0, false
+			}
+			cur = -1
+		default:
+			return 0, 0, 0, false
+		}
+	}
+
+	if cur < 0 {
+		return 0, 0, 0, false
+	}
+	if !commit(cur) {
+		return 0, 0, 0, false
+	}
+	return p0, p1, n, true
+}
+
+// acceptsCSIKey reports whether the CSI final byte and parsed param shape are
+// keyboard-shaped enough to normalize semantically rather than preserve
+// literally. Only arrows are accepted in the minimal decoder scope.
+func acceptsCSIKey(final byte, p0, _ /* mod */, n int) bool {
+	switch final {
+	case 'A', 'B', 'C', 'D':
+		// Accept: CSI A, CSI 1 A, CSI 1;<mod> A
+		switch n {
+		case 0:
+			return true
+		case 1:
+			return p0 == 1
+		case 2:
+			return p0 == 1
+		default:
+			return false
+		}
+	default:
+		return false
+	}
 }
 
 func (d *KeyDecoder) pushCSI(
 	dst []event.KeyEvent,
 	b byte,
 ) []event.KeyEvent {
-	// Parameter bytes.
-	if (b >= '0' && b <= '9') || b == ';' {
-		if d.csiN < len(d.csiBuf) {
-			d.csiBuf[d.csiN] = b
-			d.csiN++
+	// Buffer overflow guard: preserve all bytes literally.
+	if d.csiN >= len(d.csiBuf) {
+		return d.emitLiteralCSI(dst, &b)
+	}
+
+	// Non-final CSI bytes: 0x20..0x3F
+	// This includes intermediates, parameters, and private-marker bytes.
+	if b >= 0x20 && b <= 0x3F {
+		d.csiBuf[d.csiN] = b
+		d.csiN++
+		return dst
+	}
+
+	// Final byte: 0x40..0x7E
+	if b >= 0x40 && b <= 0x7E {
+		p0, p1, n, ok := parseCSIParams2(d.csiBuf[:d.csiN])
+		if ok && acceptsCSIKey(b, p0, p1, n) {
+			if key := dispatchCSI(b); key != event.KeyNone {
+				d.state = stateGround
+				d.csiN = 0
+				return append(dst, event.KeyEvent{Key: key})
+			}
 		}
-		return dst
+
+		// Unknown or over-broad CSI final: preserve all bytes literally.
+		return d.emitLiteralCSI(dst, &b)
 	}
 
+	// Invalid byte for CSI: emit buffered CSI literally, then replay offending byte.
+	dst = d.emitLiteralCSI(dst, nil)
+	return d.PushByte(dst, b)
+}
+
+func (d *KeyDecoder) handleSS3(
+	dst []event.KeyEvent,
+	b byte,
+) []event.KeyEvent {
+	if key := dispatchSS3(b); key != event.KeyNone {
+		d.state = stateGround
+		return append(dst, event.KeyEvent{Key: key})
+	}
+
+	// Unknown SS3 -> emit ESC, literal 'O', then replay byte.
 	d.state = stateGround
-	defer func() { d.csiN = 0 }()
+	dst = append(dst, event.KeyEvent{Key: event.KeyEsc})
+	dst = append(dst, event.KeyEvent{Key: event.KeyRune, Rune: 'O'})
+	return d.PushByte(dst, b)
+}
 
-	switch b {
-	case 'A':
-		return append(dst, event.KeyEvent{Key: event.KeyUp})
-	case 'B':
-		return append(dst, event.KeyEvent{Key: event.KeyDown})
-	case 'C':
-		return append(dst, event.KeyEvent{Key: event.KeyRight})
-	case 'D':
-		return append(dst, event.KeyEvent{Key: event.KeyLeft})
-	case '~':
-		// Unsupported CSI ~ forms in MVP; ignore the sequence.
-		return dst
-	default:
-		// Unsupported CSI sequence in MVP; ignore it.
-		// Important: do not synthesize KeyEsc here, or keys like ESC [ Z
-		// (Shift+Tab on many terminals) will look like a real Escape press.
+func (d *KeyDecoder) pushGround(
+	dst []event.KeyEvent,
+	b byte,
+) []event.KeyEvent {
+	// Handle UTF-8 start bytes (state transition)
+	if n := utf8StartLen(b); n > 1 {
+		d.state = stateUTF8
+		d.utf8Buf[0] = b
+		d.utf8N = 1
+		d.utf8Need = n
+		d.utf8Mod = 0
 		return dst
 	}
+
+	// For all other single bytes, use the canonical interpretation
+	return interpretSingleByte(dst, b)
 }
 
 func utf8StartLen(b byte) int {
+	// Strict UTF-8 lead-byte validation:
+	//   C2..DF => 2-byte
+	//   E0..EF => 3-byte
+	//   F0..F4 => 4-byte
+	// Reject C0/C1 (overlong) and F5..FF (out of range).
 	switch {
-	case b&0xe0 == 0xc0:
+	case b >= 0xC2 && b <= 0xDF:
 		return 2
-	case b&0xf0 == 0xe0:
+	case b >= 0xE0 && b <= 0xEF:
 		return 3
-	case b&0xf8 == 0xf0:
+	case b >= 0xF0 && b <= 0xF4:
 		return 4
 	default:
 		return 0

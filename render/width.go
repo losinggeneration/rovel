@@ -1,8 +1,8 @@
 package render
 
 // RuneWidth returns the terminal column width of a rune (1 or 2).
-// MVP: simple CJK range detection.
-// Post-MVP: use internal/wcwidth for proper Unicode width.
+// simple CJK range detection.
+// Later on: use internal/wcwidth for proper Unicode width.
 func RuneWidth(r rune) int {
 	// Control characters and NULL have width 0
 	if r < 32 {

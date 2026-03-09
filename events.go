@@ -25,6 +25,10 @@ const (
 	KeyDown      = event.KeyDown
 	KeyLeft      = event.KeyLeft
 	KeyRight     = event.KeyRight
+	KeyF1        = event.KeyF1
+	KeyF2        = event.KeyF2
+	KeyF3        = event.KeyF3
+	KeyF4        = event.KeyF4
 )
 
 // ModMask represents keyboard modifiers.

@@ -322,9 +322,9 @@ func (v *VirtualList) scrollSelectionIntoView() {
 	}
 }
 
-// paintEmpty paints the empty state (intentionally minimal for MVP).
+// paintEmpty paints the empty state (intentionally minimal for now).
 func (v *VirtualList) paintEmpty(p *tui.Painter, ctx *tui.Ctx) {
-	// Intentionally empty for MVP.
+	// Intentionally empty for now.
 	// Paint Contract A already clears damaged regions.
 }
 

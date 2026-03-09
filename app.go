@@ -392,7 +392,7 @@ func (a *App) render() {
 	// If layout is dirty, do a layout pass
 	if a.layoutDirty {
 		a.layout()
-		// Layout may move things, so invalidate everything for correctness in MVP
+		// Layout may move things, so invalidate everything
 		a.InvalidateAll()
 	}
 
@@ -447,7 +447,7 @@ func (a *App) paintViews() {
 	ctx := a.mkCtx(a.root)
 
 	// Create a painter for each damaged region
-	// For MVP, we'll create one painter with full clip and let views paint
+	// For now, we'll create one painter with full clip and let views paint
 	// The clipping will happen in the render.Painter
 	clip := geom.Rect{X: 0, Y: 0, W: a.size.W, H: a.size.H}
 	rp := render.NewPainter(a.backBuf, clip, a.opts.Theme.Base)
