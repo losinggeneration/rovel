@@ -118,6 +118,45 @@ func dispatchCSI(final byte) event.Key {
 		return event.KeyRight
 	case 'D':
 		return event.KeyLeft
+	case 'H':
+		return event.KeyHome
+	case 'F':
+		return event.KeyEnd
+	default:
+		return event.KeyNone
+	}
+}
+
+func dispatchCSITilde(p0 int) event.Key {
+	switch p0 {
+	case 1:
+		return event.KeyHome
+	case 2:
+		return event.KeyInsert
+	case 3:
+		return event.KeyDelete
+	case 4:
+		return event.KeyEnd
+	case 5:
+		return event.KeyPageUp
+	case 6:
+		return event.KeyPageDown
+	case 15:
+		return event.KeyF5
+	case 17:
+		return event.KeyF6
+	case 18:
+		return event.KeyF7
+	case 19:
+		return event.KeyF8
+	case 20:
+		return event.KeyF9
+	case 21:
+		return event.KeyF10
+	case 23:
+		return event.KeyF11
+	case 24:
+		return event.KeyF12
 	default:
 		return event.KeyNone
 	}
@@ -133,6 +172,10 @@ func dispatchSS3(final byte) event.Key {
 		return event.KeyRight
 	case 'D':
 		return event.KeyLeft
+	case 'H':
+		return event.KeyHome
+	case 'F':
+		return event.KeyEnd
 	case 'P':
 		return event.KeyF1
 	case 'Q':
@@ -399,8 +442,7 @@ func parseCSIParams2(buf []byte) (p0, p1, n int, ok bool) {
 }
 
 // acceptsCSIKey reports whether the CSI final byte and parsed param shape are
-// keyboard-shaped enough to normalize semantically rather than preserve
-// literally. Only arrows are accepted in the minimal decoder scope.
+// keyboard-shaped enough to normalize semantically rather than preserve literally.
 func acceptsCSIKey(final byte, p0, _ /* mod */, n int) bool {
 	switch final {
 	case 'A', 'B', 'C', 'D':
@@ -415,6 +457,19 @@ func acceptsCSIKey(final byte, p0, _ /* mod */, n int) bool {
 		default:
 			return false
 		}
+	case 'H', 'F':
+		// Accept: CSI H, CSI F (no params)
+		return n == 0
+	case '~':
+		// Accept known tilde params with exactly one param
+		if n != 1 {
+			return false
+		}
+		switch p0 {
+		case 1, 2, 3, 4, 5, 6, 15, 17, 18, 19, 20, 21, 23, 24:
+			return true
+		}
+		return false
 	default:
 		return false
 	}
@@ -441,7 +496,13 @@ func (d *KeyDecoder) pushCSI(
 	if b >= 0x40 && b <= 0x7E {
 		p0, p1, n, ok := parseCSIParams2(d.csiBuf[:d.csiN])
 		if ok && acceptsCSIKey(b, p0, p1, n) {
-			if key := dispatchCSI(b); key != event.KeyNone {
+			if b == '~' {
+				if key := dispatchCSITilde(p0); key != event.KeyNone {
+					d.state = stateGround
+					d.csiN = 0
+					return append(dst, event.KeyEvent{Key: key})
+				}
+			} else if key := dispatchCSI(b); key != event.KeyNone {
 				d.state = stateGround
 				d.csiN = 0
 				return append(dst, event.KeyEvent{Key: key})

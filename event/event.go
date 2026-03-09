@@ -30,11 +30,32 @@ const (
 	KeyLeft
 	KeyRight
 
-	// Function keys (SS3 P/Q/R/S)
+	// Function keys F1–F4 (SS3 P/Q/R/S sequences)
 	KeyF1
 	KeyF2
 	KeyF3
 	KeyF4
+
+	// Navigation keys (CSI tilde sequences and CSI/SS3 letter sequences)
+	KeyHome
+	KeyEnd
+	KeyInsert
+	KeyDelete
+	KeyPageUp
+	KeyPageDown
+
+	// Extended function keys (CSI 15~/17~/18~/19~/20~/21~/23~/24~)
+	KeyF5
+	KeyF6
+	KeyF7
+	KeyF8
+	KeyF9
+	KeyF10
+	KeyF11
+	KeyF12
+
+	// KeyShiftTab is defined here for completeness; but is not implemented yet
+	KeyShiftTab
 )
 
 // ModMask represents keyboard modifiers.
