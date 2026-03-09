@@ -10,8 +10,10 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/losinggeneration/tui"
 	"github.com/losinggeneration/tui/geom"
@@ -32,10 +34,14 @@ type appState struct {
 	lines   []string
 	cursorX int
 	cursorY int
+
+	// Performance monitoring
+	perfEnabled bool
+	perfMonitor *PerfMonitor
 }
 
-func newAppState() *appState {
-	return &appState{
+func newAppState(perfEnabled bool) *appState {
+	st := &appState{
 		status: "Tab to move focus. Esc or Ctrl+C to quit.",
 		name:   "",
 		email:  "",
@@ -45,13 +51,24 @@ func newAppState() *appState {
 			"",
 			"Try typing here:",
 		},
-		cursorX: 0,
-		cursorY: 3,
+		cursorX:     0,
+		cursorY:     3,
+		perfEnabled: perfEnabled,
 	}
+
+	if perfEnabled {
+		st.perfMonitor = NewPerfMonitor(1*time.Millisecond, 500*time.Microsecond)
+		st.status += " Press 'P' for performance report."
+	}
+
+	return st
 }
 
 func main() {
-	st := newAppState()
+	perfFlag := flag.Bool("perf", false, "Enable performance monitoring")
+	flag.Parse()
+
+	st := newAppState(*perfFlag)
 
 	app, err := tui.New(tui.AppOpts{
 		Theme: tui.Theme{
@@ -86,7 +103,7 @@ func main() {
 	})
 
 	// Create virtual list
-	history := virtual.NewVirtualList(virtual.VirtualListOpts{
+	baseHistory := virtual.NewVirtualList(virtual.VirtualListOpts{
 		RowHeight: 1,
 		Count: func() int {
 			return 100000
@@ -129,6 +146,11 @@ func main() {
 			}
 		},
 	})
+
+	var history tui.View = baseHistory
+	if st.perfEnabled && st.perfMonitor != nil {
+		history = NewInstrumentedVirtualList("history", baseHistory, st.perfMonitor)
+	}
 
 	// Create form pane
 	formPane := buildFormPane(st)
@@ -574,9 +596,21 @@ func (w *quitWrapper) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		return true
 	}
 
-	// Only handle Esc/Ctrl+C if children didn't consume the event
+	// Handle global key events
 	ke, ok := e.(tui.KeyEvent)
 	if ok {
+		// Performance report toggle
+		if w.state.perfEnabled && w.state.perfMonitor != nil {
+			if ke.Key == tui.KeyRune && (ke.Rune == 'P' || ke.Rune == 'p') {
+				w.state.status = w.state.perfMonitor.Summary()
+				if ctx != nil && ctx.InvalidateAll != nil {
+					ctx.InvalidateAll()
+				}
+				return true
+			}
+		}
+
+		// Quit keys
 		if ke.Key == tui.KeyEsc || ke.Key == tui.KeyCtrlC {
 			w.app.Quit()
 			w.app.Wake()
