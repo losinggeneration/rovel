@@ -130,34 +130,55 @@ func (s *HStack) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		return false
 	}
 
-	// Find the focused descendant (not just direct child)
-	// and route the event to it first
 	focusedDescendant := s.findFocusedDescendant(ctx.FocusedID)
 	if focusedDescendant != nil && focusedDescendant.Handle(ke, ctx) {
 		return true
 	}
 
-	// Handle Tab navigation
-	if ke.Key == event.KeyTab {
-		// If no focus yet, focus first focusable descendant (MANDATORY)
+	focusables := s.collectFocusable()
+
+	switch ke.Key {
+	case event.KeyTab:
 		if focusedDescendant == nil {
-			firstFocusable := s.findFirstFocusable()
-			if firstFocusable != nil {
-				ctx.RequestFocus(firstFocusable.ID())
+			if len(focusables) > 0 {
+				ctx.RequestFocus(focusables[0].ID())
 				ctx.Invalidate(s.Rect())
 				return true
 			}
+			return false
 		}
 
-		// Move to next focusable descendant
-		// Return false if wrapping would occur, to let parent handle navigation
-		nextFocusable, wrapped := s.findNextFocusable(ctx.FocusedID)
-		if nextFocusable != nil {
-			ctx.RequestFocus(nextFocusable.ID())
-			ctx.Invalidate(s.Rect())
-			// If we wrapped, return false to let parent handle it
-			return !wrapped
+		next, atBoundary := s.findNextFocusable(focusables, ctx.FocusedID)
+		if atBoundary {
+			return false
 		}
+		if next != nil {
+			ctx.RequestFocus(next.ID())
+			ctx.Invalidate(s.Rect())
+			return true
+		}
+		return false
+
+	case event.KeyShiftTab:
+		if focusedDescendant == nil {
+			if len(focusables) > 0 {
+				ctx.RequestFocus(focusables[len(focusables)-1].ID())
+				ctx.Invalidate(s.Rect())
+				return true
+			}
+			return false
+		}
+
+		prev, atBoundary := s.findPrevFocusable(focusables, ctx.FocusedID)
+		if atBoundary {
+			return false
+		}
+		if prev != nil {
+			ctx.RequestFocus(prev.ID())
+			ctx.Invalidate(s.Rect())
+			return true
+		}
+		return false
 	}
 
 	return false
@@ -228,33 +249,30 @@ func (s *HStack) findFirstFocusable() tui.View {
 }
 
 // findNextFocusable returns the next focusable descendant after the given ID,
-// and whether the search wrapped around.
-func (s *HStack) findNextFocusable(currentFocusID tui.ID) (tui.View, bool) {
-	// Collect all focusable views in order
-	focusableViews := s.collectFocusable()
-
-	if len(focusableViews) == 0 {
+// and whether the search reached a boundary.
+func (s *HStack) findNextFocusable(focusables []tui.View, currentFocusID tui.ID) (tui.View, bool) {
+	if len(focusables) == 0 {
 		return nil, false
 	}
 
-	// Find the index of the currently focused view by ID
 	currentIdx := -1
-	for i, v := range focusableViews {
+	for i, v := range focusables {
 		if v.ID() == currentFocusID {
 			currentIdx = i
 			break
 		}
 	}
 
-	// If focused view not in list, start from beginning
 	if currentIdx < 0 {
-		return focusableViews[0], false
+		return focusables[0], false
 	}
 
-	// Return next focusable, check if wrapping
-	nextIdx := (currentIdx + 1) % len(focusableViews)
-	wrapped := nextIdx < currentIdx // wrapped if next index is less than current
-	return focusableViews[nextIdx], wrapped
+	// At boundary - signal bubble, don't wrap
+	if currentIdx >= len(focusables)-1 {
+		return nil, true
+	}
+
+	return focusables[currentIdx+1], false
 }
 
 // collectFocusable collects all focusable descendants in order.
@@ -278,4 +296,40 @@ func (s *HStack) collectFocusable() []tui.View {
 		}
 	}
 	return result
+}
+
+// findLastFocusable returns the last focusable descendant (searches recursively).
+func (s *HStack) findLastFocusable() tui.View {
+	focusables := s.collectFocusable()
+	if len(focusables) == 0 {
+		return nil
+	}
+	return focusables[len(focusables)-1]
+}
+
+// findPrevFocusable returns the previous focusable descendant before the given ID,
+// and whether the search reached a boundary.
+func (s *HStack) findPrevFocusable(focusables []tui.View, currentFocusID tui.ID) (tui.View, bool) {
+	if len(focusables) == 0 {
+		return nil, false
+	}
+
+	currentIdx := -1
+	for i, v := range focusables {
+		if v.ID() == currentFocusID {
+			currentIdx = i
+			break
+		}
+	}
+
+	if currentIdx < 0 {
+		return focusables[len(focusables)-1], false
+	}
+
+	// At boundary - signal bubble, don't wrap
+	if currentIdx <= 0 {
+		return nil, true
+	}
+
+	return focusables[currentIdx-1], false
 }

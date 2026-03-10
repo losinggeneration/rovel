@@ -106,6 +106,94 @@ func TestKeyDecoder_CSIArrowKeys(t *testing.T) {
 	}
 }
 
+func TestKeyDecoder_CSIShiftTab(t *testing.T) {
+	d := &KeyDecoder{}
+	var evs []event.KeyEvent
+	// ESC [ Z -> Shift+Tab
+	evs = d.PushByte(evs, 0x1b) // ESC
+	evs = d.PushByte(evs, '[')  // CSI start
+	evs = d.PushByte(evs, 'Z')  // Shift+Tab
+
+	if len(evs) != 1 {
+		t.Fatalf("got %d events, want 1: %#v", len(evs), evs)
+	}
+	if evs[0].Key != event.KeyShiftTab {
+		t.Fatalf("got %#v, want KeyShiftTab", evs[0])
+	}
+}
+
+func TestKeyDecoder_CSIShiftTab_SplitAcrossPushByte(t *testing.T) {
+	d := &KeyDecoder{}
+	var evs []event.KeyEvent
+
+	evs = d.PushByte(evs, 0x1b)
+	if len(evs) != 0 {
+		t.Fatalf("after ESC: got %d events, want 0", len(evs))
+	}
+
+	evs = d.PushByte(evs, '[')
+	if len(evs) != 0 {
+		t.Fatalf("after [: got %d events, want 0", len(evs))
+	}
+
+	evs = d.PushByte(evs, 'Z')
+	if len(evs) != 1 {
+		t.Fatalf("after Z: got %d events, want 1", len(evs))
+	}
+	if evs[0].Key != event.KeyShiftTab {
+		t.Fatalf("got %#v, want KeyShiftTab", evs[0])
+	}
+}
+
+func TestKeyDecoder_CSIShiftTab_RejectsParams(t *testing.T) {
+	tests := []struct {
+		name string
+		seq  []byte
+	}{
+		{"CSI 1 Z", []byte{0x1b, '[', '1', 'Z'}},
+		{"CSI ? Z", []byte{0x1b, '[', '?', 'Z'}},
+		{"CSI 0 Z", []byte{0x1b, '[', '0', 'Z'}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &KeyDecoder{}
+			var evs []event.KeyEvent
+
+			for _, b := range tt.seq {
+				evs = d.PushByte(evs, b)
+			}
+
+			for i, ev := range evs {
+				if ev.Key == event.KeyShiftTab {
+					t.Fatalf("event %d is KeyShiftTab, should be literal bytes", i)
+				}
+			}
+		})
+	}
+}
+
+func TestKeyDecoder_CSIShiftTab_FlushPendingDoesNotEmit(t *testing.T) {
+	d := &KeyDecoder{}
+	var evs []event.KeyEvent
+
+	evs = d.PushByte(evs, 0x1b)
+	evs = d.PushByte(evs, '[')
+
+	evs = d.FlushPending(evs)
+	if len(evs) != 0 {
+		t.Fatalf("FlushPending: got %d events, want 0", len(evs))
+	}
+
+	evs = d.PushByte(evs, 'Z')
+	if len(evs) != 1 {
+		t.Fatalf("after Z: got %d events, want 1", len(evs))
+	}
+	if evs[0].Key != event.KeyShiftTab {
+		t.Fatalf("got %#v, want KeyShiftTab", evs[0])
+	}
+}
+
 func TestKeyDecoder_CSI_ParamArrow_Normalized(t *testing.T) {
 	d := &KeyDecoder{}
 	var evs []event.KeyEvent

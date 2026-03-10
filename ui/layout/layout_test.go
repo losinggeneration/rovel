@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/tui/event"
+	"github.com/losinggeneration/tui/geom"
 )
 
 // simpleView is a minimal view implementation for testing
@@ -187,4 +189,468 @@ func TestInsetRect(t *testing.T) {
 	if zeroInset != r {
 		t.Errorf("Zero inset should equal original rect")
 	}
+}
+
+// Test Focus Navigation
+
+// trackInvalidationView is a test view that tracks invalidation calls
+type trackInvalidationView struct {
+	*simpleView
+	invalidated bool
+}
+
+func newTrackInvalidationView(w, h int, focusable bool) *trackInvalidationView {
+	return &trackInvalidationView{
+		simpleView: newSimpleView(w, h, focusable),
+	}
+}
+
+func (v *trackInvalidationView) Paint(p *tui.Painter, ctx *tui.Ctx) {
+	if ctx.Invalidate != nil {
+		ctx.Invalidate(v.rect)
+		v.invalidated = true
+	}
+}
+
+func TestVStackFocusNavigation(t *testing.T) {
+	tests := []struct {
+		name           string
+		childCount     int
+		initialFocus   tui.ID // zero ID means no initial focus
+		key            event.Key
+		expectFocusIdx int // -1 means no focus change
+		expectHandled  bool
+	}{
+		{
+			name:           "Tab with no focus focuses first child",
+			childCount:     3,
+			initialFocus:   tui.ID(0),
+			key:            event.KeyTab,
+			expectFocusIdx: 0,
+			expectHandled:  true,
+		},
+		{
+			name:           "Tab moves to next child",
+			childCount:     3,
+			initialFocus:   0, // Will be set to first child's ID
+			key:            event.KeyTab,
+			expectFocusIdx: 1,
+			expectHandled:  true,
+		},
+		{
+			name:           "Tab at last item bubbles to parent",
+			childCount:     2,
+			initialFocus:   0, // Will be set to last child's ID
+			key:            event.KeyTab,
+			expectFocusIdx: -1, // No focus change
+			expectHandled:  false,
+		},
+		{
+			name:           "Shift+Tab with no focus focuses last child",
+			childCount:     3,
+			initialFocus:   tui.ID(0),
+			key:            event.KeyShiftTab,
+			expectFocusIdx: 2,
+			expectHandled:  true,
+		},
+		{
+			name:           "Shift+Tab moves to previous child",
+			childCount:     3,
+			initialFocus:   0, // Will be set to middle child's ID
+			key:            event.KeyShiftTab,
+			expectFocusIdx: 1,
+			expectHandled:  true,
+		},
+		{
+			name:           "Shift+Tab at first item bubbles to parent",
+			childCount:     2,
+			initialFocus:   0, // Will be set to first child's ID
+			key:            event.KeyShiftTab,
+			expectFocusIdx: -1, // No focus change
+			expectHandled:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stack := NewVStack()
+
+			// Create focusable children
+			var children []*trackInvalidationView
+			for i := 0; i < tt.childCount; i++ {
+				child := newTrackInvalidationView(10, 1, true)
+				children = append(children, child)
+				stack.Add(child)
+			}
+
+			// Layout the stack
+			stack.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
+
+			// Set up context
+			var focusedID tui.ID
+			ctx := &tui.Ctx{
+				RequestFocus: func(id tui.ID) { focusedID = id },
+				Invalidate:   func(r geom.Rect) {},
+			}
+
+			// Set initial focus if specified
+			if tt.initialFocus != 0 && tt.expectFocusIdx >= 0 {
+				if tt.expectFocusIdx < len(children) {
+					focusedID = children[tt.expectFocusIdx].ID()
+					ctx.FocusedID = focusedID
+				}
+			} else {
+				ctx.FocusedID = tt.initialFocus
+			}
+
+			// For "moves to next/previous" tests, set up specific initial focus
+			if tt.name == "Tab moves to next child" {
+				focusedID = children[0].ID()
+				ctx.FocusedID = focusedID
+			}
+			if tt.name == "Shift+Tab moves to previous child" {
+				focusedID = children[2].ID()
+				ctx.FocusedID = focusedID
+			}
+			if tt.name == "Tab at last item bubbles to parent" {
+				focusedID = children[1].ID()
+				ctx.FocusedID = focusedID
+			}
+			if tt.name == "Shift+Tab at first item bubbles to parent" {
+				focusedID = children[0].ID()
+				ctx.FocusedID = focusedID
+			}
+
+			// Send the key event
+			ke := event.KeyEvent{Key: tt.key}
+			handled := stack.Handle(ke, ctx)
+
+			// Check if the event was handled as expected
+			if handled != tt.expectHandled {
+				t.Errorf("Expected handled=%v, got %v", tt.expectHandled, handled)
+			}
+
+			// Check focus moved to expected child
+			if tt.expectFocusIdx >= 0 && tt.expectFocusIdx < len(children) {
+				expectedID := children[tt.expectFocusIdx].ID()
+				if focusedID != expectedID {
+					t.Errorf("Expected focus on child %d (ID=%v), got ID=%v",
+						tt.expectFocusIdx, expectedID, focusedID)
+				}
+			} else if tt.expectFocusIdx == -1 {
+				// Focus should not change when bubbling
+				if focusedID != 0 && focusedID != ctx.FocusedID {
+					t.Errorf("Focus should not change when bubbling, got %v", focusedID)
+				}
+			}
+		})
+	}
+}
+
+func TestHStackFocusNavigation(t *testing.T) {
+	tests := []struct {
+		name           string
+		childCount     int
+		key            event.Key
+		expectFocusIdx int // -1 means no focus change
+		expectHandled  bool
+	}{
+		{
+			name:           "Tab with no focus focuses first child",
+			childCount:     3,
+			key:            event.KeyTab,
+			expectFocusIdx: 0,
+			expectHandled:  true,
+		},
+		{
+			name:           "Shift+Tab with no focus focuses last child",
+			childCount:     3,
+			key:            event.KeyShiftTab,
+			expectFocusIdx: 2,
+			expectHandled:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stack := NewHStack()
+
+			// Create focusable children
+			var children []*trackInvalidationView
+			for i := 0; i < tt.childCount; i++ {
+				child := newTrackInvalidationView(10, 1, true)
+				children = append(children, child)
+				stack.Add(child)
+			}
+
+			// Layout the stack
+			stack.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
+
+			// Set up context
+			var focusedID tui.ID
+			ctx := &tui.Ctx{
+				RequestFocus: func(id tui.ID) { focusedID = id },
+				Invalidate:   func(r geom.Rect) {},
+			}
+
+			// Send the key event
+			ke := event.KeyEvent{Key: tt.key}
+			handled := stack.Handle(ke, ctx)
+
+			// Check if the event was handled as expected
+			if handled != tt.expectHandled {
+				t.Errorf("Expected handled=%v, got %v", tt.expectHandled, handled)
+			}
+
+			// Check focus moved to expected child
+			if tt.expectFocusIdx >= 0 && tt.expectFocusIdx < len(children) {
+				expectedID := children[tt.expectFocusIdx].ID()
+				if focusedID != expectedID {
+					t.Errorf("Expected focus on child %d (ID=%v), got ID=%v",
+						tt.expectFocusIdx, expectedID, focusedID)
+				}
+			}
+		})
+	}
+}
+
+func TestVStackFocusNavigationNested(t *testing.T) {
+	// Test nested containers to verify focus traversal works through hierarchy
+	outerStack := NewVStack()
+
+	// Create two inner HStacks, each with two focusable children
+	inner1 := NewHStack()
+	child1 := newSimpleView(10, 1, true)
+	child2 := newSimpleView(10, 1, true)
+	inner1.Add(child1)
+	inner1.Add(child2)
+
+	inner2 := NewHStack()
+	child3 := newSimpleView(10, 1, true)
+	child4 := newSimpleView(10, 1, true)
+	inner2.Add(child3)
+	inner2.Add(child4)
+
+	outerStack.Add(inner1)
+	outerStack.Add(inner2)
+
+	// Layout
+	outerStack.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
+
+	// Set up context
+	var focusedID tui.ID
+	ctx := &tui.Ctx{
+		RequestFocus: func(id tui.ID) { focusedID = id },
+		Invalidate:   func(r geom.Rect) {},
+	}
+
+	// Tab should focus first child (child1)
+	ke := event.KeyEvent{Key: event.KeyTab}
+	handled := outerStack.Handle(ke, ctx)
+	if !handled {
+		t.Error("Tab should be handled when no focus exists")
+	}
+	if focusedID != child1.ID() {
+		t.Errorf("Expected focus on child1, got %v", focusedID)
+	}
+
+	// Another Tab should move to child2
+	ctx.FocusedID = focusedID
+	handled = outerStack.Handle(ke, ctx)
+	if !handled {
+		t.Error("Tab should be handled moving to next sibling")
+	}
+	if focusedID != child2.ID() {
+		t.Errorf("Expected focus on child2, got %v", focusedID)
+	}
+}
+
+func TestFocusTraversalBoundaryBehavior(t *testing.T) {
+	t.Run("VStack Tab at last item bubbles to parent", func(t *testing.T) {
+		stack := NewVStack()
+		child1 := newSimpleView(10, 1, true)
+		child2 := newSimpleView(10, 1, true)
+		stack.Add(child1)
+		stack.Add(child2)
+		stack.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
+
+		var focusedID tui.ID
+		ctx := &tui.Ctx{
+			FocusedID:    child2.ID(),
+			RequestFocus: func(id tui.ID) { focusedID = id },
+			Invalidate:   func(r geom.Rect) {},
+		}
+
+		ke := event.KeyEvent{Key: event.KeyTab}
+		handled := stack.Handle(ke, ctx)
+
+		if handled != false {
+			t.Error("Tab at last item should return false to bubble")
+		}
+		if focusedID == child1.ID() {
+			t.Error("Tab at last item should NOT wrap locally")
+		}
+	})
+
+	t.Run("VStack Shift+Tab at first item bubbles to parent", func(t *testing.T) {
+		stack := NewVStack()
+		child1 := newSimpleView(10, 1, true)
+		child2 := newSimpleView(10, 1, true)
+		stack.Add(child1)
+		stack.Add(child2)
+		stack.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
+
+		var focusedID tui.ID
+		ctx := &tui.Ctx{
+			FocusedID:    child1.ID(),
+			RequestFocus: func(id tui.ID) { focusedID = id },
+			Invalidate:   func(r geom.Rect) {},
+		}
+
+		ke := event.KeyEvent{Key: event.KeyShiftTab}
+		handled := stack.Handle(ke, ctx)
+
+		if handled != false {
+			t.Error("Shift+Tab at first item should return false to bubble")
+		}
+		if focusedID == child2.ID() {
+			t.Error("Shift+Tab at first item should NOT wrap locally")
+		}
+	})
+
+	t.Run("HStack Tab at last item bubbles to parent", func(t *testing.T) {
+		stack := NewHStack()
+		child1 := newSimpleView(10, 1, true)
+		child2 := newSimpleView(10, 1, true)
+		stack.Add(child1)
+		stack.Add(child2)
+		stack.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
+
+		ctx := &tui.Ctx{
+			FocusedID:    child2.ID(),
+			RequestFocus: func(id tui.ID) {},
+			Invalidate:   func(r geom.Rect) {},
+		}
+
+		ke := event.KeyEvent{Key: event.KeyTab}
+		handled := stack.Handle(ke, ctx)
+
+		if handled != false {
+			t.Error("Tab at last item should bubble")
+		}
+	})
+
+	t.Run("HStack Shift+Tab at first item bubbles to parent", func(t *testing.T) {
+		stack := NewHStack()
+		child1 := newSimpleView(10, 1, true)
+		child2 := newSimpleView(10, 1, true)
+		stack.Add(child1)
+		stack.Add(child2)
+		stack.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
+
+		ctx := &tui.Ctx{
+			FocusedID:    child1.ID(),
+			RequestFocus: func(id tui.ID) {},
+			Invalidate:   func(r geom.Rect) {},
+		}
+
+		ke := event.KeyEvent{Key: event.KeyShiftTab}
+		handled := stack.Handle(ke, ctx)
+
+		if handled != false {
+			t.Error("Shift+Tab at first item should bubble")
+		}
+	})
+
+	t.Run("Single focusable container allows bubbling both directions", func(t *testing.T) {
+		stack := NewVStack()
+		child := newSimpleView(10, 1, true)
+		stack.Add(child)
+		stack.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
+
+		ctx := &tui.Ctx{
+			FocusedID:    child.ID(),
+			RequestFocus: func(id tui.ID) {},
+			Invalidate:   func(r geom.Rect) {},
+		}
+
+		ke := event.KeyEvent{Key: event.KeyTab}
+		handled := stack.Handle(ke, ctx)
+		if handled != false {
+			t.Error("Tab in single-focusable container should bubble")
+		}
+
+		ctx.FocusedID = child.ID()
+		ke = event.KeyEvent{Key: event.KeyShiftTab}
+		handled = stack.Handle(ke, ctx)
+		if handled != false {
+			t.Error("Shift+Tab in single-focusable container should bubble")
+		}
+	})
+
+	t.Run("Nested containers: Tab from first inner bubbles, outer moves to second", func(t *testing.T) {
+		outer := NewVStack()
+
+		inner1 := NewHStack()
+		child1 := newSimpleView(10, 1, true)
+		inner1.Add(child1)
+
+		inner2 := NewHStack()
+		child2 := newSimpleView(10, 1, true)
+		inner2.Add(child2)
+
+		outer.Add(inner1)
+		outer.Add(inner2)
+		outer.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
+
+		var focusedID tui.ID
+		ctx := &tui.Ctx{
+			FocusedID:    child1.ID(),
+			RequestFocus: func(id tui.ID) { focusedID = id },
+			Invalidate:   func(r geom.Rect) {},
+		}
+
+		ke := event.KeyEvent{Key: event.KeyTab}
+		handled := outer.Handle(ke, ctx)
+
+		if handled != true {
+			t.Error("Outer should handle Tab traversal")
+		}
+		if focusedID != child2.ID() {
+			t.Errorf("Expected focus on child2, got %v", focusedID)
+		}
+	})
+
+	t.Run("Nested containers: Shift+Tab from second inner bubbles, outer moves to first", func(t *testing.T) {
+		outer := NewVStack()
+
+		inner1 := NewHStack()
+		child1 := newSimpleView(10, 1, true)
+		inner1.Add(child1)
+
+		inner2 := NewHStack()
+		child2 := newSimpleView(10, 1, true)
+		inner2.Add(child2)
+
+		outer.Add(inner1)
+		outer.Add(inner2)
+		outer.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
+
+		var focusedID tui.ID
+		ctx := &tui.Ctx{
+			FocusedID:    child2.ID(),
+			RequestFocus: func(id tui.ID) { focusedID = id },
+			Invalidate:   func(r geom.Rect) {},
+		}
+
+		ke := event.KeyEvent{Key: event.KeyShiftTab}
+		handled := outer.Handle(ke, ctx)
+
+		if handled != true {
+			t.Error("Outer should handle Shift+Tab traversal")
+		}
+		if focusedID != child1.ID() {
+			t.Errorf("Expected focus on child1, got %v", focusedID)
+		}
+	})
 }

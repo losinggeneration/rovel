@@ -225,6 +225,15 @@ func (v *VirtualList) ClearSelection(ctx *tui.Ctx) {
 	v.invalidate(ctx)
 }
 
+// NotifyCountChanged notifies the list that the item count has changed.
+// It reclamps scroll/selection and conservatively invalidates the list rect.
+// Models should call this whenever Count() may produce a different result.
+func (v *VirtualList) NotifyCountChanged(ctx *tui.Ctx) {
+	v.clampScroll()
+	v.clampSelection()
+	v.invalidate(ctx)
+}
+
 // handleKey processes key events for selection and activation.
 func (v *VirtualList) handleKey(e tui.KeyEvent, ctx *tui.Ctx) bool {
 	n := v.safeCount()

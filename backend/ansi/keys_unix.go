@@ -122,6 +122,8 @@ func dispatchCSI(final byte) event.Key {
 		return event.KeyHome
 	case 'F':
 		return event.KeyEnd
+	case 'Z':
+		return event.KeyShiftTab
 	default:
 		return event.KeyNone
 	}
@@ -457,8 +459,8 @@ func acceptsCSIKey(final byte, p0, _ /* mod */, n int) bool {
 		default:
 			return false
 		}
-	case 'H', 'F':
-		// Accept: CSI H, CSI F (no params)
+	case 'H', 'F', 'Z':
+		// Accept: CSI H, CSI F, CSI Z (no params)
 		return n == 0
 	case '~':
 		// Accept known tilde params with exactly one param
