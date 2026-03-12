@@ -2,7 +2,9 @@ package widgets
 
 import (
 	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/tui/geom"
 	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/tui/text"
 )
 
 // TextInput is a single-line text input widget with cursor navigation.
@@ -55,8 +57,16 @@ func (t *TextInput) Layout(r tui.Rect) {
 }
 
 // MinSize returns the minimum size needed for the text input.
-func (t *TextInput) MinSize() tui.Size {
-	return tui.Size{W: 10, H: 1}
+func (t *TextInput) MinSize() geom.Size {
+	return geom.Size{W: 10, H: 1}
+}
+
+func (t *TextInput) PreferredSize() geom.Size {
+	w := text.Width(string(t.text))
+	if w < 10 {
+		w = 10
+	}
+	return geom.Size{W: w, H: 1}
 }
 
 // Paint renders the text input.
@@ -77,7 +87,7 @@ func (t *TextInput) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	textIdx := 0
 	skipped := 0
 	for i := 0; i < len(t.text); i++ {
-		rw := tui.RuneWidth(t.text[i])
+		rw := text.WidthRune(t.text[i])
 		if skipped+rw > t.scrollX {
 			// This rune is (partially) visible
 			textIdx = i
@@ -96,7 +106,7 @@ func (t *TextInput) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	// Draw visible runes
 	for i := textIdx; i < len(t.text) && availableW > 0; i++ {
 		r := t.text[i]
-		rw := tui.RuneWidth(r)
+		rw := text.WidthRune(r)
 
 		// Check if this is the cursor position
 		cursorHere := focused && i == t.cursor
@@ -200,7 +210,7 @@ func (t *TextInput) updateScroll() {
 	// Calculate cursor position in cells
 	cursorX := 0
 	for i := 0; i < t.cursor; i++ {
-		cursorX += tui.RuneWidth(t.text[i])
+		cursorX += text.WidthRune(t.text[i])
 	}
 
 	// Keep cursor within visible bounds

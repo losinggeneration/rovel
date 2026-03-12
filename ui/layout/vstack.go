@@ -6,37 +6,52 @@ import (
 	"github.com/losinggeneration/tui/ui"
 )
 
-// VStack is a vertical stacking container that arranges children top-to-bottom.
 type VStack struct {
 	id       tui.ID
-	children []tui.View
+	children []Child
 	rect     tui.Rect
+	gap      int
 }
 
-// NewVStack creates a new vertical stack container.
 func NewVStack() *VStack {
 	return &VStack{
 		id:       tui.NewID(),
-		children: make([]tui.View, 0),
+		children: make([]Child, 0),
 	}
 }
 
-// Add adds a child to the stack.
-func (s *VStack) Add(v tui.View) {
-	s.children = append(s.children, v)
+func NewVStackWithChildren(children []Child) *VStack {
+	s := NewVStack()
+	s.children = children
+	return s
 }
 
-// ID returns the stack's unique ID.
+func NewVStackWithGap(children []Child, gap int) *VStack {
+	s := NewVStackWithChildren(children)
+	s.gap = gap
+	return s
+}
+
+func (s *VStack) Add(v tui.View) {
+	s.children = append(s.children, NewChild(v))
+}
+
+func (s *VStack) AddChild(c Child) {
+	s.children = append(s.children, c)
+}
+
+func (s *VStack) SetGap(gap int) {
+	s.gap = gap
+}
+
 func (s *VStack) ID() tui.ID {
 	return s.id
 }
 
-// Rect returns the stack's current rect.
 func (s *VStack) Rect() tui.Rect {
 	return s.rect
 }
 
-// Layout positions the stack within the given rect.
 func (s *VStack) Layout(r tui.Rect) {
 	s.rect = r
 
@@ -44,86 +59,139 @@ func (s *VStack) Layout(r tui.Rect) {
 		return
 	}
 
-	// Calculate total min size on main axis
+	n := len(s.children)
+	totalGap := s.gap * (n - 1)
+	if totalGap < 0 {
+		totalGap = 0
+	}
+
+	type childInfo struct {
+		view      tui.View
+		opts      SizePolicy
+		minH      int
+		prefH     int
+		allocated int
+	}
+
+	infos := make([]childInfo, n)
 	totalMinH := 0
+	totalPrefH := 0
 	maxW := 0
-	for _, child := range s.children {
-		minSz := child.MinSize()
-		totalMinH += minSz.H
+	totalStretch := 0
+
+	for i, c := range s.children {
+		info := &infos[i]
+		info.view = c.View
+		info.opts = c.Opts
+
+		minSz := c.View.MinSize()
+		info.minH = minSz.H
 		if minSz.W > maxW {
 			maxW = minSz.W
 		}
+
+		if ps, ok := c.View.(ui.PreferredSizer); ok {
+			info.prefH = ps.PreferredSize().H
+		} else {
+			info.prefH = minSz.H
+		}
+
+		totalMinH += info.minH
+		totalPrefH += info.prefH
+
+		if c.Opts.GrowY && c.Opts.StretchY > 0 {
+			totalStretch += c.Opts.StretchY
+		}
 	}
 
-	// Distribute space: each child gets MinSize on main axis,
-	// remaining space goes to last child
-	y := r.Y
-	availableH := r.H
+	availableH := r.H - totalGap
+	if availableH < 0 {
+		availableH = 0
+	}
 
-	for i, child := range s.children {
-		minSz := child.MinSize()
+	for i := range infos {
+		infos[i].allocated = infos[i].minH
+	}
 
-		childH := minSz.H
-		if i == len(s.children)-1 {
-			// Last child gets remaining space
-			rem := availableH - totalMinH
-			if rem > 0 {
-				childH += rem
+	remaining := availableH - totalMinH
+	if remaining > 0 && totalStretch > 0 {
+		for i := range infos {
+			if infos[i].opts.GrowY && infos[i].opts.StretchY > 0 {
+				extra := (remaining * infos[i].opts.StretchY) / totalStretch
+				infos[i].allocated += extra
 			}
 		}
-		// Clamp if we ran out of space
-		if childH > availableH {
-			childH = availableH
+	} else if remaining > 0 && totalStretch == 0 {
+		infos[n-1].allocated += remaining
+	}
+
+	y := r.Y
+	for i := range infos {
+		childH := infos[i].allocated
+		if childH < 0 {
+			childH = 0
+		}
+		if y+childH > r.Y+r.H {
+			childH = r.Y + r.H - y
 		}
 		if childH < 0 {
 			childH = 0
 		}
 
 		childW := r.W
-		if childW < 0 {
-			childW = 0
+		alignX := infos[i].opts.AlignX
+		if alignX == AlignStretch || childW <= maxW {
+			alignX = AlignStretch
+		}
+
+		childX := r.X
+		if alignX == AlignCenter && childW > maxW {
+			childX = r.X + (childW-maxW)/2
+			childW = maxW
+		} else if alignX == AlignEnd && childW > maxW {
+			childX = r.X + childW - maxW
+			childW = maxW
 		}
 
 		childRect := tui.Rect{
-			X: r.X,
+			X: childX,
 			Y: y,
 			W: childW,
 			H: childH,
 		}
-		child.Layout(childRect)
+		infos[i].view.Layout(childRect)
 
-		y += childH
-		availableH -= childH
+		y += childH + s.gap
 	}
 }
 
-// MinSize returns the minimum size needed for the stack.
 func (s *VStack) MinSize() tui.Size {
 	maxW := 0
 	totalH := 0
-	for _, child := range s.children {
-		sz := child.MinSize()
+	n := len(s.children)
+	for _, c := range s.children {
+		sz := c.View.MinSize()
 		if sz.W > maxW {
 			maxW = sz.W
 		}
 		totalH += sz.H
 	}
+	if n > 1 {
+		totalH += s.gap * (n - 1)
+	}
 	return tui.Size{W: maxW, H: totalH}
 }
 
-// Paint renders the stack and its children.
 func (s *VStack) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	// Clip to container rect FIRST, then children
 	p.WithClip(s.rect, func(p *tui.Painter) {
-		for _, child := range s.children {
-			p.WithClip(child.Rect(), func(p *tui.Painter) {
-				child.Paint(p, ctx)
+		for _, c := range s.children {
+			p.WithClip(c.View.Rect(), func(p *tui.Painter) {
+				c.View.Paint(p, ctx)
 			})
 		}
 	})
 }
 
-// Handle processes events and focus navigation.
 func (s *VStack) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	ke, ok := e.(event.KeyEvent)
 	if !ok {
@@ -184,37 +252,36 @@ func (s *VStack) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	return false
 }
 
-// Focusable returns false - containers don't receive focus.
 func (s *VStack) Focusable() bool {
 	return false
 }
 
-// Children returns the stack's children.
 func (s *VStack) Children() []tui.View {
-	return s.children
+	views := make([]tui.View, len(s.children))
+	for i, c := range s.children {
+		views[i] = c.View
+	}
+	return views
 }
 
-// findFocusedDescendant finds the view with the given ID in the subtree.
 func (s *VStack) findFocusedDescendant(id tui.ID) tui.View {
-	// Check direct children first
-	for _, child := range s.children {
-		if child.ID() == id {
-			return child
+	for _, c := range s.children {
+		if c.View.ID() == id {
+			return c.View
 		}
 	}
 
-	// Search in descendants
 	visited := make(map[tui.ID]struct{})
-	for _, child := range s.children {
-		if child.ID() == id {
-			return child
+	for _, c := range s.children {
+		if c.View.ID() == id {
+			return c.View
 		}
-		if _, ok := visited[child.ID()]; ok {
+		if _, ok := visited[c.View.ID()]; ok {
 			continue
 		}
-		visited[child.ID()] = struct{}{}
+		visited[c.View.ID()] = struct{}{}
 
-		if composite, ok := child.(ui.Composite); ok {
+		if composite, ok := c.View.(ui.Composite); ok {
 			helper := &DFSHelper{Composite: composite, Visited: visited}
 			if result := helper.FindByID(id); result != nil {
 				return result
@@ -224,21 +291,20 @@ func (s *VStack) findFocusedDescendant(id tui.ID) tui.View {
 	return nil
 }
 
-// findFirstFocusable returns the first focusable descendant (searches recursively).
 func (s *VStack) findFirstFocusable() tui.View {
 	visited := make(map[tui.ID]struct{})
-	for _, child := range s.children {
-		id := child.ID()
+	for _, c := range s.children {
+		id := c.View.ID()
 		if _, ok := visited[id]; ok {
 			continue
 		}
 		visited[id] = struct{}{}
 
-		if f, ok := child.(ui.Focusable); ok && f.Focusable() {
-			return child
+		if f, ok := c.View.(ui.Focusable); ok && f.Focusable() {
+			return c.View
 		}
 
-		if composite, ok := child.(ui.Composite); ok {
+		if composite, ok := c.View.(ui.Composite); ok {
 			helper := &DFSHelper{Composite: composite, Visited: visited}
 			if result := helper.Search(); result != nil {
 				return result
@@ -248,8 +314,6 @@ func (s *VStack) findFirstFocusable() tui.View {
 	return nil
 }
 
-// findNextFocusable returns the next focusable descendant after the given ID,
-// and whether the search reached a boundary.
 func (s *VStack) findNextFocusable(focusables []tui.View, currentFocusID tui.ID) (tui.View, bool) {
 	if len(focusables) == 0 {
 		return nil, false
@@ -267,7 +331,6 @@ func (s *VStack) findNextFocusable(focusables []tui.View, currentFocusID tui.ID)
 		return focusables[0], false
 	}
 
-	// At boundary - signal bubble, don't wrap
 	if currentIdx >= len(focusables)-1 {
 		return nil, true
 	}
@@ -275,22 +338,21 @@ func (s *VStack) findNextFocusable(focusables []tui.View, currentFocusID tui.ID)
 	return focusables[currentIdx+1], false
 }
 
-// collectFocusable collects all focusable descendants in order.
 func (s *VStack) collectFocusable() []tui.View {
 	var result []tui.View
 	visited := make(map[tui.ID]struct{})
-	for _, child := range s.children {
-		id := child.ID()
+	for _, c := range s.children {
+		id := c.View.ID()
 		if _, ok := visited[id]; ok {
 			continue
 		}
 		visited[id] = struct{}{}
 
-		if f, ok := child.(ui.Focusable); ok && f.Focusable() {
-			result = append(result, child)
+		if f, ok := c.View.(ui.Focusable); ok && f.Focusable() {
+			result = append(result, c.View)
 		}
 
-		if composite, ok := child.(ui.Composite); ok {
+		if composite, ok := c.View.(ui.Composite); ok {
 			helper := &DFSHelper{Composite: composite, Visited: visited}
 			helper.Collect(&result)
 		}
@@ -298,7 +360,6 @@ func (s *VStack) collectFocusable() []tui.View {
 	return result
 }
 
-// findLastFocusable returns the last focusable descendant (searches recursively).
 func (s *VStack) findLastFocusable() tui.View {
 	focusables := s.collectFocusable()
 	if len(focusables) == 0 {
@@ -307,8 +368,6 @@ func (s *VStack) findLastFocusable() tui.View {
 	return focusables[len(focusables)-1]
 }
 
-// findPrevFocusable returns the previous focusable descendant before the given ID,
-// and whether the search reached a boundary.
 func (s *VStack) findPrevFocusable(focusables []tui.View, currentFocusID tui.ID) (tui.View, bool) {
 	if len(focusables) == 0 {
 		return nil, false
@@ -326,7 +385,6 @@ func (s *VStack) findPrevFocusable(focusables []tui.View, currentFocusID tui.ID)
 		return focusables[len(focusables)-1], false
 	}
 
-	// At boundary - signal bubble, don't wrap
 	if currentIdx <= 0 {
 		return nil, true
 	}

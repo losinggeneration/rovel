@@ -1,8 +1,12 @@
 package widgets
 
 import (
+	"strings"
+
 	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/tui/geom"
 	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/tui/text"
 )
 
 // Label is a static text display widget.
@@ -60,19 +64,20 @@ func (l *Label) Layout(r tui.Rect) {
 }
 
 // MinSize returns the minimum size needed for the label.
-func (l *Label) MinSize() tui.Size {
+func (l *Label) MinSize() geom.Size {
 	maxW := 0
-	lines := 1
-	for _, r := range l.text {
-		if r == '\n' {
-			lines++
-			maxW = 0
-		} else {
-			w := tui.RuneWidth(r)
-			maxW += w
+	lines := strings.Split(l.text, "\n")
+	for _, line := range lines {
+		w := text.Width(line)
+		if w > maxW {
+			maxW = w
 		}
 	}
-	return tui.Size{W: maxW, H: lines}
+	return geom.Size{W: maxW, H: len(lines)}
+}
+
+func (l *Label) PreferredSize() geom.Size {
+	return l.MinSize()
 }
 
 // Paint renders the label.

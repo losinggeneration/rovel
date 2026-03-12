@@ -11,3 +11,7 @@ type Size = tui.Size
 type Painter = tui.Painter
 type Ctx = tui.Ctx
 type Event = tui.Event
+
+type PreferredSizer interface {
+	PreferredSize() tui.Size
+}

@@ -1,10 +1,10 @@
 package widgets
 
 import (
-	"unicode/utf8"
-
 	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/tui/geom"
 	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/tui/text"
 )
 
 // ButtonOpts holds options for creating a Button.
@@ -94,12 +94,16 @@ func (b *Button) Layout(r tui.Rect) { b.rect = r }
 // MinSize returns the minimum size needed for the button.
 // Render form is: "[ " + label + " ]" => 4 extra columns.
 // Note: rune-count is an approximation for wide chars; good enough for MVP.
-func (b *Button) MinSize() tui.Size {
-	w := 4 + utf8.RuneCountInString(b.label)
+func (b *Button) MinSize() geom.Size {
+	w := 4 + text.Width(b.label)
 	if w < 4 {
 		w = 4
 	}
-	return tui.Size{W: w, H: 1}
+	return geom.Size{W: w, H: 1}
+}
+
+func (b *Button) PreferredSize() geom.Size {
+	return b.MinSize()
 }
 
 // SetLabel sets the button's label and invalidates the rect.
@@ -231,20 +235,9 @@ func truncateRunes(s string, max int) string {
 	if max <= 0 || s == "" {
 		return ""
 	}
-	if utf8.RuneCountInString(s) <= max {
-		return s
-	}
-	out := make([]rune, 0, max)
-	for _, r := range s {
-		out = append(out, r)
-		if len(out) == max {
-			break
-		}
-	}
-	return string(out)
+	return text.Truncate(s, max, false)
 }
 
 func approxWidth(s string) int {
-	// MVP approximation: rune count, not wcwidth.
-	return utf8.RuneCountInString(s)
+	return text.Width(s)
 }

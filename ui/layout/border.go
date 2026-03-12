@@ -2,6 +2,7 @@ package layout
 
 import (
 	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/tui/text"
 )
 
 // Border is a wrapper that draws a box border around its child.
@@ -66,26 +67,14 @@ func (b *Border) Paint(p *tui.Painter, ctx *tui.Ctx) {
 				titleY := r.Y
 				maxTitleW := r.W - 4
 
-				// Truncate title if needed
-				titleRunes := []rune(b.title)
-				titleW := 0
-				titleIdx := 0
-				for i, ru := range titleRunes {
-					rw := tui.RuneWidth(ru)
-					if titleW+rw > maxTitleW {
-						break
-					}
-					titleW += rw
-					titleIdx = i + 1
-				}
+				end, titleW, _ := text.FitPrefix(b.title, maxTitleW)
+				truncatedTitle := b.title[:end]
 
-				// Clear top border where title will go
 				for i := 0; i < titleW && i < maxTitleW; i++ {
 					p.SetCell(titleX+i, titleY, ' ', ctx.Theme.Base)
 				}
 
-				// Draw title
-				p.Text(titleX, titleY, string(titleRunes[:titleIdx]), ctx.Theme.Base)
+				p.Text(titleX, titleY, truncatedTitle, ctx.Theme.Base)
 			}
 		})
 	}
