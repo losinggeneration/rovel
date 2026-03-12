@@ -37,4 +37,7 @@ type Ctx struct {
 	// Focus callbacks (exported to match design doc API).
 	RequestFocus func(id ID)
 	FocusedID    ID
+
+	// Quit requests the application to stop.
+	Quit func()
 }

@@ -613,7 +613,6 @@ func (w *quitWrapper) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		// Quit keys
 		if ke.Key == tui.KeyEsc || ke.Key == tui.KeyCtrlC {
 			w.app.Quit()
-			w.app.Wake()
 			return true
 		}
 	}

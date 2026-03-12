@@ -1,6 +1,30 @@
+// Package tui provides a retained-mode terminal UI toolkit.
+//
+// # Runtime Model
+//
+// The app loop goroutine owns UI state. View tree mutation is not generally
+// goroutine-safe. Layout, focus changes, paint, and event handling all occur
+// on the app loop.
+//
+// Background goroutines must not directly mutate UI-visible state. Instead,
+// use App.Post to schedule updates on the app loop:
+//
+//	go func() {
+//		result := fetchData()
+//
+//		_ = app.Post(func(ctx *tui.UpdateCtx) {
+//			model.items = append(model.items, result)
+//			ctx.Invalidate(list.Rect())
+//		})
+//	}()
+//
+// Posted callbacks are serialized with input handling and run on the app loop.
+// Multiple posted updates coalesce into bounded rendering work.
 package tui
 
 import (
+	"sync"
+
 	"github.com/losinggeneration/tui/backend"
 	"github.com/losinggeneration/tui/geom"
 	"github.com/losinggeneration/tui/render"
@@ -12,40 +36,33 @@ type App struct {
 	backend backend.Backend
 	size    geom.Size
 
-	// Buffers for double-buffered rendering
 	backBuf  *render.Buffer
 	frontBuf *render.Buffer
 	damage   *render.Damage
 	flusher  *render.ANSIFlusher
 
-	// View management
 	root  View
 	views map[ID]View
 
-	// Rect tracking for bounded focus invalidation.
-	// Populated after layout via updateRectTracking().
 	rectByID map[ID]geom.Rect
 
-	// Layout state
 	layoutDirty bool
 
-	// Invalidation tracking
 	invalidRects []geom.Rect
 
-	// Focus
 	focusedID ID
 
-	// Event channel
 	eventCh chan Event
 
-	// Posted work channel for cross-goroutine updates
-	postCh chan func(*Ctx)
+	postMu    sync.Mutex
+	postQueue []func(*UpdateCtx)
+
 	wakeCh chan struct{}
 
-	// Running state
 	running bool
+	closed  bool
+	closeMu sync.RWMutex
 
-	// Backend writer adapter
 	backendWriter *backendWriter
 }
 
@@ -63,16 +80,16 @@ func New(opts AppOpts) (*App, error) {
 	size := geom.Size{W: 80, H: 24} // Default, will be updated on Enable
 
 	app := &App{
-		opts:     opts,
-		size:     size,
-		backBuf:  render.NewBuffer(size.W, size.H),
-		frontBuf: render.NewBuffer(size.W, size.H),
-		damage:   render.NewDamage(size.W, size.H),
-		views:    make(map[ID]View),
-		rectByID: make(map[ID]geom.Rect),
-		eventCh:  make(chan Event, 16),
-		postCh:   make(chan func(*Ctx), 32),
-		wakeCh:   make(chan struct{}, 1),
+		opts:      opts,
+		size:      size,
+		backBuf:   render.NewBuffer(size.W, size.H),
+		frontBuf:  render.NewBuffer(size.W, size.H),
+		damage:    render.NewDamage(size.W, size.H),
+		views:     make(map[ID]View),
+		rectByID:  make(map[ID]geom.Rect),
+		eventCh:   make(chan Event, 16),
+		postQueue: make([]func(*UpdateCtx), 0, 64),
+		wakeCh:    make(chan struct{}, 1),
 	}
 
 	// Create flusher - will be set to backend writer on Enable
@@ -233,50 +250,72 @@ func (a *App) layout() {
 }
 
 // Run starts the main event loop and blocks until the application quits.
-func (a *App) Run() error {
+func (a *App) Run() (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			_ = a.Restore()
+			panic(r)
+		}
+	}()
+
+	a.closeMu.Lock()
+	a.closed = false
+	a.closeMu.Unlock()
+
 	a.running = true
 
-	// Start event reader goroutine
 	go a.readEvents()
 
-	// Main event loop
 	for a.running {
-		ctx := a.mkCtx(a.root)
+		const maxPostsPerIteration = 64
+		ctx := a.mkUpdateCtx()
 
-		// Drain posted work
-		for {
-			select {
-			case fn := <-a.postCh:
-				fn(ctx)
-			default:
-				goto done
+		for range maxPostsPerIteration {
+			a.postMu.Lock()
+			if len(a.postQueue) == 0 {
+				a.postMu.Unlock()
+				break
+			}
+			fn := a.postQueue[0]
+			a.postQueue = a.postQueue[1:]
+			a.postMu.Unlock()
+
+			fn(ctx)
+
+			if !a.running {
+				a.setClosed()
+				return nil
 			}
 		}
-	done:
 
-		// Handle events or wake signal
 		select {
 		case e, ok := <-a.eventCh:
 			if !ok {
-				// Channel closed, exit
+				a.setClosed()
 				return nil
 			}
 			a.handleEvent(e)
 
-			// After handling events, check if we should quit
 			if !a.running {
+				a.setClosed()
 				return nil
 			}
 
-			// Render if needed
 			a.render()
+
 		case <-a.wakeCh:
-			// Just wake up, will render in next iteration if needed
 			a.render()
 		}
 	}
 
+	a.setClosed()
 	return nil
+}
+
+func (a *App) setClosed() {
+	a.closeMu.Lock()
+	a.closed = true
+	a.closeMu.Unlock()
 }
 
 // readEvents reads events from the backend and sends them to the event channel.
@@ -348,7 +387,19 @@ func (a *App) mkCtx(v View) *Ctx {
 		InvalidateAll:    func() { a.InvalidateAll() },
 		InvalidateLayout: func(id ID) { a.InvalidateLayout(id) },
 		RequestFocus:     func(id ID) { a.setRequestFocus(id) },
+		Quit:             func() { a.Quit() },
 		FocusedID:        a.focusedID,
+	}
+}
+
+// mkUpdateCtx creates an update context for posted callbacks.
+func (a *App) mkUpdateCtx() *UpdateCtx {
+	return &UpdateCtx{
+		Invalidate:       func(r geom.Rect) { a.Invalidate(r) },
+		InvalidateAll:    func() { a.InvalidateAll() },
+		InvalidateLayout: func(id ID) { a.InvalidateLayout(id) },
+		RequestFocus:     func(id ID) { a.setRequestFocus(id) },
+		Quit:             func() { a.Quit() },
 	}
 }
 
@@ -466,29 +517,46 @@ func (a *App) flush() {
 	a.backend.Flush()
 }
 
-// Quit stops the application.
+// Quit requests the application to stop.
+// It is safe to call from any goroutine.
+// Repeated calls are harmless and idempotent.
 func (a *App) Quit() {
+	a.closeMu.Lock()
+	defer a.closeMu.Unlock()
+
+	if a.closed {
+		return
+	}
+
 	a.running = false
 }
 
-// Post runs fn on the app goroutine before the next frame.
-// Safe to call from any goroutine.
-func (a *App) Post(fn func(*Ctx)) bool {
+// Post schedules fn to run on the app loop.
+// It is safe to call from any goroutine, including before Run().
+// Returns ErrClosed if the app is shutting down or closed.
+func (a *App) Post(fn func(ctx *UpdateCtx)) error {
 	if fn == nil {
-		return false
+		return nil
 	}
-	select {
-	case a.postCh <- fn:
-		a.Wake()
-		return true
-	default:
-		return false
+
+	a.closeMu.RLock()
+	if a.closed {
+		a.closeMu.RUnlock()
+		return ErrClosed
 	}
+	a.closeMu.RUnlock()
+
+	a.postMu.Lock()
+	a.postQueue = append(a.postQueue, fn)
+	a.postMu.Unlock()
+
+	a.wake()
+	return nil
 }
 
-// Wake wakes up the event loop without posting any work.
-// Useful for signaling that external state has changed.
-func (a *App) Wake() {
+// wake signals the event loop to wake up.
+// It is internal machinery, not part of the public API.
+func (a *App) wake() {
 	select {
 	case a.wakeCh <- struct{}{}:
 	default:
