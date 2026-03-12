@@ -425,3 +425,172 @@ func TestPainter_Box_EmptyRect(t *testing.T) {
 		}
 	}
 }
+
+func TestPainter_Offset(t *testing.T) {
+	buf := NewBuffer(10, 10)
+	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 10}
+	p := NewPainter(buf, clip, style.Style{})
+
+	// Default offset should be 0,0
+	x, y := p.Offset()
+	if x != 0 || y != 0 {
+		t.Errorf("default offset = (%d,%d), want (0,0)", x, y)
+	}
+
+	// Set offset
+	p.SetOffset(5, 3)
+	x, y = p.Offset()
+	if x != 5 || y != 3 {
+		t.Errorf("after SetOffset(5,3) = (%d,%d), want (5,3)", x, y)
+	}
+
+	// SetCell should use offset
+	st := style.Style{}
+	p.SetCell(2, 1, 'X', st)
+
+	// Should be written at (2+5, 1+3) = (7, 4)
+	if buf.At(7, 4).R != 'X' {
+		t.Errorf("SetCell with offset wrote at wrong position")
+	}
+	// Original position should be empty
+	if buf.At(2, 1).R != 0 {
+		t.Errorf("SetCell with offset wrote to original position")
+	}
+}
+
+func TestPainter_Text_WithOffset(t *testing.T) {
+	buf := NewBuffer(20, 20)
+	clip := geom.Rect{X: 0, Y: 0, W: 20, H: 20}
+	p := NewPainter(buf, clip, style.Style{})
+
+	p.SetOffset(5, 3)
+	p.Text(2, 1, "ABC", style.Style{})
+
+	// Should be written at (7, 4), (8, 4), (9, 4) after offset
+	if buf.At(7, 4).R != 'A' {
+		t.Errorf("Text with offset: 'A' at (7,4), got %c", buf.At(7, 4).R)
+	}
+	if buf.At(8, 4).R != 'B' {
+		t.Errorf("Text with offset: 'B' at (8,4), got %c", buf.At(8, 4).R)
+	}
+	if buf.At(9, 4).R != 'C' {
+		t.Errorf("Text with offset: 'C' at (9,4), got %c", buf.At(9, 4).R)
+	}
+	// Original positions should be empty
+	if buf.At(2, 1).R != 0 {
+		t.Errorf("Text with offset wrote to original position")
+	}
+}
+
+func TestPainter_Text_WithOffset_Clipping(t *testing.T) {
+	buf := NewBuffer(10, 10)
+	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 10}
+	p := NewPainter(buf, clip, style.Style{})
+
+	// Offset to (8, 8), then draw at (5, 5) -> (13, 13) which is outside clip
+	p.SetOffset(8, 8)
+	p.Text(5, 5, "ABC", style.Style{})
+
+	// Characters at (13,13), (14,13), (15,13) are all outside clip (0-9)
+	// So nothing should be written (cells should remain as zeroCell which is ' ')
+	// The zeroCell has R = ' ', so check that it wasn't overwritten with something else
+	// by verifying a cell INSIDE the clip region was NOT affected
+	if buf.At(1, 1).R != 0 {
+		t.Error("Text incorrectly wrote to position (1,1) which is inside clip")
+	}
+}
+
+func TestPainter_Fill_WithOffset(t *testing.T) {
+	buf := NewBuffer(20, 20)
+	clip := geom.Rect{X: 0, Y: 0, W: 20, H: 20}
+	p := NewPainter(buf, clip, style.Style{})
+
+	p.SetOffset(5, 3)
+	p.Fill(geom.Rect{X: 2, Y: 1, W: 3, H: 2}, 'X', style.Style{})
+
+	// Should fill at (7,4), (8,4), (9,4), (7,5), (8,5), (9,5)
+	for dy := 0; dy < 2; dy++ {
+		for dx := 0; dx < 3; dx++ {
+			x := 5 + 2 + dx // 7, 8, 9
+			y := 3 + 1 + dy // 4, 5
+			if buf.At(x, y).R != 'X' {
+				t.Errorf("Fill with offset: expected 'X' at (%d,%d)", x, y)
+			}
+		}
+	}
+}
+
+func TestPainter_HLine_WithOffset(t *testing.T) {
+	buf := NewBuffer(20, 20)
+	clip := geom.Rect{X: 0, Y: 0, W: 20, H: 20}
+	p := NewPainter(buf, clip, style.Style{})
+
+	p.SetOffset(5, 3)
+	p.HLine(2, 1, 4, '=', style.Style{})
+
+	// Should draw at (7,4), (8,4), (9,4), (10,4)
+	for dx := 0; dx < 4; dx++ {
+		x := 5 + 2 + dx
+		if buf.At(x, 4).R != '=' {
+			t.Errorf("HLine with offset: expected '=' at (%d,4)", x)
+		}
+	}
+}
+
+func TestPainter_VLine_WithOffset(t *testing.T) {
+	buf := NewBuffer(20, 20)
+	clip := geom.Rect{X: 0, Y: 0, W: 20, H: 20}
+	p := NewPainter(buf, clip, style.Style{})
+
+	p.SetOffset(5, 3)
+	p.VLine(2, 1, 4, '|', style.Style{})
+
+	// Should draw at (7,4), (7,5), (7,6), (7,7)
+	for dy := 0; dy < 4; dy++ {
+		y := 3 + 1 + dy
+		if buf.At(7, y).R != '|' {
+			t.Errorf("VLine with offset: expected '|' at (7,%d)", y)
+		}
+	}
+}
+
+func TestPainter_Box_WithOffset(t *testing.T) {
+	buf := NewBuffer(20, 20)
+	clip := geom.Rect{X: 0, Y: 0, W: 20, H: 20}
+	p := NewPainter(buf, clip, style.Style{})
+
+	p.SetOffset(5, 3)
+	p.Box(geom.Rect{X: 2, Y: 1, W: 5, H: 3}, style.Style{})
+
+	// Top-left corner at (7, 4)
+	if buf.At(7, 4).R != '┌' {
+		t.Errorf("Box with offset: expected '┌' at (7,4), got %c", buf.At(7, 4).R)
+	}
+	// Bottom-right corner at (11, 6) = (5+2+5-1, 3+1+3-1) = (11, 6)
+	if buf.At(11, 6).R != '┘' {
+		t.Errorf("Box with offset: expected '┘' at (11,6), got %c", buf.At(11, 6).R)
+	}
+}
+
+func TestPainter_Offset_Clipping(t *testing.T) {
+	buf := NewBuffer(10, 10)
+	clip := geom.Rect{X: 0, Y: 0, W: 5, H: 5} // Clip to top-left 5x5
+	p := NewPainter(buf, clip, style.Style{})
+
+	st := style.Style{}
+
+	// With offset, should still clip correctly
+	// Set offset to (3, 3), then set cell at (0, 0)
+	// Should write at (3, 3) which is inside clip
+	p.SetOffset(3, 3)
+	p.SetCell(0, 0, 'A', st)
+	if buf.At(3, 3).R != 'A' {
+		t.Error("offset cell not written inside clip")
+	}
+
+	// Set cell at (3, 3) -> position (6, 6) which is outside clip
+	p.SetCell(3, 3, 'B', st)
+	if buf.At(6, 6).R != 0 {
+		t.Error("offset cell should be clipped")
+	}
+}

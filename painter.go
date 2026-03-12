@@ -78,3 +78,14 @@ func (p *Painter) WithClip(r geom.Rect, fn func(p *Painter)) {
 
 	fn(p)
 }
+
+// WithOffset sets a drawing offset for the duration of fn, then restores it.
+// All drawing operations within fn have their coordinates offset by (x, y).
+// This is useful for scroll containers where content needs to appear shifted.
+func (p *Painter) WithOffset(x, y int, fn func(p *Painter)) {
+	oldX, oldY := p.paint.Offset()
+	p.paint.SetOffset(oldX+x, oldY+y)
+	defer p.paint.SetOffset(oldX, oldY)
+
+	fn(p)
+}

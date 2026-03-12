@@ -10,6 +10,8 @@ type Painter struct {
 	buf       *Buffer
 	clip      geom.Rect
 	baseStyle style.Style
+	offsetX   int
+	offsetY   int
 }
 
 // NewPainter creates a new painter.
@@ -21,8 +23,26 @@ func NewPainter(buf *Buffer, clip geom.Rect, baseStyle style.Style) *Painter {
 	}
 }
 
+// Offset returns the current offset.
+func (p *Painter) Offset() (x, y int) {
+	return p.offsetX, p.offsetY
+}
+
+// SetOffset sets the drawing offset. All coordinates are offset by this amount.
+func (p *Painter) SetOffset(x, y int) {
+	p.offsetX = x
+	p.offsetY = y
+}
+
 // SetCell writes a single cell with proper wide-char handling.
+// Coordinates are offset by the painter's offset.
 func (p *Painter) SetCell(x, y int, r rune, style style.Style) {
+	p.setCellAt(x+p.offsetX, y+p.offsetY, r, style)
+}
+
+// setCellAt writes a cell at the exact coordinates without applying offset.
+// This is used internally when offset has already been applied.
+func (p *Painter) setCellAt(x, y int, r rune, style style.Style) {
 	if IsClipped(x, y, p.clip) {
 		return
 	}
@@ -94,17 +114,23 @@ func (p *Painter) SetClipRect(r geom.Rect) {
 
 // Text writes a string at position, advancing by rune width.
 func (p *Painter) Text(x, y int, s string, style style.Style) {
+	x += p.offsetX
+	y += p.offsetY
 	for _, r := range s {
 		if IsClipped(x, y, p.clip) {
 			break
 		}
-		p.SetCell(x, y, r, style)
+		p.setCellAt(x, y, r, style)
 		x += RuneWidth(r)
 	}
 }
 
 // Fill fills a rect with a repeated rune.
+// The rect is in logical coordinates and will be offset and clipped.
 func (p *Painter) Fill(r geom.Rect, ch rune, style style.Style) {
+	// Apply offset to get absolute coordinates
+	r.X += p.offsetX
+	r.Y += p.offsetY
 	r = ClipRect(r, p.clip)
 	if r.Empty() {
 		return
@@ -112,18 +138,20 @@ func (p *Painter) Fill(r geom.Rect, ch rune, style style.Style) {
 
 	for y := r.Y; y < r.Y+r.H; y++ {
 		for x := r.X; x < r.X+r.W; x++ {
-			p.SetCell(x, y, ch, style)
+			p.setCellAt(x, y, ch, style)
 		}
 	}
 }
 
 // HLine draws a horizontal line.
+// Coordinates are offset by the painter's offset.
 func (p *Painter) HLine(x, y, w int, ch rune, style style.Style) {
 	r := geom.Rect{X: x, Y: y, W: w, H: 1}
 	p.Fill(r, ch, style)
 }
 
 // VLine draws a vertical line.
+// Coordinates are offset by the painter's offset.
 func (p *Painter) VLine(x, y, h int, ch rune, style style.Style) {
 	r := geom.Rect{X: x, Y: y, W: 1, H: h}
 	p.Fill(r, ch, style)
@@ -134,6 +162,10 @@ func (p *Painter) Box(r geom.Rect, style style.Style) {
 	if r.Empty() {
 		return
 	}
+
+	// Apply offset
+	r.X += p.offsetX
+	r.Y += p.offsetY
 
 	// Horizontal lines
 	p.HLine(r.X, r.Y, r.W, '─', style)
@@ -147,13 +179,13 @@ func (p *Painter) Box(r geom.Rect, style style.Style) {
 		p.VLine(r.X+r.W-1, r.Y, r.H, '│', style)
 	}
 
-	// Corners
+	// Corners - use setCellAt since offset already applied
 	if r.W > 0 && r.H > 0 {
-		p.SetCell(r.X, r.Y, '┌', style)       // Top-left
-		p.SetCell(r.X+r.W-1, r.Y, '┐', style) // Top-right
+		p.setCellAt(r.X, r.Y, '┌', style)       // Top-left
+		p.setCellAt(r.X+r.W-1, r.Y, '┐', style) // Top-right
 	}
 	if r.W > 0 && r.H > 1 {
-		p.SetCell(r.X, r.Y+r.H-1, '└', style)       // Bottom-left
-		p.SetCell(r.X+r.W-1, r.Y+r.H-1, '┘', style) // Bottom-right
+		p.setCellAt(r.X, r.Y+r.H-1, '└', style)       // Bottom-left
+		p.setCellAt(r.X+r.W-1, r.Y+r.H-1, '┘', style) // Bottom-right
 	}
 }
