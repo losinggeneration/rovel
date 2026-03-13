@@ -31,3 +31,11 @@ type Focusable interface {
 type Composite interface {
 	Children() []View
 }
+
+// FocusScope is implemented by containers that act as focus boundaries.
+// When a view implements FocusScope, focus traversal (DFS) will NOT
+// descend into its children. This is useful for preventing focus on
+// wrapped content without having to make children non-focusable individually.
+type FocusScope interface {
+	FocusScope() bool
+}

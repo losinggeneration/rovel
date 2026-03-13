@@ -23,6 +23,13 @@ func NewANSIFlusher(w io.Writer) *ANSIFlusher {
 	return &ANSIFlusher{W: bufio.NewWriterSize(w, 64*1024)}
 }
 
+// ResetStyle resets the style tracking state.
+// Call this when the theme changes to force re-emission of all SGR codes.
+func (f *ANSIFlusher) ResetStyle() {
+	f.CurStyle = style.Style{}
+	f.HasStyle = false
+}
+
 func (f *ANSIFlusher) FlushRuns(back, front *Buffer, runs []Run) error {
 	for _, run := range runs {
 		y := run.Y
@@ -88,16 +95,24 @@ func (f *ANSIFlusher) moveCursorTo(y, x int) error {
 }
 
 func (f *ANSIFlusher) emitSGR(s style.Style) error {
-	// Build SGR parameters - start with reset (0)
 	params := []int{0}
 
-	// Foreground color (30-37 for basic, 90-97 for bright, 38;5;n for 256-color)
-	if s.FG != style.ColorDefault {
+	// Special case: if truly empty style, emit reset
+	if s == (style.Style{}) {
+		return emitSGRParams(f.W, []int{0})
+	}
+
+	// Foreground color
+	if s.FG.IsDefault() {
+		params = append(params, 39) // Explicit default foreground color
+	} else {
 		params = appendFGColor(params, s.FG)
 	}
 
-	// Background color (40-47 for basic, 100-107 for bright, 48;5;n for 256-color)
-	if s.BG != style.ColorDefault {
+	// Background color
+	if s.BG.IsDefault() {
+		params = append(params, 49) // Explicit default background color
+	} else {
 		params = appendBGColor(params, s.BG)
 	}
 
@@ -126,38 +141,40 @@ func (f *ANSIFlusher) emitSGR(s style.Style) error {
 
 // appendFGColor appends foreground color SGR parameters.
 func appendFGColor(params []int, c style.Color) []int {
-	if c == style.ColorDefault {
-		return params
+	switch c.Kind() {
+	case style.ColorKindBasic:
+		idx, _ := c.BasicIndex()
+		if idx <= 7 {
+			return append(params, 30+int(idx))
+		}
+		return append(params, 90+int(idx-8))
+	case style.ColorKindIndexed:
+		idx, _ := c.Index()
+		return append(params, 38, 5, int(idx))
+	case style.ColorKindRGB:
+		r, g, b, _ := c.RGB()
+		return append(params, 38, 2, int(r), int(g), int(b))
 	}
-	// Check for 256-color palette (colors 232-255)
-	if c >= style.Color256 {
-		return append(params, 38, 5, int(c))
-	}
-	// Basic 16 colors: 30-37 (normal), 90-97 (bright)
-	// Color constants are 1-indexed (ColorBlack=1), ANSI is 30 for black
-	if c <= style.ColorWhite {
-		return append(params, 30+int(c-1))
-	}
-	// Bright colors (ColorBrightBlack=9, ANSI 90)
-	return append(params, 90+int(c-style.ColorBrightBlack))
+	return params
 }
 
 // appendBGColor appends background color SGR parameters.
 func appendBGColor(params []int, c style.Color) []int {
-	if c == style.ColorDefault {
-		return params
+	switch c.Kind() {
+	case style.ColorKindBasic:
+		idx, _ := c.BasicIndex()
+		if idx <= 7 {
+			return append(params, 40+int(idx))
+		}
+		return append(params, 100+int(idx-8))
+	case style.ColorKindIndexed:
+		idx, _ := c.Index()
+		return append(params, 48, 5, int(idx))
+	case style.ColorKindRGB:
+		r, g, b, _ := c.RGB()
+		return append(params, 48, 2, int(r), int(g), int(b))
 	}
-	// Check for 256-color palette (colors 232-255)
-	if c >= style.Color256 {
-		return append(params, 48, 5, int(c))
-	}
-	// Basic 16 colors: 40-47 (normal), 100-107 for bright)
-	// Color constants are 1-indexed (ColorBlack=1), ANSI is 40 for black
-	if c <= style.ColorWhite {
-		return append(params, 40+int(c-1))
-	}
-	// Bright colors (ColorBrightBlack=9, ANSI 100)
-	return append(params, 100+int(c-style.ColorBrightBlack))
+	return params
 }
 
 // emitSGRParams writes the SGR escape sequence with parameters.

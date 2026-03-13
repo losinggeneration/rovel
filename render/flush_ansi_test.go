@@ -88,17 +88,17 @@ func TestANSIFlusher_emitSGR_BasicColors(t *testing.T) {
 		{
 			name:     "red foreground",
 			fg:       style.ColorRed,
-			expected: "\x1b[0;31m",
+			expected: "\x1b[0;31;49m",
 		},
 		{
 			name:     "blue foreground",
 			fg:       style.ColorBlue,
-			expected: "\x1b[0;34m",
+			expected: "\x1b[0;34;49m",
 		},
 		{
 			name:     "green background",
 			bg:       style.ColorGreen,
-			expected: "\x1b[0;42m",
+			expected: "\x1b[0;39;42m",
 		},
 		{
 			name:     "red on blue",
@@ -142,17 +142,17 @@ func TestANSIFlusher_emitSGR_BrightColors(t *testing.T) {
 		{
 			name:     "bright red foreground",
 			fg:       style.ColorBrightRed,
-			expected: "\x1b[0;91m",
+			expected: "\x1b[0;91;49m",
 		},
 		{
 			name:     "bright blue foreground",
 			fg:       style.ColorBrightBlue,
-			expected: "\x1b[0;94m",
+			expected: "\x1b[0;94;49m",
 		},
 		{
 			name:     "bright green background",
 			bg:       style.ColorBrightGreen,
-			expected: "\x1b[0;102m",
+			expected: "\x1b[0;39;102m",
 		},
 		{
 			name:     "bright red on bright blue",
@@ -180,18 +180,18 @@ func TestANSIFlusher_emitSGR_BrightColors(t *testing.T) {
 	}
 }
 
-func TestANSIFlusher_emitSGR_256Color(t *testing.T) {
+func TestANSIFlusher_emitSGR_IndexedColor(t *testing.T) {
 	var buf bytes.Buffer
 	f := NewANSIFlusher(&buf)
 
-	// Color 232 (first of 256-color range)
-	err := f.emitSGR(style.Style{FG: 232})
+	// ColorIndex(232) (first grayscale in 256-color range)
+	err := f.emitSGR(style.Style{FG: style.ColorIndex(232)})
 
 	if err != nil {
 		t.Errorf("emitSGR() unexpected error: %v", err)
 	}
 	f.W.Flush()
-	expected := "\x1b[0;38;5;232m"
+	expected := "\x1b[0;38;5;232;49m"
 	if got := buf.String(); got != expected {
 		t.Errorf("emitSGR() 256-color = %q, want %q", got, expected)
 	}
@@ -206,42 +206,42 @@ func TestANSIFlusher_emitSGR_Attributes(t *testing.T) {
 		{
 			name:     "bold",
 			attr:     style.AttrBold,
-			expected: "\x1b[0;1m",
+			expected: "\x1b[0;39;49;1m",
 		},
 		{
 			name:     "dim",
 			attr:     style.AttrDim,
-			expected: "\x1b[0;2m",
+			expected: "\x1b[0;39;49;2m",
 		},
 		{
 			name:     "italic",
 			attr:     style.AttrItalic,
-			expected: "\x1b[0;3m",
+			expected: "\x1b[0;39;49;3m",
 		},
 		{
 			name:     "underline",
 			attr:     style.AttrUnderline,
-			expected: "\x1b[0;4m",
+			expected: "\x1b[0;39;49;4m",
 		},
 		{
 			name:     "blink",
 			attr:     style.AttrBlink,
-			expected: "\x1b[0;5m",
+			expected: "\x1b[0;39;49;5m",
 		},
 		{
 			name:     "reverse",
 			attr:     style.AttrReverse,
-			expected: "\x1b[0;7m",
+			expected: "\x1b[0;39;49;7m",
 		},
 		{
 			name:     "bold underline",
 			attr:     style.AttrBold | style.AttrUnderline,
-			expected: "\x1b[0;1;4m",
+			expected: "\x1b[0;39;49;1;4m",
 		},
 		{
 			name:     "all attributes",
 			attr:     style.AttrBold | style.AttrDim | style.AttrItalic | style.AttrUnderline | style.AttrBlink | style.AttrReverse,
-			expected: "\x1b[0;1;2;3;4;5;7m",
+			expected: "\x1b[0;39;49;1;2;3;4;5;7m",
 		},
 	}
 
@@ -264,7 +264,20 @@ func TestANSIFlusher_emitSGR_Attributes(t *testing.T) {
 }
 
 func TestANSIFlusher_emitSGR_TrueColor(t *testing.T) {
-	t.Skip("truecolor requires larger Color type - uint16 cannot hold full RGB")
+	var buf bytes.Buffer
+	f := NewANSIFlusher(&buf)
+
+	// RGB(1, 2, 3) - distinct RGB values
+	err := f.emitSGR(style.Style{FG: style.ColorRGB(1, 2, 3)})
+
+	if err != nil {
+		t.Errorf("emitSGR() unexpected error: %v", err)
+	}
+	f.W.Flush()
+	expected := "\x1b[0;38;2;1;2;3;49m"
+	if got := buf.String(); got != expected {
+		t.Errorf("emitSGR() truecolor = %q, want %q", got, expected)
+	}
 }
 
 func TestANSIFlusher_emitSGR_Complete(t *testing.T) {
@@ -282,7 +295,7 @@ func TestANSIFlusher_emitSGR_Complete(t *testing.T) {
 		t.Errorf("emitSGR() unexpected error: %v", err)
 	}
 	f.W.Flush()
-	// Note: order may vary (FG, BG, then attributes)
+	// Note: order is FG, BG, then attributes
 	expected := "\x1b[0;31;44;1;4m"
 	if got := buf.String(); got != expected {
 		t.Errorf("emitSGR() = %q, want %q", got, expected)

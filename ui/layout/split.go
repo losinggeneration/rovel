@@ -400,12 +400,16 @@ func (s *Split) collectFocusable() []tui.View {
 			}
 
 			if composite, ok := s.first.(ui.Composite); ok {
+				if fs, ok := s.first.(ui.FocusScope); ok && fs.FocusScope() {
+					goto second
+				}
 				helper := &DFSHelper{Composite: composite, Visited: visited}
 				helper.Collect(&result)
 			}
 		}
 	}
 
+second:
 	// Check second child
 	if s.second != nil {
 		id := s.second.ID()
@@ -417,6 +421,9 @@ func (s *Split) collectFocusable() []tui.View {
 			}
 
 			if composite, ok := s.second.(ui.Composite); ok {
+				if fs, ok := s.second.(ui.FocusScope); ok && fs.FocusScope() {
+					return result
+				}
 				helper := &DFSHelper{Composite: composite, Visited: visited}
 				helper.Collect(&result)
 			}

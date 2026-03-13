@@ -2,6 +2,7 @@ package layout
 
 import (
 	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/tui/style"
 	"github.com/losinggeneration/tui/text"
 )
 
@@ -58,11 +59,21 @@ func (b *Border) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	// Only draw box if rect is large enough
 	if r.W >= 2 && r.H >= 2 {
 		p.WithClip(r, func(p *tui.Painter) {
-			// Draw box border
-			p.Box(r, ctx.Theme.Base)
+			// Use theme border style
+			borderStyle := ctx.Theme.Palette.Border
+			if borderStyle == (style.Style{}) {
+				borderStyle = ctx.Theme.Base
+			}
+			p.Box(r, borderStyle)
 
 			// Draw title if provided
 			if b.title != "" && r.W > 4 {
+				// Use theme text style
+				textStyle := ctx.Theme.Palette.Text
+				if textStyle == (style.Style{}) {
+					textStyle = ctx.Theme.Base
+				}
+
 				titleX := r.X + 2
 				titleY := r.Y
 				maxTitleW := r.W - 4
@@ -70,11 +81,12 @@ func (b *Border) Paint(p *tui.Painter, ctx *tui.Ctx) {
 				end, titleW, _ := text.FitPrefix(b.title, maxTitleW)
 				truncatedTitle := b.title[:end]
 
+				// Clear title background
 				for i := 0; i < titleW && i < maxTitleW; i++ {
-					p.SetCell(titleX+i, titleY, ' ', ctx.Theme.Base)
+					p.SetCell(titleX+i, titleY, ' ', borderStyle)
 				}
 
-				p.Text(titleX, titleY, truncatedTitle, ctx.Theme.Base)
+				p.Text(titleX, titleY, truncatedTitle, textStyle)
 			}
 		})
 	}

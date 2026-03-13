@@ -38,6 +38,7 @@ type Button struct {
 	stNormal   style.Style
 	stFocused  style.Style
 	stDisabled style.Style
+	useTheme   bool // Use theme-based styles
 }
 
 // NewButton creates a new button with the given label.
@@ -54,24 +55,31 @@ func NewButtonOpts(opts ButtonOpts) *Button {
 	}
 
 	normal := opts.StyleNormal
-	if normal == (style.Style{}) {
-		normal = style.Style{
-			FG:   style.ColorDefault,
-			BG:   style.ColorDefault,
-			Attr: 0,
-		}
-	}
-
 	focused := opts.StyleFocused
-	if focused == (style.Style{}) {
-		focused = normal
-		focused.Attr |= style.AttrReverse
-	}
-
 	disabled := opts.StyleDisabled
-	if disabled == (style.Style{}) {
-		disabled = normal
-		disabled.Attr |= style.AttrUnderline
+
+	// If styles are zero, use theme-based derivation
+	useTheme := normal == (style.Style{}) && focused == (style.Style{}) && disabled == (style.Style{})
+
+	// Set default styles if not using theme
+	if !useTheme {
+		if normal == (style.Style{}) {
+			normal = style.Style{
+				FG:   style.ColorDefault,
+				BG:   style.ColorDefault,
+				Attr: 0,
+			}
+		}
+
+		if focused == (style.Style{}) {
+			focused = normal
+			focused.Attr |= style.AttrReverse
+		}
+
+		if disabled == (style.Style{}) {
+			disabled = normal
+			disabled.Attr |= style.AttrUnderline
+		}
 	}
 
 	return &Button{
@@ -82,6 +90,7 @@ func NewButtonOpts(opts ButtonOpts) *Button {
 		stNormal:   normal,
 		stFocused:  focused,
 		stDisabled: disabled,
+		useTheme:   useTheme,
 	}
 }
 
@@ -141,11 +150,28 @@ func (b *Button) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 	focused := ctx != nil && ctx.FocusedID == b.id
 
-	st := b.stNormal
-	if b.disabled {
-		st = b.stDisabled
-	} else if focused {
-		st = b.stFocused
+	var st style.Style
+	if b.useTheme {
+		// Derive from theme roles
+		if b.disabled {
+			st = ctx.Theme.Palette.Disabled
+		} else if focused {
+			st = ctx.Theme.Palette.Focus
+		} else {
+			st = ctx.Theme.Palette.Surface
+		}
+		// Ensure non-zero style
+		if st == (style.Style{}) {
+			st = ctx.Theme.Base
+		}
+	} else {
+		// Use explicit styles
+		st = b.stNormal
+		if b.disabled {
+			st = b.stDisabled
+		} else if focused {
+			st = b.stFocused
+		}
 	}
 
 	// Paint full rect (Paint Contract A already clears damaged spans, but this

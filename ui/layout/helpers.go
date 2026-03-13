@@ -34,6 +34,10 @@ func (h *DFSHelper) Search() tui.View {
 			return child
 		}
 
+		if fs, ok := child.(ui.FocusScope); ok && fs.FocusScope() {
+			continue
+		}
+
 		if composite, ok := child.(ui.Composite); ok {
 			nested := &DFSHelper{Composite: composite, Visited: h.Visited}
 			if result := nested.Search(); result != nil {
@@ -80,6 +84,11 @@ func (h *DFSHelper) Collect(result *[]tui.View) {
 
 		if f, ok := child.(ui.Focusable); ok && f.Focusable() {
 			*result = append(*result, child)
+		}
+
+		if fs, ok := child.(ui.FocusScope); ok && fs.FocusScope() {
+			// Skip children of focus scope
+			continue
 		}
 
 		if composite, ok := child.(ui.Composite); ok {

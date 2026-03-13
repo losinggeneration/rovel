@@ -36,8 +36,6 @@ const (
 	ColorBrightMagenta = style.ColorBrightMagenta
 	ColorBrightCyan    = style.ColorBrightCyan
 	ColorBrightWhite   = style.ColorBrightWhite
-	Color256           = style.Color256
-	ColorTrue          = style.ColorTrue
 )
 
 // Attribute constants re-exported for convenience.

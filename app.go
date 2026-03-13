@@ -28,6 +28,7 @@ import (
 	"github.com/losinggeneration/tui/backend"
 	"github.com/losinggeneration/tui/geom"
 	"github.com/losinggeneration/tui/render"
+	"github.com/losinggeneration/tui/style"
 )
 
 // App represents a TUI application.
@@ -64,6 +65,9 @@ type App struct {
 	closeMu sync.RWMutex
 
 	backendWriter *backendWriter
+
+	resolvedTheme Theme
+	capability    style.Capability
 }
 
 // backendWriter adapts a backend.Backend to io.Writer.
@@ -140,6 +144,17 @@ func (a *App) Enable() error {
 		return err
 	}
 	a.size = size
+
+	// Detect or use provided capability
+	cap := a.opts.Capability
+	if cap == nil {
+		detected := style.DetectCapabilityFromEnv()
+		cap = &detected
+	}
+	a.capability = *cap
+
+	// Resolve theme for capability
+	a.resolvedTheme = a.opts.Theme.Resolved(a.capability)
 
 	// Resize buffers to terminal size
 	a.resizeBuffers(size.W, size.H)
@@ -382,7 +397,8 @@ func (a *App) InvalidateLayout(id ID) {
 // mkCtx creates a context for a view.
 func (a *App) mkCtx(v View) *Ctx {
 	return &Ctx{
-		Theme:            a.opts.Theme,
+		Theme:            a.resolvedTheme,
+		Cap:              a.capability,
 		Invalidate:       func(r geom.Rect) { a.Invalidate(r) },
 		InvalidateAll:    func() { a.InvalidateAll() },
 		InvalidateLayout: func(id ID) { a.InvalidateLayout(id) },
@@ -474,7 +490,7 @@ func (a *App) render() {
 func (a *App) clearDamagedSpans() {
 	baseCell := render.Cell{
 		R:     ' ',
-		Style: a.opts.Theme.Base,
+		Style: a.resolvedTheme.Base,
 		Wide:  false,
 	}
 
@@ -501,8 +517,8 @@ func (a *App) paintViews() {
 	// For now, we'll create one painter with full clip and let views paint
 	// The clipping will happen in the render.Painter
 	clip := geom.Rect{X: 0, Y: 0, W: a.size.W, H: a.size.H}
-	rp := render.NewPainter(a.backBuf, clip, a.opts.Theme.Base)
-	p := NewPainter(rp, a.opts.Theme.Base)
+	rp := render.NewPainter(a.backBuf, clip, a.resolvedTheme.Base)
+	p := NewPainter(rp, a.resolvedTheme.Base)
 
 	// Paint the root (which will paint its children)
 	a.root.Paint(p, ctx)
@@ -566,4 +582,14 @@ func (a *App) wake() {
 // Size returns the current terminal size.
 func (a *App) Size() geom.Size {
 	return a.size
+}
+
+// SetTheme changes the application theme at runtime.
+// Must be called from the app loop goroutine (e.g., via App.Post).
+// Triggers full repaint with new theme.
+func (a *App) SetTheme(theme Theme) {
+	a.opts.Theme = theme
+	a.resolvedTheme = theme.Resolved(a.capability)
+	a.flusher.ResetStyle() // Force re-emission of all SGR codes with new theme
+	a.InvalidateAll()
 }

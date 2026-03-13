@@ -1,6 +1,9 @@
 package tui
 
-import "github.com/losinggeneration/tui/geom"
+import (
+	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/tui/style"
+)
 
 // View is the interface that all UI components must implement.
 type View interface {
@@ -28,6 +31,9 @@ type View interface {
 type Ctx struct {
 	// Theme is the app-wide theme (includes Base + Focus styles).
 	Theme Theme
+
+	// Cap is the terminal color capability.
+	Cap style.Capability
 
 	// Invalidation callbacks (exported to match design doc API).
 	Invalidate       func(r geom.Rect)

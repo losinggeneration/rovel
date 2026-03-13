@@ -353,6 +353,9 @@ func (s *VStack) collectFocusable() []tui.View {
 		}
 
 		if composite, ok := c.View.(ui.Composite); ok {
+			if fs, ok := c.View.(ui.FocusScope); ok && fs.FocusScope() {
+				continue
+			}
 			helper := &DFSHelper{Composite: composite, Visited: visited}
 			helper.Collect(&result)
 		}
