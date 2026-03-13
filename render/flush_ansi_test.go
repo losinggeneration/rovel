@@ -51,7 +51,9 @@ func TestANSIFlusher_moveCursorTo_Moves(t *testing.T) {
 	if err != nil {
 		t.Errorf("moveCursorTo() unexpected error: %v", err)
 	}
-	f.W.Flush()
+	if err := f.W.Flush(); err != nil {
+		t.Errorf("Flush() unexpected error: %v", err)
+	}
 	expected := "\x1b[3;6H" // ANSI: row 3, col 6 (1-indexed)
 	if got := buf.String(); got != expected {
 		t.Errorf("moveCursorTo() = %q, want %q", got, expected)
@@ -70,7 +72,9 @@ func TestANSIFlusher_emitSGR_Default(t *testing.T) {
 	if err != nil {
 		t.Errorf("emitSGR() unexpected error: %v", err)
 	}
-	f.W.Flush()
+	if err := f.W.Flush(); err != nil {
+		t.Errorf("Flush() unexpected error: %v", err)
+	}
 	// Default style only emits reset
 	expected := "\x1b[0m"
 	if got := buf.String(); got != expected {
@@ -124,7 +128,9 @@ func TestANSIFlusher_emitSGR_BasicColors(t *testing.T) {
 			if err != nil {
 				t.Errorf("emitSGR() unexpected error: %v", err)
 			}
-			f.W.Flush()
+			if err := f.W.Flush(); err != nil {
+				t.Errorf("Flush() unexpected error: %v", err)
+			}
 			if got := buf.String(); got != tt.expected {
 				t.Errorf("emitSGR() = %q, want %q", got, tt.expected)
 			}
@@ -172,7 +178,9 @@ func TestANSIFlusher_emitSGR_BrightColors(t *testing.T) {
 			if err != nil {
 				t.Errorf("emitSGR() unexpected error: %v", err)
 			}
-			f.W.Flush()
+			if err := f.W.Flush(); err != nil {
+				t.Errorf("Flush() unexpected error: %v", err)
+			}
 			if got := buf.String(); got != tt.expected {
 				t.Errorf("emitSGR() = %q, want %q", got, tt.expected)
 			}
@@ -190,7 +198,9 @@ func TestANSIFlusher_emitSGR_IndexedColor(t *testing.T) {
 	if err != nil {
 		t.Errorf("emitSGR() unexpected error: %v", err)
 	}
-	f.W.Flush()
+	if err := f.W.Flush(); err != nil {
+		t.Errorf("Flush() unexpected error: %v", err)
+	}
 	expected := "\x1b[0;38;5;232;49m"
 	if got := buf.String(); got != expected {
 		t.Errorf("emitSGR() 256-color = %q, want %q", got, expected)
@@ -255,7 +265,9 @@ func TestANSIFlusher_emitSGR_Attributes(t *testing.T) {
 			if err != nil {
 				t.Errorf("emitSGR() unexpected error: %v", err)
 			}
-			f.W.Flush()
+			if err := f.W.Flush(); err != nil {
+				t.Errorf("Flush() unexpected error: %v", err)
+			}
 			if got := buf.String(); got != tt.expected {
 				t.Errorf("emitSGR() = %q, want %q", got, tt.expected)
 			}
@@ -273,7 +285,9 @@ func TestANSIFlusher_emitSGR_TrueColor(t *testing.T) {
 	if err != nil {
 		t.Errorf("emitSGR() unexpected error: %v", err)
 	}
-	f.W.Flush()
+	if err := f.W.Flush(); err != nil {
+		t.Errorf("Flush() unexpected error: %v", err)
+	}
 	expected := "\x1b[0;38;2;1;2;3;49m"
 	if got := buf.String(); got != expected {
 		t.Errorf("emitSGR() truecolor = %q, want %q", got, expected)
@@ -294,7 +308,9 @@ func TestANSIFlusher_emitSGR_Complete(t *testing.T) {
 	if err != nil {
 		t.Errorf("emitSGR() unexpected error: %v", err)
 	}
-	f.W.Flush()
+	if err := f.W.Flush(); err != nil {
+		t.Errorf("Flush() unexpected error: %v", err)
+	}
 	// Note: order is FG, BG, then attributes
 	expected := "\x1b[0;31;44;1;4m"
 	if got := buf.String(); got != expected {
@@ -311,7 +327,9 @@ func TestANSIFlusher_emitRune_UTF8(t *testing.T) {
 	if err != nil {
 		t.Errorf("emitRune() unexpected error: %v", err)
 	}
-	f.W.Flush()
+	if err := f.W.Flush(); err != nil {
+		t.Errorf("Flush() unexpected error: %v", err)
+	}
 	if got := buf.String(); got != "A" {
 		t.Errorf("emitRune('A') = %q, want 'A'", got)
 	}
@@ -326,7 +344,9 @@ func TestANSIFlusher_emitRune_WideChar(t *testing.T) {
 	if err != nil {
 		t.Errorf("emitRune() unexpected error: %v", err)
 	}
-	f.W.Flush()
+	if err := f.W.Flush(); err != nil {
+		t.Errorf("Flush() unexpected error: %v", err)
+	}
 	if got := buf.String(); got != "日" {
 		t.Errorf("emitRune('日') = %q, want '日'", got)
 	}
@@ -341,7 +361,9 @@ func TestANSIFlusher_emitRune_Zero(t *testing.T) {
 	if err != nil {
 		t.Errorf("emitRune(0) unexpected error: %v", err)
 	}
-	f.W.Flush()
+	if err := f.W.Flush(); err != nil {
+		t.Errorf("Flush() unexpected error: %v", err)
+	}
 	if got := buf.String(); got != " " {
 		t.Errorf("emitRune(0) = %q, want ' '", got)
 	}
@@ -538,7 +560,9 @@ func TestEmitSGRParams(t *testing.T) {
 			var buf bytes.Buffer
 			w := bufio.NewWriter(&buf)
 			err := emitSGRParams(w, tt.params)
-			w.Flush()
+			if err := w.Flush(); err != nil {
+				t.Errorf("Flush() unexpected error: %v", err)
+			}
 			if err != nil {
 				t.Errorf("emitSGRParams() unexpected error: %v", err)
 			}

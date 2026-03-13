@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/losinggeneration/tui"
 	"github.com/losinggeneration/tui/geom"
@@ -36,7 +37,11 @@ func main() {
 	if err := app.Enable(); err != nil {
 		panic(err)
 	}
-	defer app.Restore()
+	defer func() {
+		if err := app.Restore(); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to restore terminal: %v\n", err)
+		}
+	}()
 
 	if err := app.Run(); err != nil {
 		panic(err)

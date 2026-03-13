@@ -54,11 +54,13 @@ func TestPost_OrderingFIFO(t *testing.T) {
 
 	for i := 0; i < 5; i++ {
 		i := i
-		app.Post(func(ctx *UpdateCtx) {
+		if err := app.Post(func(ctx *UpdateCtx) {
 			mu.Lock()
 			order = append(order, i)
 			mu.Unlock()
-		})
+		}); err != nil {
+			t.Fatalf("Post failed: %v", err)
+		}
 	}
 
 	ctx := app.mkUpdateCtx()
@@ -84,15 +86,19 @@ func TestPost_NeverInline(t *testing.T) {
 
 	var innerExecuted atomic.Bool
 
-	app.Post(func(ctx *UpdateCtx) {
-		app.Post(func(ctx *UpdateCtx) {
+	if err := app.Post(func(ctx *UpdateCtx) {
+		if err := app.Post(func(ctx *UpdateCtx) {
 			innerExecuted.Store(true)
-		})
+		}); err != nil {
+			t.Errorf("inner Post failed: %v", err)
+		}
 
 		if innerExecuted.Load() {
 			t.Error("Inner Post executed inline, should be deferred")
 		}
-	})
+	}); err != nil {
+		t.Fatalf("outer Post failed: %v", err)
+	}
 
 	ctx := app.mkUpdateCtx()
 	app.postMu.Lock()
@@ -255,9 +261,11 @@ func TestPost_BoundedBatch(t *testing.T) {
 	var executedCount int32
 
 	for i := 0; i < 100; i++ {
-		app.Post(func(ctx *UpdateCtx) {
+		if err := app.Post(func(ctx *UpdateCtx) {
 			atomic.AddInt32(&executedCount, 1)
-		})
+		}); err != nil {
+			t.Fatalf("Post failed: %v", err)
+		}
 	}
 
 	ctx := app.mkUpdateCtx()

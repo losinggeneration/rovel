@@ -27,6 +27,7 @@ import (
 	"sync/atomic"
 
 	"github.com/losinggeneration/tui/backend"
+	errbuf "github.com/losinggeneration/tui/errors"
 	"github.com/losinggeneration/tui/geom"
 	"github.com/losinggeneration/tui/render"
 	"github.com/losinggeneration/tui/style"
@@ -42,6 +43,8 @@ type App struct {
 	frontBuf *render.Buffer
 	damage   *render.Damage
 	flusher  *render.ANSIFlusher
+
+	errs *errbuf.ErrorBuffer
 
 	root  View
 	views map[ID]View
@@ -95,6 +98,7 @@ func New(opts AppOpts) (*App, error) {
 		eventCh:   make(chan Event, 16),
 		postQueue: make([]func(*UpdateCtx), 0, 64),
 		wakeCh:    make(chan struct{}, 1),
+		errs:      errbuf.New(50),
 	}
 
 	// Create flusher - will be set to backend writer on Enable
@@ -165,9 +169,15 @@ func (a *App) Enable() error {
 	a.flusher = render.NewANSIFlusher(a.backendWriter)
 
 	// Clear screen and hide cursor
-	a.flusher.ClearScreen()
-	a.flusher.HideCursor()
-	a.flusher.Flush()
+	if err := a.flusher.ClearScreen(); err != nil {
+		return err
+	}
+	if err := a.flusher.HideCursor(); err != nil {
+		return err
+	}
+	if err := a.flusher.Flush(); err != nil {
+		return err
+	}
 
 	// Initial layout
 	a.layout()
@@ -181,8 +191,12 @@ func (a *App) Enable() error {
 // Restore restores the terminal to its original state.
 func (a *App) Restore() error {
 	// Show cursor before restoring
-	a.flusher.ShowCursor()
-	a.flusher.Flush()
+	if err := a.flusher.ShowCursor(); err != nil {
+		return err
+	}
+	if err := a.flusher.Flush(); err != nil {
+		return err
+	}
 
 	if a.backend != nil {
 		return a.backend.Restore()
@@ -529,9 +543,16 @@ func (a *App) paintViews() {
 func (a *App) flush() {
 	runs := render.DiffRuns(a.backBuf, a.frontBuf, a.damage)
 	if len(runs) > 0 {
-		a.flusher.FlushRuns(a.backBuf, a.frontBuf, runs)
+		a.errs.Add(a.flusher.FlushRuns(a.backBuf, a.frontBuf, runs))
 	}
-	a.backend.Flush()
+	a.errs.Add(a.backend.Flush())
+}
+
+// Errors returns the accumulated errors from terminal operations.
+// The returned slice is a copy and is safe to modify.
+// Errors are capped at 50 by default; older errors are discarded.
+func (a *App) Errors() []error {
+	return a.errs.Get()
 }
 
 // Quit requests the application to stop.

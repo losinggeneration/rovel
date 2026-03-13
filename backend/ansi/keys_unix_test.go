@@ -735,7 +735,7 @@ func TestKeyDecoder_Reset(t *testing.T) {
 	// Start a CSI sequence
 	var evs []event.KeyEvent
 	evs = d.PushByte(evs, 0x1b)
-	evs = d.PushByte(evs, '[')
+	_ = d.PushByte(evs, '[')
 
 	// Reset should return to ground state
 	d.Reset()

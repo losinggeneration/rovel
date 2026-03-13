@@ -29,7 +29,11 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Failed to enable app: %v\n", err)
 		os.Exit(1)
 	}
-	defer app.Restore()
+	defer func() {
+		if err := app.Restore(); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to restore terminal: %v\n", err)
+		}
+	}()
 
 	// Start app in a goroutine so we can wait for quit
 	go func() {

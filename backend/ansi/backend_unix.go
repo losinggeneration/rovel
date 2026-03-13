@@ -4,11 +4,13 @@ package ansi
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"os"
 	"sync"
 	"sync/atomic"
 
+	"github.com/losinggeneration/tui/errors"
 	"github.com/losinggeneration/tui/event"
 	"github.com/losinggeneration/tui/geom"
 	"golang.org/x/sys/unix"
@@ -68,21 +70,28 @@ func (b *ansiBackend) Enable() (geom.Size, error) {
 	// Create self-pipe for waking poll (after raw mode succeeds)
 	pipeR, pipeW, err := os.Pipe()
 	if err != nil {
-		restore(orig)
+		errors.Add(restore(orig))
+
 		return geom.Size{}, err
 	}
 
 	// Set both ends to non-blocking
 	if err := unix.SetNonblock(int(pipeR.Fd()), true); err != nil {
-		pipeR.Close()
-		pipeW.Close()
-		restore(orig)
+		errors.Add(pipeR.Close())
+		errors.Add(pipeW.Close())
+		errors.Add(restore(orig))
+		pipeR = nil
+		pipeW = nil
+
 		return geom.Size{}, err
 	}
 	if err := unix.SetNonblock(int(pipeW.Fd()), true); err != nil {
-		pipeR.Close()
-		pipeW.Close()
-		restore(orig)
+		errors.Add(pipeR.Close())
+		errors.Add(pipeW.Close())
+		errors.Add(restore(orig))
+		pipeR = nil
+		pipeW = nil
+
 		return geom.Size{}, err
 	}
 
@@ -92,9 +101,12 @@ func (b *ansiBackend) Enable() (geom.Size, error) {
 	// Setup signal handler for resize events
 	signals, err := setupResizeHandler(b.pipeW)
 	if err != nil {
-		pipeR.Close()
-		pipeW.Close()
-		restore(orig)
+		errors.Add(pipeR.Close())
+		errors.Add(pipeW.Close())
+		errors.Add(restore(orig))
+		pipeR = nil
+		pipeW = nil
+
 		return geom.Size{}, err
 	}
 	b.signals = signals
@@ -105,12 +117,12 @@ func (b *ansiBackend) Enable() (geom.Size, error) {
 		b.signals.Stop()
 		b.signals = nil
 
-		b.pipeR.Close()
-		b.pipeW.Close()
+		errors.Add(b.pipeR.Close())
+		errors.Add(b.pipeW.Close())
 		b.pipeR = nil
 		b.pipeW = nil
 
-		restore(orig)
+		errors.Add(restore(orig))
 		b.origTermios = nil
 		return geom.Size{}, err
 	}
@@ -159,6 +171,8 @@ func (b *ansiBackend) Restore() error {
 		if err := b.pipeW.Close(); err != nil && firstErr == nil {
 			firstErr = err
 		}
+
+		b.pipeW = nil
 	}
 
 	// 5. Wait for read loop to exit before restoring termios, so the
@@ -170,6 +184,8 @@ func (b *ansiBackend) Restore() error {
 		if err := b.pipeR.Close(); err != nil && firstErr == nil {
 			firstErr = err
 		}
+
+		b.pipeR = nil
 	}
 
 	// 6. Restore terminal settings last.
@@ -232,7 +248,10 @@ func (b *ansiBackend) readEvents() {
 		// Resolve incomplete decoder state at EOF.
 		var evs []event.KeyEvent
 		evs = b.decoder.Finalize(evs)
-		_ = b.emitKeyEvents(evs)
+		alive := b.emitKeyEvents(evs)
+		if !alive {
+			errors.Add(fmt.Errorf("emitKeyEvents already shutdown"))
+		}
 
 		// Stop resize handling if the read loop exits before Restore() runs.
 		// Stop() is idempotent via sync.Once.
@@ -243,7 +262,8 @@ func (b *ansiBackend) readEvents() {
 		// readEvents owns pipeR: close it here after the poll/read loop exits,
 		// so Restore() never closes an fd that may still be in poll().
 		if b.pipeR != nil {
-			b.pipeR.Close()
+			errors.Add(b.pipeR.Close())
+			b.pipeR = nil
 		}
 
 		// Close event channel to signal graceful shutdown.
@@ -290,7 +310,8 @@ func (b *ansiBackend) readEvents() {
 		// Drain pipe (resize notifications, non-blocking)
 		if b.pipeR != nil && len(pollFds) > 1 && pollFds[1].Revents&unix.POLLIN != 0 {
 			for {
-				n, _ := b.pipeR.Read(pipeBuf[:])
+				n, err := b.pipeR.Read(pipeBuf[:])
+				errors.Add(err)
 				if n <= 0 {
 					break
 				}
@@ -349,7 +370,7 @@ func (b *ansiBackend) readEvents() {
 				break
 			}
 
-			for i := 0; i < n; i++ {
+			for i := range n {
 				evs = b.decoder.PushByte(evs, buf[i])
 			}
 		}

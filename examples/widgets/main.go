@@ -59,7 +59,11 @@ func main() {
 		fmt.Printf("Failed to enable app: %v\n", err)
 		return
 	}
-	defer app.Restore()
+	defer func() {
+		if err := app.Restore(); err != nil {
+			fmt.Printf("Failed to restore terminal: %v\n", err)
+		}
+	}()
 
 	// Run the app
 	if err := app.Run(); err != nil {

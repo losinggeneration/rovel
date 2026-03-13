@@ -291,29 +291,6 @@ func (s *VStack) findFocusedDescendant(id tui.ID) tui.View {
 	return nil
 }
 
-func (s *VStack) findFirstFocusable() tui.View {
-	visited := make(map[tui.ID]struct{})
-	for _, c := range s.children {
-		id := c.View.ID()
-		if _, ok := visited[id]; ok {
-			continue
-		}
-		visited[id] = struct{}{}
-
-		if f, ok := c.View.(ui.Focusable); ok && f.Focusable() {
-			return c.View
-		}
-
-		if composite, ok := c.View.(ui.Composite); ok {
-			helper := &DFSHelper{Composite: composite, Visited: visited}
-			if result := helper.Search(); result != nil {
-				return result
-			}
-		}
-	}
-	return nil
-}
-
 func (s *VStack) findNextFocusable(focusables []tui.View, currentFocusID tui.ID) (tui.View, bool) {
 	if len(focusables) == 0 {
 		return nil, false
@@ -361,14 +338,6 @@ func (s *VStack) collectFocusable() []tui.View {
 		}
 	}
 	return result
-}
-
-func (s *VStack) findLastFocusable() tui.View {
-	focusables := s.collectFocusable()
-	if len(focusables) == 0 {
-		return nil
-	}
-	return focusables[len(focusables)-1]
 }
 
 func (s *VStack) findPrevFocusable(focusables []tui.View, currentFocusID tui.ID) (tui.View, bool) {

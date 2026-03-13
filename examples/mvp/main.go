@@ -12,6 +12,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -166,7 +167,11 @@ func main() {
 	if err := app.Enable(); err != nil {
 		panic(err)
 	}
-	defer app.Restore()
+	defer func() {
+		if err := app.Restore(); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to restore terminal: %v\n", err)
+		}
+	}()
 
 	if err := app.Run(); err != nil {
 		panic(err)
@@ -453,8 +458,7 @@ func truncate(s string, w int) string {
 // padRight pads a string with spaces to the given display width.
 func padRight(s string, w int) string {
 	width := 0
-	runes := []rune(s)
-	for _, r := range runes {
+	for _, r := range s {
 		width += tui.RuneWidth(r)
 	}
 	if width >= w {

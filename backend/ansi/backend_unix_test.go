@@ -3,6 +3,7 @@
 package ansi
 
 import (
+	"io"
 	"os"
 	"testing"
 	"time"
@@ -19,10 +20,11 @@ type testBackend struct {
 	w       *os.File // write end of pipe (for test input)
 	pipeR   *os.File // wake pipe read end
 	pipeW   *os.File // wake pipe write end
+	t       *testing.T
 }
 
 // newTestBackend creates a new test backend.
-func newTestBackend() (*testBackend, error) {
+func newTestBackend(t *testing.T) (*testBackend, error) {
 	// Create input pipe
 	r, w, err := os.Pipe()
 	if err != nil {
@@ -32,17 +34,17 @@ func newTestBackend() (*testBackend, error) {
 	// Create wake pipe
 	pipeR, pipeW, err := os.Pipe()
 	if err != nil {
-		r.Close()
-		w.Close()
+		closer(t, r)
+		closer(t, w)
 		return nil, err
 	}
 
 	// Set wake pipe to non-blocking (matches production)
 	if err := unix.SetNonblock(int(pipeR.Fd()), true); err != nil {
-		r.Close()
-		w.Close()
-		pipeR.Close()
-		pipeW.Close()
+		closer(t, r)
+		closer(t, w)
+		closer(t, pipeR)
+		closer(t, pipeW)
 		return nil, err
 	}
 
@@ -62,16 +64,20 @@ func newTestBackend() (*testBackend, error) {
 		w:       w,
 		pipeR:   pipeR,
 		pipeW:   pipeW,
+		t:       t,
 	}
 
 	return tb, nil
 }
 
-// Close closes all file descriptors.
-func (tb *testBackend) Close() {
-	tb.w.Close()
-	tb.pipeW.Close()
-	tb.pipeR.Close()
+func closer(t *testing.T, c io.Closer) {
+	if c == nil {
+		return
+	}
+
+	if err := c.Close(); err != nil {
+		t.Error(err)
+	}
 }
 
 // writeInput writes bytes to the input pipe.
@@ -82,7 +88,8 @@ func (tb *testBackend) writeInput(data []byte) error {
 
 // closeInput closes the write end of the input pipe (simulating EOF).
 func (tb *testBackend) closeInput() {
-	tb.w.Close()
+	closer(tb.t, tb.w)
+	tb.w = nil
 }
 
 // readAllEvents reads all events from the channel until it closes or timeout.
@@ -111,11 +118,10 @@ func readAllEventsFromChannel(ch <-chan event.Event, timeout time.Duration) []ev
 // one read becomes KeyUp. This is a regression test for
 // timeout-based flushing misdecode.
 func TestBackend_SplitCSISequence(t *testing.T) {
-	tb, err := newTestBackend()
+	tb, err := newTestBackend(t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tb.Close()
 
 	go tb.backend.readEvents()
 
@@ -146,11 +152,10 @@ func TestBackend_SplitCSISequence(t *testing.T) {
 // TestBackend_StandaloneESCatEOF verifies that a standalone ESC at EOF
 // becomes KeyEsc.
 func TestBackend_StandaloneESCatEOF(t *testing.T) {
-	tb, err := newTestBackend()
+	tb, err := newTestBackend(t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tb.Close()
 
 	go tb.backend.readEvents()
 
@@ -178,11 +183,10 @@ func TestBackend_StandaloneESCatEOF(t *testing.T) {
 // TestBackend_PartialCSIFinalized verifies that a partial CSI at EOF
 // is finalized literally.
 func TestBackend_PartialCSIFinalized(t *testing.T) {
-	tb, err := newTestBackend()
+	tb, err := newTestBackend(t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tb.Close()
 
 	go tb.backend.readEvents()
 
@@ -219,11 +223,10 @@ func TestBackend_PartialCSIFinalized(t *testing.T) {
 
 // TestBackend_EscAltRune verifies that ESC + letter becomes Alt+Rune.
 func TestBackend_EscAltRune(t *testing.T) {
-	tb, err := newTestBackend()
+	tb, err := newTestBackend(t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tb.Close()
 
 	go tb.backend.readEvents()
 
@@ -256,11 +259,10 @@ func TestBackend_EscAltRune(t *testing.T) {
 // TestBackend_PartialSS3Finalized verifies that a partial SS3 at EOF
 // is finalized literally.
 func TestBackend_PartialSS3Finalized(t *testing.T) {
-	tb, err := newTestBackend()
+	tb, err := newTestBackend(t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tb.Close()
 
 	go tb.backend.readEvents()
 
@@ -298,11 +300,10 @@ func TestBackend_PartialSS3Finalized(t *testing.T) {
 // TestBackend_EscEscDouble verifies that two consecutive ESC keys
 // emit two KeyEsc events.
 func TestBackend_EscEscDouble(t *testing.T) {
-	tb, err := newTestBackend()
+	tb, err := newTestBackend(t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tb.Close()
 
 	go tb.backend.readEvents()
 
@@ -372,11 +373,10 @@ func TestEOFBehavior(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tb, err := newTestBackend()
+			tb, err := newTestBackend(t)
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer tb.Close()
 
 			go tb.backend.readEvents()
 
@@ -447,11 +447,10 @@ func TestBackend_AltKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tb, err := newTestBackend()
+			tb, err := newTestBackend(t)
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer tb.Close()
 
 			go tb.backend.readEvents()
 
@@ -488,11 +487,10 @@ func TestBackend_AltKey(t *testing.T) {
 // TestBackend_UnknownCSI verifies that unknown CSI sequences are
 // preserved literally.
 func TestBackend_UnknownCSI(t *testing.T) {
-	tb, err := newTestBackend()
+	tb, err := newTestBackend(t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tb.Close()
 
 	go tb.backend.readEvents()
 
@@ -551,11 +549,10 @@ func TestBackend_CSIPrivateMarker(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tb, err := newTestBackend()
+			tb, err := newTestBackend(t)
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer tb.Close()
 
 			go tb.backend.readEvents()
 
@@ -612,11 +609,10 @@ func TestBackend_ChunkedInput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tb, err := newTestBackend()
+			tb, err := newTestBackend(t)
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer tb.Close()
 
 			go tb.backend.readEvents()
 
@@ -652,11 +648,10 @@ func TestBackend_ChunkedInput(t *testing.T) {
 // TestBackend_MultipleCSI verifies that multiple CSI sequences in one
 // read are decoded correctly.
 func TestBackend_MultipleCSI(t *testing.T) {
-	tb, err := newTestBackend()
+	tb, err := newTestBackend(t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tb.Close()
 
 	go tb.backend.readEvents()
 
@@ -694,11 +689,10 @@ func TestBackend_MultipleCSI(t *testing.T) {
 
 // TestBackend_MixedEvents verifies mixed keyboard and other events.
 func TestBackend_MixedEvents(t *testing.T) {
-	tb, err := newTestBackend()
+	tb, err := newTestBackend(t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tb.Close()
 
 	go tb.backend.readEvents()
 
@@ -742,11 +736,10 @@ func TestBackend_MixedEvents(t *testing.T) {
 // TestBackend_SingleESCatEOF verifies that a standalone ESC at EOF
 // becomes KeyEsc. This is the correct EOF-driven behavior, not timeout-based.
 func TestBackend_SingleESCatEOF(t *testing.T) {
-	tb, err := newTestBackend()
+	tb, err := newTestBackend(t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tb.Close()
 
 	go tb.backend.readEvents()
 
@@ -776,11 +769,10 @@ func TestBackend_SingleESCatEOF(t *testing.T) {
 // This tests the interactive behavior where a user presses Escape and then
 // does nothing else - ESC should be emitted when stdin is no longer readable.
 func TestBackend_StandaloneESCPrompt(t *testing.T) {
-	tb, err := newTestBackend()
+	tb, err := newTestBackend(t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tb.Close()
 
 	go tb.backend.readEvents()
 
@@ -809,11 +801,10 @@ func TestBackend_StandaloneESCPrompt(t *testing.T) {
 // TestBackend_EscEscPrompt verifies that two consecutive ESC keys
 // emit two KeyEsc events promptly without EOF.
 func TestBackend_EscEscPrompt(t *testing.T) {
-	tb, err := newTestBackend()
+	tb, err := newTestBackend(t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tb.Close()
 
 	go tb.backend.readEvents()
 
@@ -843,17 +834,18 @@ func TestBackend_EscEscPrompt(t *testing.T) {
 // TestBackend_EOFAfterData verifies that decoded events are not
 // lost when EOF occurs after a successful read.
 func TestBackend_EOFAfterData(t *testing.T) {
-	tb, err := newTestBackend()
+	tb, err := newTestBackend(t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tb.Close()
 
 	go tb.backend.readEvents()
 
 	// Write data with multiple valid sequences and immediately close (no sleep)
 	// Input: 'a', CSI A (Up), ESC (standalone)
-	tb.writeInput([]byte{'a', 0x1b, '[', 'A', 0x1b})
+	if err := tb.writeInput([]byte{'a', 0x1b, '[', 'A', 0x1b}); err != nil {
+		t.Fatal(err)
+	}
 	tb.closeInput()
 
 	events := tb.readAllEvents(100 * time.Millisecond)
@@ -930,11 +922,10 @@ func TestBackend_SS3(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tb, err := newTestBackend()
+			tb, err := newTestBackend(t)
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer tb.Close()
 
 			go tb.backend.readEvents()
 

@@ -62,12 +62,11 @@ func TestColorResolve_RGBToIndexed(t *testing.T) {
 	}
 
 	// Pure red should map to a red-ish indexed color
-	idx, _ := resolved.Index()
-	// In xterm-256, red is around 196 or close to it
-	// Just verify it's in a reasonable range
-	if idx < 0 || idx > 255 {
-		t.Errorf("RGB resolved to invalid index: %d", idx)
+	idx, ok := resolved.Index()
+	if !ok {
+		t.Errorf("failed to get index from resolved color")
 	}
+	_ = idx
 }
 
 func TestColorResolve_RGBToBasic(t *testing.T) {

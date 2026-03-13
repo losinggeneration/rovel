@@ -37,10 +37,20 @@ func main() {
 	flusher := render.NewANSIFlusher(os.Stdout)
 
 	// Clear screen and hide cursor
-	flusher.ClearScreen()
-	flusher.HideCursor()
-	defer flusher.ShowCursor()
-	flusher.Flush()
+	if err := flusher.ClearScreen(); err != nil {
+		fmt.Fprintf(os.Stderr, "ClearScreen error: %v\n", err)
+	}
+	if err := flusher.HideCursor(); err != nil {
+		fmt.Fprintf(os.Stderr, "HideCursor error: %v\n", err)
+	}
+	defer func() {
+		if err := flusher.ShowCursor(); err != nil {
+			fmt.Fprintf(os.Stderr, "ShowCursor error: %v\n", err)
+		}
+	}()
+	if err := flusher.Flush(); err != nil {
+		fmt.Fprintf(os.Stderr, "Flush error: %v\n", err)
+	}
 
 	// Frame 1: Header box with "loading" message
 	damage.Clear()
@@ -121,7 +131,7 @@ func main() {
 	flushAndShowDiff(buf, front, damage, flusher)
 
 	// Wait for user input
-	fmt.Scanln()
+	_, _ = fmt.Scanln()
 }
 
 func flushAndShowDiff(buf, front *render.Buffer, damage *render.Damage, flusher *render.ANSIFlusher) {

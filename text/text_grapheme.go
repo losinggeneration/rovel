@@ -21,20 +21,21 @@ func PrevCluster(s string, i int) int {
 	if i <= 0 {
 		return 0
 	}
+
 	if i > len(s) {
 		i = len(s)
 	}
-	for i > 0 {
-		_, size := utf8.DecodeLastRuneInString(s[:i])
-		if size == 0 {
-			return 0
-		}
-		i -= size
-		if i > 0 {
-			return i
-		}
+
+	_, size := utf8.DecodeLastRuneInString(s[:i])
+	if size == 0 {
 		return 0
 	}
+
+	i -= size
+	if i > 0 {
+		return i
+	}
+
 	return 0
 }
 

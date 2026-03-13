@@ -26,8 +26,6 @@ const (
 	ColorKindRGB     ColorKind = 3
 )
 
-type colorKind = ColorKind // internal alias
-
 // ColorBasic creates a basic 16-color (ANSI) color.
 // Index should be 0-15 (0=black through 15=bright white).
 func ColorBasic(index uint8) Color {

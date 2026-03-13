@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"sync"
 
+	"github.com/losinggeneration/tui/errors"
 	"github.com/losinggeneration/tui/geom"
 	"golang.org/x/sys/unix"
 )
@@ -68,12 +69,13 @@ func (h *signalHandler) ResizeChan() <-chan geom.Size {
 }
 
 // wakePoll writes a byte to the wake pipe to unblock a blocking poll call.
-// Best-effort: all errors are ignored (pipe may be full or already closed).
+// Errors are buffered in the package-level error buffer for later inspection.
 func (h *signalHandler) wakePoll() {
 	if h.wakePipe != nil {
 		var b [1]byte
 		b[0] = 1
-		h.wakePipe.Write(b[:])
+		_, err := h.wakePipe.Write(b[:])
+		errors.Add(err)
 	}
 }
 
