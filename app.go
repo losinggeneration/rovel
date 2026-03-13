@@ -24,6 +24,7 @@ package tui
 
 import (
 	"sync"
+	"sync/atomic"
 
 	"github.com/losinggeneration/tui/backend"
 	"github.com/losinggeneration/tui/geom"
@@ -60,7 +61,7 @@ type App struct {
 
 	wakeCh chan struct{}
 
-	running bool
+	running atomic.Bool
 	closed  bool
 	closeMu sync.RWMutex
 
@@ -277,11 +278,11 @@ func (a *App) Run() (err error) {
 	a.closed = false
 	a.closeMu.Unlock()
 
-	a.running = true
+	a.running.Store(true)
 
 	go a.readEvents()
 
-	for a.running {
+	for a.running.Load() {
 		const maxPostsPerIteration = 64
 		ctx := a.mkUpdateCtx()
 
@@ -297,7 +298,7 @@ func (a *App) Run() (err error) {
 
 			fn(ctx)
 
-			if !a.running {
+			if !a.running.Load() {
 				a.setClosed()
 				return nil
 			}
@@ -311,7 +312,7 @@ func (a *App) Run() (err error) {
 			}
 			a.handleEvent(e)
 
-			if !a.running {
+			if !a.running.Load() {
 				a.setClosed()
 				return nil
 			}
@@ -337,7 +338,7 @@ func (a *App) setClosed() {
 func (a *App) readEvents() {
 	defer close(a.eventCh)
 
-	for a.running {
+	for a.running.Load() {
 		e := a.backend.ReadEvent()
 		if e == nil {
 			// Backend shutdown/EOF.
@@ -544,7 +545,7 @@ func (a *App) Quit() {
 		return
 	}
 
-	a.running = false
+	a.running.Store(false)
 }
 
 // Post schedules fn to run on the app loop.

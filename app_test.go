@@ -131,7 +131,7 @@ func TestPost_NilFunc(t *testing.T) {
 
 func TestCtx_Quit(t *testing.T) {
 	app, _ := New(AppOpts{})
-	app.running = true
+	app.running.Store(true)
 
 	ctx := app.mkCtx(nil)
 
@@ -141,14 +141,14 @@ func TestCtx_Quit(t *testing.T) {
 
 	ctx.Quit()
 
-	if app.running {
+	if app.running.Load() {
 		t.Error("Quit did not set running to false")
 	}
 }
 
 func TestUpdateCtx_Quit(t *testing.T) {
 	app, _ := New(AppOpts{})
-	app.running = true
+	app.running.Store(true)
 
 	ctx := app.mkUpdateCtx()
 
@@ -158,27 +158,27 @@ func TestUpdateCtx_Quit(t *testing.T) {
 
 	ctx.Quit()
 
-	if app.running {
+	if app.running.Load() {
 		t.Error("Quit did not set running to false")
 	}
 }
 
 func TestQuit_Idempotent(t *testing.T) {
 	app, _ := New(AppOpts{})
-	app.running = true
+	app.running.Store(true)
 
 	app.Quit()
 	app.Quit()
 	app.Quit()
 
-	if app.running {
+	if app.running.Load() {
 		t.Error("Quit should be idempotent")
 	}
 }
 
 func TestQuit_FromClosedApp(t *testing.T) {
 	app, _ := New(AppOpts{})
-	app.running = true
+	app.running.Store(true)
 	app.setClosed()
 
 	app.Quit()
