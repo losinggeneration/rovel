@@ -388,6 +388,83 @@ func TestPainter_Box(t *testing.T) {
 	}
 }
 
+func TestPainter_BoxStyled_ASCII(t *testing.T) {
+	buf := NewBuffer(10, 10)
+	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 10}
+	p := NewPainter(buf, clip, style.Style{})
+
+	st := style.Style{FG: style.ColorRed}
+	rect := geom.Rect{X: 2, Y: 3, W: 6, H: 4}
+	p.BoxStyled(rect, BoxStyle{
+		Glyphs: BoxGlyphsASCII,
+		Edges:  BoxEdgesAll,
+		Style:  st,
+	})
+
+	// Corners should use '+'
+	corners := []struct {
+		x, y int
+		ch   rune
+	}{
+		{2, 3, '+'},
+		{7, 3, '+'},
+		{2, 6, '+'},
+		{7, 6, '+'},
+	}
+	for _, c := range corners {
+		cell := buf.At(c.x, c.y)
+		if cell.R != c.ch {
+			t.Errorf("BoxStyled(ASCII) corner at (%d,%d) R = %v, want %v", c.x, c.y, cell.R, c.ch)
+		}
+		if cell.Style != st {
+			t.Errorf("BoxStyled(ASCII) corner at (%d,%d) Style = %+v, want %+v", c.x, c.y, cell.Style, st)
+		}
+	}
+
+	// Top/bottom edges should use '-'
+	for x := 3; x < 7; x++ {
+		if buf.At(x, 3).R != '-' {
+			t.Errorf("BoxStyled(ASCII) top edge at x=%d R = %v, want '-'", x, buf.At(x, 3).R)
+		}
+		if buf.At(x, 6).R != '-' {
+			t.Errorf("BoxStyled(ASCII) bottom edge at x=%d R = %v, want '-'", x, buf.At(x, 6).R)
+		}
+	}
+
+	// Left/right edges should use '|'
+	for y := 4; y < 6; y++ {
+		if buf.At(2, y).R != '|' {
+			t.Errorf("BoxStyled(ASCII) left edge at y=%d R = %v, want '|'", y, buf.At(2, y).R)
+		}
+		if buf.At(7, y).R != '|' {
+			t.Errorf("BoxStyled(ASCII) right edge at y=%d R = %v, want '|'", y, buf.At(7, y).R)
+		}
+	}
+}
+
+func TestPainter_BoxStyled_EdgesOnly(t *testing.T) {
+	buf := NewBuffer(10, 10)
+	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 10}
+	p := NewPainter(buf, clip, style.Style{})
+
+	rect := geom.Rect{X: 2, Y: 3, W: 6, H: 1}
+	p.BoxStyled(rect, BoxStyle{
+		Glyphs: BoxGlyphsASCII,
+		Edges:  BoxEdgeLeft | BoxEdgeRight,
+		Style:  style.Style{FG: style.ColorGreen},
+	})
+
+	if buf.At(2, 3).R != '|' {
+		t.Errorf("BoxStyled(edges) left bar R = %v, want '|'", buf.At(2, 3).R)
+	}
+	if buf.At(7, 3).R != '|' {
+		t.Errorf("BoxStyled(edges) right bar R = %v, want '|'", buf.At(7, 3).R)
+	}
+	if buf.At(3, 3).R != 0 {
+		t.Errorf("BoxStyled(edges) interior wrote R = %v, want empty", buf.At(3, 3).R)
+	}
+}
+
 func TestPainter_Box_SingleCell(t *testing.T) {
 	buf := NewBuffer(10, 10)
 	clip := geom.Rect{X: 0, Y: 0, W: 10, H: 10}

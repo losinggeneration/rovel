@@ -25,9 +25,35 @@ type Palette struct {
 
 // Theme defines the styling for the application.
 type Theme struct {
-	Base    style.Style // Clear-cell style (Paint Contract A)
-	Focus   style.Style // Kept for backward compatibility
-	Palette Palette
+	Base      style.Style // Clear-cell style (Paint Contract A)
+	Focus     style.Style // Kept for backward compatibility
+	Aesthetic Aesthetic   // High-level look hint (classic vs modern)
+	Chrome    Chrome      // Box-like chrome (borders, focus rings, etc)
+	Palette   Palette
+}
+
+// Aesthetic is a high-level, non-prescriptive hint for widget "chrome"
+// decisions (glyphs, outlines vs flat fills, etc). It avoids per-widget theme
+// trees while still letting themes express a consistent visual direction.
+type Aesthetic uint8
+
+const (
+	AestheticClassic Aesthetic = iota + 1
+	AestheticModern
+)
+
+func (t Theme) effectiveAesthetic() Aesthetic {
+	if t.Aesthetic != 0 {
+		return t.Aesthetic
+	}
+	// Zero value preserves pre-P3 behavior: classic terminal chrome.
+	return AestheticClassic
+}
+
+// EffectiveAesthetic returns the theme's aesthetic, defaulting to classic if
+// the zero value is used.
+func (t Theme) EffectiveAesthetic() Aesthetic {
+	return t.effectiveAesthetic()
 }
 
 // DefaultTheme returns the default theme (monochrome using terminal default FG).
@@ -40,8 +66,16 @@ func DefaultTheme() Theme {
 	}
 
 	return Theme{
-		Base:  monochrome,
-		Focus: monochrome.WithAttr(style.AttrReverse),
+		Base:      monochrome,
+		Focus:     monochrome.WithAttr(style.AttrReverse),
+		Aesthetic: AestheticClassic,
+		Chrome: Chrome{
+			Border: FrameChrome{Glyphs: BoxGlyphsASCII, Edges: BoxEdgesAll},
+			FocusRing: FrameChrome{
+				Glyphs: BoxGlyphsASCII,
+				Edges:  BoxEdgesAll,
+			},
+		},
 		Palette: Palette{
 			Surface:      monochrome,
 			SurfaceMuted: monochrome,
@@ -74,8 +108,16 @@ func DefaultThemeClassic() Theme {
 	}
 
 	return Theme{
-		Base:  base,
-		Focus: base.WithAttr(style.AttrReverse),
+		Base:      base,
+		Focus:     base.WithAttr(style.AttrReverse),
+		Aesthetic: AestheticClassic,
+		Chrome: Chrome{
+			Border: FrameChrome{Glyphs: BoxGlyphsASCII, Edges: BoxEdgesAll},
+			FocusRing: FrameChrome{
+				Glyphs: BoxGlyphsASCII,
+				Edges:  BoxEdgesAll,
+			},
+		},
 		Palette: Palette{
 			Surface:      base,
 			SurfaceMuted: base.WithBG(black),
@@ -122,6 +164,14 @@ func DefaultThemeModern() Theme {
 			FG: focusFG,
 			BG: focusBG,
 		},
+		Aesthetic: AestheticModern,
+		Chrome: Chrome{
+			Border: FrameChrome{Glyphs: BoxGlyphsLight, Edges: BoxEdgesAll},
+			FocusRing: FrameChrome{
+				Glyphs: BoxGlyphsLight,
+				Edges:  BoxEdgesAll,
+			},
+		},
 		Palette: Palette{
 			Surface:      style.Style{FG: fgDefault, BG: bgSurface},
 			SurfaceMuted: style.Style{FG: fgDefault, BG: bgSurfaceMuted},
@@ -154,6 +204,8 @@ func (t Theme) Resolved(cap style.Capability) Theme {
 
 	resolved.Base = resolveStyle(t.Base)
 	resolved.Focus = resolveStyle(t.Focus)
+	resolved.Aesthetic = t.Aesthetic
+	resolved.Chrome = t.Chrome
 
 	// Resolve all palette fields
 	resolved.Palette.Surface = resolveStyle(t.Palette.Surface)
@@ -170,6 +222,10 @@ func (t Theme) Resolved(cap style.Capability) Theme {
 	resolved.Palette.Warning = resolveStyle(t.Palette.Warning)
 	resolved.Palette.Danger = resolveStyle(t.Palette.Danger)
 	resolved.Palette.Disabled = resolveStyle(t.Palette.Disabled)
+
+	// Ensure chrome style functions degrade across capabilities.
+	resolved.Chrome.Border.StyleFn = resolved.Chrome.Border.StyleFn.wrapResolver(resolveStyle)
+	resolved.Chrome.FocusRing.StyleFn = resolved.Chrome.FocusRing.StyleFn.wrapResolver(resolveStyle)
 
 	return resolved
 }

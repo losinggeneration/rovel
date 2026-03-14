@@ -13,6 +13,38 @@ type Painter struct {
 	base  style.Style // Theme base style for Clear()
 }
 
+// Re-export box styling primitives from render for convenience.
+type (
+	BoxEdges  = render.BoxEdges
+	BoxGlyphs = render.BoxGlyphs
+	BoxPart   = render.BoxPart
+	BoxStyle  = render.BoxStyle
+)
+
+const (
+	BoxEdgeTop    = render.BoxEdgeTop
+	BoxEdgeRight  = render.BoxEdgeRight
+	BoxEdgeBottom = render.BoxEdgeBottom
+	BoxEdgeLeft   = render.BoxEdgeLeft
+	BoxEdgesAll   = render.BoxEdgesAll
+)
+
+const (
+	BoxPartTop      = render.BoxPartTop
+	BoxPartRight    = render.BoxPartRight
+	BoxPartBottom   = render.BoxPartBottom
+	BoxPartLeft     = render.BoxPartLeft
+	BoxPartCornerTL = render.BoxPartCornerTL
+	BoxPartCornerTR = render.BoxPartCornerTR
+	BoxPartCornerBL = render.BoxPartCornerBL
+	BoxPartCornerBR = render.BoxPartCornerBR
+)
+
+var (
+	BoxGlyphsLight = render.BoxGlyphsLight
+	BoxGlyphsASCII = render.BoxGlyphsASCII
+)
+
 // NewPainter creates a new Painter wrapping a render.Painter.
 func NewPainter(rp *render.Painter, baseStyle style.Style) *Painter {
 	return &Painter{
@@ -57,6 +89,12 @@ func (p *Painter) VLine(x, y, h int, ch rune, st style.Style) {
 // Box draws a box border.
 func (p *Painter) Box(r geom.Rect, st style.Style) {
 	p.paint.Box(r, st)
+}
+
+// BoxStyled draws a box border with configurable glyphs, edges, and optional
+// per-cell styling.
+func (p *Painter) BoxStyled(r geom.Rect, bs BoxStyle) {
+	p.paint.BoxStyled(r, bs)
 }
 
 // ClipRect returns the current clip rect for this painter.

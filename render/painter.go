@@ -157,8 +157,86 @@ func (p *Painter) VLine(x, y, h int, ch rune, style style.Style) {
 	p.Fill(r, ch, style)
 }
 
+// BoxEdges is a bitmask of which edges to draw.
+type BoxEdges uint8
+
+const (
+	BoxEdgeTop BoxEdges = 1 << iota
+	BoxEdgeRight
+	BoxEdgeBottom
+	BoxEdgeLeft
+
+	BoxEdgesAll = BoxEdgeTop | BoxEdgeRight | BoxEdgeBottom | BoxEdgeLeft
+)
+
+// BoxGlyphs defines the runes used to draw a box.
+type BoxGlyphs struct {
+	H  rune // horizontal edge
+	V  rune // vertical edge
+	TL rune // top-left corner
+	TR rune // top-right corner
+	BL rune // bottom-left corner
+	BR rune // bottom-right corner
+}
+
+// BoxPart indicates which portion of the box is being painted.
+type BoxPart uint8
+
+const (
+	BoxPartTop BoxPart = iota + 1
+	BoxPartRight
+	BoxPartBottom
+	BoxPartLeft
+	BoxPartCornerTL
+	BoxPartCornerTR
+	BoxPartCornerBL
+	BoxPartCornerBR
+)
+
+// BoxStyle controls how a box border is drawn.
+type BoxStyle struct {
+	Glyphs BoxGlyphs
+	Edges  BoxEdges
+
+	// Style is used when StyleFn is nil.
+	Style style.Style
+
+	// StyleFn optionally provides per-cell styling (for gradients, per-edge
+	// emphasis, etc). If non-nil, it is used for every cell written.
+	StyleFn func(part BoxPart, x, y int, r geom.Rect) style.Style
+}
+
+var (
+	BoxGlyphsLight = BoxGlyphs{
+		H:  '─',
+		V:  '│',
+		TL: '┌',
+		TR: '┐',
+		BL: '└',
+		BR: '┘',
+	}
+	BoxGlyphsASCII = BoxGlyphs{
+		H:  '-',
+		V:  '|',
+		TL: '+',
+		TR: '+',
+		BL: '+',
+		BR: '+',
+	}
+)
+
 // Box draws a box border.
 func (p *Painter) Box(r geom.Rect, style style.Style) {
+	p.BoxStyled(r, BoxStyle{
+		Glyphs: BoxGlyphsLight,
+		Edges:  BoxEdgesAll,
+		Style:  style,
+	})
+}
+
+// BoxStyled draws a box border with configurable glyphs, edges, and optional
+// per-cell styling.
+func (p *Painter) BoxStyled(r geom.Rect, bs BoxStyle) {
 	if r.Empty() {
 		return
 	}
@@ -167,25 +245,61 @@ func (p *Painter) Box(r geom.Rect, style style.Style) {
 	r.X += p.offsetX
 	r.Y += p.offsetY
 
-	// Horizontal lines
-	p.HLine(r.X, r.Y, r.W, '─', style)
-	if r.H > 1 {
-		p.HLine(r.X, r.Y+r.H-1, r.W, '─', style)
+	g := bs.Glyphs
+	edges := bs.Edges
+
+	cellStyle := func(part BoxPart, x, y int) style.Style {
+		if bs.StyleFn != nil {
+			return bs.StyleFn(part, x, y, r)
+		}
+		return bs.Style
 	}
 
-	// Vertical lines
-	p.VLine(r.X, r.Y, r.H, '│', style)
-	if r.W > 1 {
-		p.VLine(r.X+r.W-1, r.Y, r.H, '│', style)
+	// Edges (inclusive of corners; corners may be overwritten below).
+	if edges&BoxEdgeTop != 0 {
+		y := r.Y
+		for x := r.X; x < r.X+r.W; x++ {
+			p.setCellAt(x, y, g.H, cellStyle(BoxPartTop, x, y))
+		}
+	}
+	if edges&BoxEdgeBottom != 0 && r.H > 1 {
+		y := r.Y + r.H - 1
+		for x := r.X; x < r.X+r.W; x++ {
+			p.setCellAt(x, y, g.H, cellStyle(BoxPartBottom, x, y))
+		}
 	}
 
-	// Corners - use setCellAt since offset already applied
+	if edges&BoxEdgeLeft != 0 {
+		x := r.X
+		for y := r.Y; y < r.Y+r.H; y++ {
+			p.setCellAt(x, y, g.V, cellStyle(BoxPartLeft, x, y))
+		}
+	}
+	if edges&BoxEdgeRight != 0 && r.W > 0 {
+		x := r.X + r.W - 1
+		for y := r.Y; y < r.Y+r.H; y++ {
+			p.setCellAt(x, y, g.V, cellStyle(BoxPartRight, x, y))
+		}
+	}
+
+	// Corners only when both adjacent edges are present. This supports styles like
+	// left/right bars without top/bottom edges.
 	if r.W > 0 && r.H > 0 {
-		p.setCellAt(r.X, r.Y, '┌', style)       // Top-left
-		p.setCellAt(r.X+r.W-1, r.Y, '┐', style) // Top-right
-	}
-	if r.W > 0 && r.H > 1 {
-		p.setCellAt(r.X, r.Y+r.H-1, '└', style)       // Bottom-left
-		p.setCellAt(r.X+r.W-1, r.Y+r.H-1, '┘', style) // Bottom-right
+		if edges&BoxEdgeTop != 0 && edges&BoxEdgeLeft != 0 {
+			x, y := r.X, r.Y
+			p.setCellAt(x, y, g.TL, cellStyle(BoxPartCornerTL, x, y))
+		}
+		if edges&BoxEdgeTop != 0 && edges&BoxEdgeRight != 0 {
+			x, y := r.X+r.W-1, r.Y
+			p.setCellAt(x, y, g.TR, cellStyle(BoxPartCornerTR, x, y))
+		}
+		if edges&BoxEdgeBottom != 0 && edges&BoxEdgeLeft != 0 && r.H > 1 {
+			x, y := r.X, r.Y+r.H-1
+			p.setCellAt(x, y, g.BL, cellStyle(BoxPartCornerBL, x, y))
+		}
+		if edges&BoxEdgeBottom != 0 && edges&BoxEdgeRight != 0 && r.H > 1 {
+			x, y := r.X+r.W-1, r.Y+r.H-1
+			p.setCellAt(x, y, g.BR, cellStyle(BoxPartCornerBR, x, y))
+		}
 	}
 }

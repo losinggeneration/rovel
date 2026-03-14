@@ -172,3 +172,56 @@ func TestThemePreservesBaseAndFocus(t *testing.T) {
 		t.Errorf("Resolved() changed Base FG: %v -> %v", original.Base.FG, resolved.Base.FG)
 	}
 }
+
+func TestThemeChrome_Defaults(t *testing.T) {
+	classic := DefaultThemeClassic()
+	ec := classic.Chrome.Border.Effective(classic)
+	if ec.Glyphs != BoxGlyphsASCII {
+		t.Errorf("DefaultThemeClassic() Border glyphs = %+v, want ASCII", ec.Glyphs)
+	}
+
+	modern := DefaultThemeModern()
+	em := modern.Chrome.Border.Effective(modern)
+	if em.Glyphs != BoxGlyphsLight {
+		t.Errorf("DefaultThemeModern() Border glyphs = %+v, want light", em.Glyphs)
+	}
+
+	// Backward-compat: unspecified aesthetic + zero chrome defaults to light.
+	legacy := Theme{
+		Base:  style.Style{FG: style.ColorWhite, BG: style.ColorBlack},
+		Focus: style.Style{FG: style.ColorBlack, BG: style.ColorWhite},
+	}
+	el := legacy.Chrome.Border.Effective(legacy)
+	if el.Glyphs != BoxGlyphsLight {
+		t.Errorf("legacy theme Border glyphs = %+v, want light", el.Glyphs)
+	}
+}
+
+func TestThemeResolved_ChromeStyleFn(t *testing.T) {
+	theme := DefaultThemeModern()
+	theme.Chrome.Border.StyleFn = func(part BoxPart, x, y int, r Rect, base style.Style) style.Style {
+		_ = part
+		_ = x
+		_ = y
+		_ = r
+		_ = base
+		return style.Style{FG: style.ColorRGB(10, 20, 30), BG: style.ColorRGB(40, 50, 60)}
+	}
+
+	cap := style.Capability{HasBasic: true}
+	resolved := theme.Resolved(cap)
+
+	chrome := resolved.Chrome.Border.Effective(resolved)
+	bs := chrome.BoxStyle(resolved.Palette.Border)
+	if bs.StyleFn == nil {
+		t.Fatal("resolved Border StyleFn is nil")
+	}
+
+	out := bs.StyleFn(BoxPartTop, 0, 0, Rect{X: 0, Y: 0, W: 3, H: 3})
+	if out.FG.Kind() != style.ColorKindBasic && out.FG != 0 {
+		t.Errorf("resolved StyleFn FG kind = %v, want basic or default", out.FG.Kind())
+	}
+	if out.BG.Kind() != style.ColorKindBasic && out.BG != 0 {
+		t.Errorf("resolved StyleFn BG kind = %v, want basic or default", out.BG.Kind())
+	}
+}

@@ -57,7 +57,16 @@ func (f *FocusRing) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	// Draw focus border if focused
 	if focused {
 		p.WithClip(f.rect, func(p *tui.Painter) {
-			p.Box(f.rect, ctx.Theme.Focus)
+			focusStyle := ctx.Theme.Palette.Focus
+			if focusStyle == (tui.Style{}) {
+				focusStyle = ctx.Theme.Focus
+			}
+			if focusStyle == (tui.Style{}) {
+				focusStyle = ctx.Theme.Base
+			}
+
+			chrome := ctx.Theme.Chrome.FocusRing.Effective(ctx.Theme)
+			p.BoxStyled(f.rect, chrome.BoxStyle(focusStyle))
 		})
 	}
 

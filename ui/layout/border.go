@@ -64,10 +64,11 @@ func (b *Border) Paint(p *tui.Painter, ctx *tui.Ctx) {
 			if borderStyle == (style.Style{}) {
 				borderStyle = ctx.Theme.Base
 			}
-			p.Box(r, borderStyle)
+			chrome := ctx.Theme.Chrome.Border.Effective(ctx.Theme)
+			p.BoxStyled(r, chrome.BoxStyle(borderStyle))
 
 			// Draw title if provided
-			if b.title != "" && r.W > 4 {
+			if b.title != "" && r.W > 4 && (chrome.Edges&tui.BoxEdgeTop) != 0 {
 				// Use theme text style
 				textStyle := ctx.Theme.Palette.Text
 				if textStyle == (style.Style{}) {

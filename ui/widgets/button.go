@@ -18,6 +18,10 @@ type ButtonOpts struct {
 
 	Disabled bool
 
+	// Chrome controls the visual "shape" of the button label.
+	// If zero, the button chooses based on the theme aesthetic.
+	Chrome ButtonChrome
+
 	// Optional styles. If left as zero values, these defaults are used:
 	// - Normal:   default fg/bg, no attrs
 	// - Focused:  Normal + AttrReverse
@@ -39,7 +43,18 @@ type Button struct {
 	stFocused  style.Style
 	stDisabled style.Style
 	useTheme   bool // Use theme-based styles
+
+	chrome ButtonChrome
 }
+
+// ButtonChrome controls the visual "chrome" of the button.
+type ButtonChrome uint8
+
+const (
+	ButtonChromeAuto ButtonChrome = iota
+	ButtonChromeBrackets
+	ButtonChromeSolid
+)
 
 // NewButton creates a new button with the given label.
 // For more control, use NewButtonOpts.
@@ -91,6 +106,7 @@ func NewButtonOpts(opts ButtonOpts) *Button {
 		stFocused:  focused,
 		stDisabled: disabled,
 		useTheme:   useTheme,
+		chrome:     opts.Chrome,
 	}
 }
 
@@ -101,7 +117,8 @@ func (b *Button) Rect() tui.Rect { return b.rect }
 func (b *Button) Layout(r tui.Rect) { b.rect = r }
 
 // MinSize returns the minimum size needed for the button.
-// Render form is: "[ " + label + " ]" => 4 extra columns.
+// MinSize reserves 4 extra columns for button chrome/padding.
+// Classic bracket chrome is: "[ " + label + " ]".
 // Note: rune-count is an approximation for wide chars; good enough for MVP.
 func (b *Button) MinSize() geom.Size {
 	w := 4 + text.Width(b.label)
@@ -149,6 +166,18 @@ func (b *Button) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	}
 
 	focused := ctx != nil && ctx.FocusedID == b.id
+	chrome := b.chrome
+	if chrome == ButtonChromeAuto && ctx != nil {
+		switch ctx.Theme.EffectiveAesthetic() {
+		case tui.AestheticModern:
+			chrome = ButtonChromeSolid
+		default:
+			chrome = ButtonChromeBrackets
+		}
+	}
+	if chrome == ButtonChromeAuto {
+		chrome = ButtonChromeBrackets
+	}
 
 	var st style.Style
 	if b.useTheme {
@@ -180,7 +209,7 @@ func (b *Button) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 	y := r.Y + r.H/2
 
-	text := b.renderText(r.W)
+	text := b.renderText(r.W, chrome)
 	x := r.X + (r.W-approxWidth(text))/2
 	if x < r.X {
 		x = r.X
@@ -232,29 +261,41 @@ func (b *Button) Focusable() bool {
 	return true
 }
 
-func (b *Button) renderText(maxW int) string {
-	// Desired: "[ " + label + " ]"
-	// Layout for small widths:
-	// 1: "["
-	// 2: "[]"
-	// 3: "[ ]"
-	// 4+: "[ " + label(truncated) + " ]"
+func (b *Button) renderText(maxW int, chrome ButtonChrome) string {
 	if maxW <= 0 {
 		return ""
 	}
-	if maxW == 1 {
-		return "["
-	}
-	if maxW == 2 {
-		return "[]"
-	}
-	if maxW == 3 {
-		return "[ ]"
-	}
 
-	maxLabel := maxW - 4
-	lbl := truncateRunes(b.label, maxLabel)
-	return "[ " + lbl + " ]"
+	switch chrome {
+	case ButtonChromeSolid:
+		// Prefer a little padding when there is room.
+		if maxW >= 3 {
+			lbl := truncateRunes(b.label, maxW-2)
+			return " " + lbl + " "
+		}
+		return truncateRunes(b.label, maxW)
+
+	default:
+		// Desired: "[ " + label + " ]"
+		// Layout for small widths:
+		// 1: "["
+		// 2: "[]"
+		// 3: "[ ]"
+		// 4+: "[ " + label(truncated) + " ]"
+		if maxW == 1 {
+			return "["
+		}
+		if maxW == 2 {
+			return "[]"
+		}
+		if maxW == 3 {
+			return "[ ]"
+		}
+
+		maxLabel := maxW - 4
+		lbl := truncateRunes(b.label, maxLabel)
+		return "[ " + lbl + " ]"
+	}
 }
 
 func truncateRunes(s string, max int) string {
