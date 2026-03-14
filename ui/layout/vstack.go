@@ -265,30 +265,7 @@ func (s *VStack) Children() []tui.View {
 }
 
 func (s *VStack) findFocusedDescendant(id tui.ID) tui.View {
-	for _, c := range s.children {
-		if c.View.ID() == id {
-			return c.View
-		}
-	}
-
-	visited := make(map[tui.ID]struct{})
-	for _, c := range s.children {
-		if c.View.ID() == id {
-			return c.View
-		}
-		if _, ok := visited[c.View.ID()]; ok {
-			continue
-		}
-		visited[c.View.ID()] = struct{}{}
-
-		if composite, ok := c.View.(ui.Composite); ok {
-			helper := &DFSHelper{Composite: composite, Visited: visited}
-			if result := helper.FindByID(id); result != nil {
-				return result
-			}
-		}
-	}
-	return nil
+	return FindByID(s, id)
 }
 
 func (s *VStack) findNextFocusable(focusables []tui.View, currentFocusID tui.ID) (tui.View, bool) {
@@ -316,28 +293,7 @@ func (s *VStack) findNextFocusable(focusables []tui.View, currentFocusID tui.ID)
 }
 
 func (s *VStack) collectFocusable() []tui.View {
-	var result []tui.View
-	visited := make(map[tui.ID]struct{})
-	for _, c := range s.children {
-		id := c.View.ID()
-		if _, ok := visited[id]; ok {
-			continue
-		}
-		visited[id] = struct{}{}
-
-		if f, ok := c.View.(ui.Focusable); ok && f.Focusable() {
-			result = append(result, c.View)
-		}
-
-		if composite, ok := c.View.(ui.Composite); ok {
-			if fs, ok := c.View.(ui.FocusScope); ok && fs.FocusScope() {
-				continue
-			}
-			helper := &DFSHelper{Composite: composite, Visited: visited}
-			helper.Collect(&result)
-		}
-	}
-	return result
+	return CollectFocusable(s)
 }
 
 func (s *VStack) findPrevFocusable(focusables []tui.View, currentFocusID tui.ID) (tui.View, bool) {

@@ -3,7 +3,6 @@ package layout
 import (
 	"github.com/losinggeneration/tui"
 	"github.com/losinggeneration/tui/event"
-	"github.com/losinggeneration/tui/ui"
 )
 
 // Orientation specifies the split direction.
@@ -272,86 +271,12 @@ func (s *Split) Children() []tui.View {
 
 // findFocusedDescendant finds the view with the given ID in the subtree.
 func (s *Split) findFocusedDescendant(id tui.ID) tui.View {
-	// Check first child
-	if s.first != nil && s.first.ID() == id {
-		return s.first
-	}
-
-	// Check second child
-	if s.second != nil && s.second.ID() == id {
-		return s.second
-	}
-
-	// Search in descendants of first child
-	visited := make(map[tui.ID]struct{})
-	if s.first != nil {
-		visited[s.first.ID()] = struct{}{}
-		if composite, ok := s.first.(ui.Composite); ok {
-			helper := &DFSHelper{Composite: composite, Visited: visited}
-			if result := helper.FindByID(id); result != nil {
-				return result
-			}
-		}
-	}
-
-	// Search in descendants of second child
-	if s.second != nil {
-		visited := make(map[tui.ID]struct{})
-		visited[s.second.ID()] = struct{}{}
-		if composite, ok := s.second.(ui.Composite); ok {
-			helper := &DFSHelper{Composite: composite, Visited: visited}
-			if result := helper.FindByID(id); result != nil {
-				return result
-			}
-		}
-	}
-
-	return nil
+	return FindByID(s, id)
 }
 
 // findFirstFocusable returns the first focusable descendant (searches recursively).
 func (s *Split) findFirstFocusable() tui.View {
-	visited := make(map[tui.ID]struct{})
-
-	// Check first child
-	if s.first != nil {
-		id := s.first.ID()
-		if _, ok := visited[id]; !ok {
-			visited[id] = struct{}{}
-
-			if f, ok := s.first.(ui.Focusable); ok && f.Focusable() {
-				return s.first
-			}
-
-			if composite, ok := s.first.(ui.Composite); ok {
-				helper := &DFSHelper{Composite: composite, Visited: visited}
-				if result := helper.Search(); result != nil {
-					return result
-				}
-			}
-		}
-	}
-
-	// Check second child
-	if s.second != nil {
-		id := s.second.ID()
-		if _, ok := visited[id]; !ok {
-			visited[id] = struct{}{}
-
-			if f, ok := s.second.(ui.Focusable); ok && f.Focusable() {
-				return s.second
-			}
-
-			if composite, ok := s.second.(ui.Composite); ok {
-				helper := &DFSHelper{Composite: composite, Visited: visited}
-				if result := helper.Search(); result != nil {
-					return result
-				}
-			}
-		}
-	}
-
-	return nil
+	return FindFirstFocusable(s)
 }
 
 // findNextFocusable returns the next focusable descendant after the currently focused ID,
@@ -386,49 +311,5 @@ func (s *Split) findNextFocusable(currentFocusID tui.ID) (tui.View, bool) {
 
 // collectFocusable collects all focusable descendants in order.
 func (s *Split) collectFocusable() []tui.View {
-	var result []tui.View
-	visited := make(map[tui.ID]struct{})
-
-	// Check first child
-	if s.first != nil {
-		id := s.first.ID()
-		if _, ok := visited[id]; !ok {
-			visited[id] = struct{}{}
-
-			if f, ok := s.first.(ui.Focusable); ok && f.Focusable() {
-				result = append(result, s.first)
-			}
-
-			if composite, ok := s.first.(ui.Composite); ok {
-				if fs, ok := s.first.(ui.FocusScope); ok && fs.FocusScope() {
-					goto second
-				}
-				helper := &DFSHelper{Composite: composite, Visited: visited}
-				helper.Collect(&result)
-			}
-		}
-	}
-
-second:
-	// Check second child
-	if s.second != nil {
-		id := s.second.ID()
-		if _, ok := visited[id]; !ok {
-			visited[id] = struct{}{}
-
-			if f, ok := s.second.(ui.Focusable); ok && f.Focusable() {
-				result = append(result, s.second)
-			}
-
-			if composite, ok := s.second.(ui.Composite); ok {
-				if fs, ok := s.second.(ui.FocusScope); ok && fs.FocusScope() {
-					return result
-				}
-				helper := &DFSHelper{Composite: composite, Visited: visited}
-				helper.Collect(&result)
-			}
-		}
-	}
-
-	return result
+	return CollectFocusable(s)
 }

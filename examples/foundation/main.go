@@ -20,10 +20,12 @@ func main() {
 				BG:   style.ColorDefault,
 				Attr: 0,
 			},
-			Focus: style.Style{
-				FG:   style.ColorBlack,
-				BG:   style.ColorWhite,
-				Attr: 0,
+			Palette: tui.Palette{
+				Focus: style.Style{
+					FG:   style.ColorBlack,
+					BG:   style.ColorWhite,
+					Attr: 0,
+				},
 			},
 		},
 	})

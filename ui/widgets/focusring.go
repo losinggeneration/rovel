@@ -59,9 +59,6 @@ func (f *FocusRing) Paint(p *tui.Painter, ctx *tui.Ctx) {
 		p.WithClip(f.rect, func(p *tui.Painter) {
 			focusStyle := ctx.Theme.Palette.Focus
 			if focusStyle == (tui.Style{}) {
-				focusStyle = ctx.Theme.Focus
-			}
-			if focusStyle == (tui.Style{}) {
 				focusStyle = ctx.Theme.Base
 			}
 

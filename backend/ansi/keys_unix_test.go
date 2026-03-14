@@ -355,8 +355,8 @@ func TestKeyDecoder_CSI_InvalidByte(t *testing.T) {
 	if evs[2].Key != event.KeyRune || evs[2].Rune != '1' {
 		t.Fatalf("event 2 = %#v, want '1'", evs[2])
 	}
-	if d.State() != stateEsc {
-		t.Errorf("state = %v, want stateEsc", d.State())
+	if d.state != stateEsc {
+		t.Errorf("state = %v, want stateEsc", d.state)
 	}
 }
 
@@ -436,8 +436,8 @@ func TestKeyDecoder_ESC_Esc(t *testing.T) {
 	if len(evs) != 0 {
 		t.Fatalf("after first ESC: got %d events, want 0", len(evs))
 	}
-	if d.State() != stateEsc {
-		t.Fatalf("after first ESC: state = %v, want stateEsc", d.State())
+	if d.state != stateEsc {
+		t.Fatalf("after first ESC: state = %v, want stateEsc", d.state)
 	}
 
 	// Second ESC -> emit one ESC, stay in stateEsc
@@ -448,8 +448,8 @@ func TestKeyDecoder_ESC_Esc(t *testing.T) {
 	if evs[0].Key != event.KeyEsc {
 		t.Fatalf("got %#v, want KeyEsc", evs[0])
 	}
-	if d.State() != stateEsc {
-		t.Fatalf("after second ESC: state = %v, want stateEsc", d.State())
+	if d.state != stateEsc {
+		t.Fatalf("after second ESC: state = %v, want stateEsc", d.state)
 	}
 
 	// Finalize should emit the pending ESC (we're still in stateEsc)
@@ -600,8 +600,8 @@ func TestKeyDecoder_FlushPending(t *testing.T) {
 	}
 
 	// Decoder should be back in ground state
-	if d.State() != stateGround {
-		t.Fatalf("state = %v, want stateGround", d.State())
+	if d.state != stateGround {
+		t.Fatalf("state = %v, want stateGround", d.state)
 	}
 }
 
@@ -617,8 +617,8 @@ func TestKeyDecoder_FlushPending_PartialCSI(t *testing.T) {
 	if len(evs) != 0 {
 		t.Fatalf("FlushPending flushed partial CSI: got %d events, want 0", len(evs))
 	}
-	if d.State() != stateCSI {
-		t.Fatalf("state = %v, want stateCSI", d.State())
+	if d.state != stateCSI {
+		t.Fatalf("state = %v, want stateCSI", d.state)
 	}
 }
 
@@ -634,8 +634,8 @@ func TestKeyDecoder_FlushPending_PartialSS3(t *testing.T) {
 	if len(evs) != 0 {
 		t.Fatalf("FlushPending flushed partial SS3: got %d events, want 0", len(evs))
 	}
-	if d.State() != stateSS3 {
-		t.Fatalf("state = %v, want stateSS3", d.State())
+	if d.state != stateSS3 {
+		t.Fatalf("state = %v, want stateSS3", d.state)
 	}
 }
 
@@ -650,8 +650,8 @@ func TestKeyDecoder_FlushPending_PartialUTF8(t *testing.T) {
 	if len(evs) != 0 {
 		t.Fatalf("FlushPending flushed partial UTF-8: got %d events, want 0", len(evs))
 	}
-	if d.State() != stateUTF8 {
-		t.Fatalf("state = %v, want stateUTF8", d.State())
+	if d.state != stateUTF8 {
+		t.Fatalf("state = %v, want stateUTF8", d.state)
 	}
 }
 
@@ -754,25 +754,25 @@ func TestKeyDecoder_State(t *testing.T) {
 	d := &KeyDecoder{}
 
 	// Initial state should be ground
-	if d.State() != stateGround {
-		t.Errorf("Initial state = %v, want stateGround", d.State())
+	if d.state != stateGround {
+		t.Errorf("Initial state = %v, want stateGround", d.state)
 	}
 
 	// ESC should change to Esc state
 	d.PushByte(nil, 0x1b)
-	if d.State() != stateEsc {
-		t.Errorf("After ESC, state = %v, want stateEsc", d.State())
+	if d.state != stateEsc {
+		t.Errorf("After ESC, state = %v, want stateEsc", d.state)
 	}
 
 	// Reset should return to ground
 	d.Reset()
-	if d.State() != stateGround {
-		t.Errorf("After reset, state = %v, want stateGround", d.State())
+	if d.state != stateGround {
+		t.Errorf("After reset, state = %v, want stateGround", d.state)
 	}
 
 	// Starting UTF-8 sequence should change state
 	d.PushByte(nil, 0xE2) // Start of 3-byte UTF-8
-	if d.State() != stateUTF8 {
-		t.Errorf("After UTF-8 start, state = %v, want stateUTF8", d.State())
+	if d.state != stateUTF8 {
+		t.Errorf("After UTF-8 start, state = %v, want stateUTF8", d.state)
 	}
 }

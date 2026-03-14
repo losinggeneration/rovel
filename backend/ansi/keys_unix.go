@@ -42,11 +42,6 @@ func (d *KeyDecoder) Reset() {
 	*d = KeyDecoder{}
 }
 
-// State returns the current decoder state.
-func (d *KeyDecoder) State() decodeState {
-	return d.state
-}
-
 // PushByte processes one byte and appends any generated events to dst.
 func (d *KeyDecoder) PushByte(
 	dst []event.KeyEvent,

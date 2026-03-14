@@ -10,31 +10,31 @@ import (
 )
 
 type ANSIFlusher struct {
-	W *bufio.Writer
+	w *bufio.Writer
 
-	CurX int
-	CurY int
+	curX int
+	curY int
 
-	CurStyle style.Style
-	HasStyle bool
+	curStyle style.Style
+	hasStyle bool
 }
 
 func NewANSIFlusher(w io.Writer) *ANSIFlusher {
-	return &ANSIFlusher{W: bufio.NewWriterSize(w, 64*1024)}
+	return &ANSIFlusher{w: bufio.NewWriterSize(w, 64*1024)}
 }
 
 // ResetStyle resets the style tracking state.
 // Call this when the theme changes to force re-emission of all SGR codes.
 func (f *ANSIFlusher) ResetStyle() {
-	f.CurStyle = style.Style{}
-	f.HasStyle = false
+	f.curStyle = style.Style{}
+	f.hasStyle = false
 }
 
 // ResetCursor resets the tracked cursor position so the next move emits an
 // absolute positioning sequence. Call after terminal resize.
 func (f *ANSIFlusher) ResetCursor() {
-	f.CurX = -1
-	f.CurY = -1
+	f.curX = -1
+	f.curY = -1
 }
 
 func (f *ANSIFlusher) FlushRuns(back, front *Buffer, runs []Run) error {
@@ -51,16 +51,16 @@ func (f *ANSIFlusher) FlushRuns(back, front *Buffer, runs []Run) error {
 
 			if c.WideCont {
 				x++
-				f.CurX++
+				f.curX++
 				continue
 			}
 
-			if !f.HasStyle || c.Style != f.CurStyle {
+			if !f.hasStyle || c.Style != f.curStyle {
 				if err := f.emitSGR(c.Style); err != nil {
 					return err
 				}
-				f.CurStyle = c.Style
-				f.HasStyle = true
+				f.curStyle = c.Style
+				f.hasStyle = true
 			}
 
 			if err := f.emitRune(c.R); err != nil {
@@ -74,30 +74,30 @@ func (f *ANSIFlusher) FlushRuns(back, front *Buffer, runs []Run) error {
 					*front.At(x+1, y) = *back.At(x+1, y)
 				}
 				x += 2
-				f.CurX += 2
+				f.curX += 2
 				continue
 			}
 
 			x++
-			f.CurX++
+			f.curX++
 		}
 	}
 
-	return f.W.Flush()
+	return f.w.Flush()
 }
 
 func (f *ANSIFlusher) moveCursorTo(y, x int) error {
-	if f.CurX == x && f.CurY == y {
+	if f.curX == x && f.curY == y {
 		return nil
 	}
 
-	_, err := fmt.Fprintf(f.W, "\x1b[%d;%dH", y+1, x+1)
+	_, err := fmt.Fprintf(f.w, "\x1b[%d;%dH", y+1, x+1)
 	if err != nil {
 		return err
 	}
 
-	f.CurX = x
-	f.CurY = y
+	f.curX = x
+	f.curY = y
 	return nil
 }
 
@@ -106,7 +106,7 @@ func (f *ANSIFlusher) emitSGR(s style.Style) error {
 
 	// Special case: if truly empty style, emit reset
 	if s == (style.Style{}) {
-		return emitSGRParams(f.W, []int{0})
+		return emitSGRParams(f.w, []int{0})
 	}
 
 	// Foreground color
@@ -143,7 +143,7 @@ func (f *ANSIFlusher) emitSGR(s style.Style) error {
 		params = append(params, 7)
 	}
 
-	return emitSGRParams(f.W, params)
+	return emitSGRParams(f.w, params)
 }
 
 // appendFGColor appends foreground color SGR parameters.
@@ -210,36 +210,36 @@ func (f *ANSIFlusher) emitRune(r rune) error {
 
 	var buf [utf8.UTFMax]byte
 	n := utf8.EncodeRune(buf[:], r)
-	_, err := f.W.Write(buf[:n])
+	_, err := f.w.Write(buf[:n])
 	return err
 }
 
 // ClearScreen emits the ANSI escape sequence to clear the entire screen.
 func (f *ANSIFlusher) ClearScreen() error {
-	_, err := f.W.WriteString("\x1b[2J")
+	_, err := f.w.WriteString("\x1b[2J")
 	if err != nil {
 		return err
 	}
 	// Move cursor to home
-	_, err = f.W.WriteString("\x1b[H")
-	f.CurX = 0
-	f.CurY = 0
+	_, err = f.w.WriteString("\x1b[H")
+	f.curX = 0
+	f.curY = 0
 	return err
 }
 
 // HideCursor hides the cursor.
 func (f *ANSIFlusher) HideCursor() error {
-	_, err := f.W.WriteString("\x1b[?25l")
+	_, err := f.w.WriteString("\x1b[?25l")
 	return err
 }
 
 // ShowCursor shows the cursor.
 func (f *ANSIFlusher) ShowCursor() error {
-	_, err := f.W.WriteString("\x1b[?25h")
+	_, err := f.w.WriteString("\x1b[?25h")
 	return err
 }
 
 // Flush flushes the underlying buffer.
 func (f *ANSIFlusher) Flush() error {
-	return f.W.Flush()
+	return f.w.Flush()
 }

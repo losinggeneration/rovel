@@ -20,6 +20,7 @@ type Backend interface {
 	Flush() error
 
 	// ReadEvent reads and returns the next event, blocking until one is available.
+	// It returns nil when the backend is shutting down or the input stream ends.
 	ReadEvent() event.Event
 
 	// Size returns the current terminal size.

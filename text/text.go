@@ -3,21 +3,21 @@ package text
 import (
 	"unicode/utf8"
 
-	"github.com/losinggeneration/tui/render"
+	cellwidth "github.com/losinggeneration/tui/internal/width"
 )
 
 func Width(s string) int {
 	width := 0
 	for i := 0; i < len(s); {
 		r, size := utf8.DecodeRuneInString(s[i:])
-		width += render.RuneWidth(r)
+		width += cellwidth.RuneWidth(r)
 		i += size
 	}
 	return width
 }
 
 func WidthRune(r rune) int {
-	return render.RuneWidth(r)
+	return cellwidth.RuneWidth(r)
 }
 
 func FitPrefix(s string, maxCols int) (endByte int, cols int, clipped bool) {
@@ -28,7 +28,7 @@ func FitPrefix(s string, maxCols int) (endByte int, cols int, clipped bool) {
 	width := 0
 	for i := 0; i < len(s); {
 		r, size := utf8.DecodeRuneInString(s[i:])
-		w := render.RuneWidth(r)
+		w := cellwidth.RuneWidth(r)
 
 		if width+w > maxCols {
 			if width == 0 {

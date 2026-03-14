@@ -3,7 +3,7 @@ package text
 import (
 	"unicode/utf8"
 
-	"github.com/losinggeneration/tui/render"
+	cellwidth "github.com/losinggeneration/tui/internal/width"
 )
 
 func NextCluster(s string, i int) int {
@@ -50,7 +50,7 @@ func ColumnOf(s string, byteOff int) int {
 	width := 0
 	for i := 0; i < byteOff; {
 		r, size := utf8.DecodeRuneInString(s[i:])
-		width += render.RuneWidth(r)
+		width += cellwidth.RuneWidth(r)
 		i += size
 	}
 	return width
@@ -64,7 +64,7 @@ func OffsetAtColumn(s string, col int) int {
 	width := 0
 	for i := 0; i < len(s); {
 		r, size := utf8.DecodeRuneInString(s[i:])
-		w := render.RuneWidth(r)
+		w := cellwidth.RuneWidth(r)
 
 		if width+w > col {
 			return i
@@ -94,7 +94,7 @@ func Wrap(s string, width int) []Line {
 
 	for i := 0; i < len(s); {
 		r, size := utf8.DecodeRuneInString(s[i:])
-		runeWidth := render.RuneWidth(r)
+		runeWidth := cellwidth.RuneWidth(r)
 
 		if r == '\n' {
 			if currentWidth > 0 {

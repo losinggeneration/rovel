@@ -17,11 +17,6 @@ func TestDefaultTheme(t *testing.T) {
 		t.Errorf("DefaultTheme() Base.BG = %v, want ColorDefault", theme.Base.BG)
 	}
 
-	// Focus should be defined and have AttrReverse
-	if theme.Focus.Attr&style.AttrReverse == 0 {
-		t.Error("DefaultTheme() Focus should have AttrReverse")
-	}
-
 	// Palette should have reasonable defaults
 	if theme.Palette.Text == (style.Style{}) {
 		t.Error("DefaultTheme() has zero Text style in palette")
@@ -147,24 +142,25 @@ func TestThemeResolved_Palette(t *testing.T) {
 	}
 }
 
-func TestThemePreservesBaseAndFocus(t *testing.T) {
-	// Verify that Theme.Resolved() preserves Base and Focus structure
-	// even if Palette is added later
+func TestThemePreservesBaseAndPaletteFocus(t *testing.T) {
+	// Verify that Theme.Resolved() preserves Base and Palette.Focus structure.
 	original := Theme{
 		Base:  style.Style{FG: style.ColorRed, BG: style.ColorBlue},
-		Focus: style.Style{FG: style.ColorBlue, BG: style.ColorRed, Attr: style.AttrReverse},
+		Palette: Palette{
+			Focus: style.Style{FG: style.ColorBlue, BG: style.ColorRed, Attr: style.AttrReverse},
+		},
 	}
 
 	cap := style.Capability{HasBasic: true}
 	resolved := original.Resolved(cap)
 
-	// Base and Focus should be preserved (just colors resolved)
+	// Base and Palette.Focus should be preserved (just colors resolved)
 	if resolved.Base.Attr != original.Base.Attr {
 		t.Error("Resolved() changed Base Attr")
 	}
 
-	if resolved.Focus.Attr != original.Focus.Attr {
-		t.Error("Resolved() changed Focus Attr")
+	if resolved.Palette.Focus.Attr != original.Palette.Focus.Attr {
+		t.Error("Resolved() changed Palette.Focus Attr")
 	}
 
 	// Colors should be the same (both already basic)
@@ -188,12 +184,23 @@ func TestThemeChrome_Defaults(t *testing.T) {
 
 	// Backward-compat: unspecified aesthetic + zero chrome defaults to light.
 	legacy := Theme{
-		Base:  style.Style{FG: style.ColorWhite, BG: style.ColorBlack},
-		Focus: style.Style{FG: style.ColorBlack, BG: style.ColorWhite},
+		Base: style.Style{FG: style.ColorWhite, BG: style.ColorBlack},
 	}
 	el := legacy.Chrome.Border.Effective(legacy)
 	if el.Glyphs != BoxGlyphsLight {
 		t.Errorf("legacy theme Border glyphs = %+v, want light", el.Glyphs)
+	}
+}
+
+func TestThemeResolved_DefaultsPaletteFocus(t *testing.T) {
+	original := Theme{
+		Base: style.Style{FG: style.ColorWhite, BG: style.ColorBlack},
+	}
+
+	cap := style.Capability{HasBasic: true}
+	resolved := original.Resolved(cap)
+	if resolved.Palette.Focus.Attr&style.AttrReverse == 0 {
+		t.Error("Resolved() Palette.Focus should default to AttrReverse when unset")
 	}
 }
 

@@ -16,8 +16,8 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// ansiBackend implements the Backend interface for Unix terminals using ANSI escape sequences.
-type ansiBackend struct {
+// Backend implements the backend.Backend interface for Unix terminals using ANSI escape sequences.
+type Backend struct {
 	origTermios *unix.Termios
 	r           *os.File
 	w           *bufio.Writer
@@ -41,7 +41,7 @@ type ansiBackend struct {
 }
 
 // New creates a new ANSI backend.
-func New() (*ansiBackend, error) {
+func New() (*Backend, error) {
 	w := bufio.NewWriterSize(os.Stdout, 64*1024)
 
 	size, err := getTerminalSize()
@@ -49,7 +49,7 @@ func New() (*ansiBackend, error) {
 		return nil, err
 	}
 
-	b := &ansiBackend{
+	b := &Backend{
 		r:       os.Stdin,
 		w:       w,
 		size:    size,
@@ -62,7 +62,7 @@ func New() (*ansiBackend, error) {
 }
 
 // Enable enables the terminal and returns the initial size.
-func (b *ansiBackend) Enable() (geom.Size, error) {
+func (b *Backend) Enable() (geom.Size, error) {
 	orig, err := enableRaw()
 	if err != nil {
 		return geom.Size{}, err
@@ -125,7 +125,7 @@ func (b *ansiBackend) Enable() (geom.Size, error) {
 // Restore restores the terminal to its original state.
 // Shutdown ordering: flush output, stop signals, request read-loop exit,
 // wait for read-loop to finish, then restore termios last.
-func (b *ansiBackend) Restore() error {
+func (b *Backend) Restore() error {
 	var firstErr error
 
 	// 1. Flush any pending output.
@@ -180,22 +180,22 @@ func (b *ansiBackend) Restore() error {
 }
 
 // Write writes raw ANSI output to the terminal.
-func (b *ansiBackend) Write(p []byte) (int, error) {
+func (b *Backend) Write(p []byte) (int, error) {
 	return b.w.Write(p)
 }
 
 // Flush flushes any buffered output.
-func (b *ansiBackend) Flush() error {
+func (b *Backend) Flush() error {
 	return b.w.Flush()
 }
 
 // ReadEvent reads and returns the next event, blocking until one is available.
-func (b *ansiBackend) ReadEvent() event.Event {
+func (b *Backend) ReadEvent() event.Event {
 	return <-b.eventCh
 }
 
 // Size returns the current terminal size.
-func (b *ansiBackend) Size() geom.Size {
+func (b *Backend) Size() geom.Size {
 	b.sizeMu.RLock()
 	defer b.sizeMu.RUnlock()
 	return b.size
@@ -203,7 +203,7 @@ func (b *ansiBackend) Size() geom.Size {
 
 // sendEvent sends an event to the event channel, aborting if shutdown has started.
 // Returns false if the send was aborted due to shutdown.
-func (b *ansiBackend) sendEvent(ev event.Event) bool {
+func (b *Backend) sendEvent(ev event.Event) bool {
 	select {
 	case b.eventCh <- ev:
 		return true
@@ -213,7 +213,7 @@ func (b *ansiBackend) sendEvent(ev event.Event) bool {
 }
 
 // emitKeyEvents sends all key events, returning false if shutdown aborted a send.
-func (b *ansiBackend) emitKeyEvents(evs []event.KeyEvent) bool {
+func (b *Backend) emitKeyEvents(evs []event.KeyEvent) bool {
 	for _, ev := range evs {
 		if !b.sendEvent(ev) {
 			return false
@@ -223,7 +223,7 @@ func (b *ansiBackend) emitKeyEvents(evs []event.KeyEvent) bool {
 }
 
 // readEvents runs in a goroutine, reading input and publishing events.
-func (b *ansiBackend) readEvents() {
+func (b *Backend) readEvents() {
 	defer close(b.readDone)
 	defer func() {
 		// Resolve incomplete decoder state at EOF.

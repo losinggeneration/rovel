@@ -15,7 +15,7 @@ import (
 // testBackend creates a test backend with a pipe for input.
 // The write end is returned for writing test data.
 type testBackend struct {
-	backend *ansiBackend
+	backend *Backend
 	r       *os.File // read end of pipe (used by backend)
 	w       *os.File // write end of pipe (for test input)
 	pipeR   int      // wake pipe read end (raw fd)
@@ -39,7 +39,7 @@ func newTestBackend(t *testing.T) (*testBackend, error) {
 		return nil, err
 	}
 
-	b := &ansiBackend{
+	b := &Backend{
 		r:        r,
 		eventCh:  make(chan event.Event, 10),
 		pipeR:    pipeFds[0],

@@ -49,8 +49,8 @@ func FuzzKeyDecoder(f *testing.F) {
 		evs = d.Finalize(evs)
 
 		// Invariant: Finalize() resets decoder to stateGround
-		if d.State() != stateGround {
-			t.Fatalf("decoder not reset after finalize: state=%d", d.State())
+		if d.state != stateGround {
+			t.Fatalf("decoder not reset after finalize: state=%d", d.state)
 		}
 
 		// Invariant: KeyRune values are valid runes or utf8.RuneError

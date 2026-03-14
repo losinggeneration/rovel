@@ -15,20 +15,27 @@ func InsetRect(r tui.Rect, l, t, rr, b int) tui.Rect {
 	}
 }
 
-// DFSHelper is a helper for recursive DFS through composite views.
-type DFSHelper struct {
-	Composite ui.Composite
-	Visited   map[tui.ID]struct{}
+// FindFirstFocusable does a DFS preorder traversal and returns the first
+// focusable view found under root. If a view implements ui.FocusScope and
+// FocusScope() is true, traversal does not descend into that view's children.
+func FindFirstFocusable(root tui.View) tui.View {
+	composite, ok := root.(ui.Composite)
+	if !ok {
+		return nil
+	}
+
+	visited := make(map[tui.ID]struct{})
+	visited[root.ID()] = struct{}{}
+	return findFirstFocusable(composite, visited)
 }
 
-// Search recursively finds the first focusable view.
-func (h *DFSHelper) Search() tui.View {
-	for _, child := range h.Composite.Children() {
+func findFirstFocusable(c ui.Composite, visited map[tui.ID]struct{}) tui.View {
+	for _, child := range c.Children() {
 		id := child.ID()
-		if _, ok := h.Visited[id]; ok {
+		if _, ok := visited[id]; ok {
 			continue
 		}
-		h.Visited[id] = struct{}{}
+		visited[id] = struct{}{}
 
 		if f, ok := child.(ui.Focusable); ok && f.Focusable() {
 			return child
@@ -38,62 +45,86 @@ func (h *DFSHelper) Search() tui.View {
 			continue
 		}
 
-		if composite, ok := child.(ui.Composite); ok {
-			nested := &DFSHelper{Composite: composite, Visited: h.Visited}
-			if result := nested.Search(); result != nil {
-				return result
+		if nested, ok := child.(ui.Composite); ok {
+			if v := findFirstFocusable(nested, visited); v != nil {
+				return v
 			}
 		}
 	}
 	return nil
 }
 
-// FindByID recursively finds a view with the given ID.
-func (h *DFSHelper) FindByID(id tui.ID) tui.View {
-	for _, child := range h.Composite.Children() {
+// FindByID does a DFS traversal and returns the first view found with the
+// given id under root. This traversal does not treat ui.FocusScope as a
+// boundary (it searches the full tree).
+func FindByID(root tui.View, id tui.ID) tui.View {
+	composite, ok := root.(ui.Composite)
+	if !ok {
+		return nil
+	}
+
+	visited := make(map[tui.ID]struct{})
+	visited[root.ID()] = struct{}{}
+	return findByID(composite, id, visited)
+}
+
+func findByID(c ui.Composite, id tui.ID, visited map[tui.ID]struct{}) tui.View {
+	for _, child := range c.Children() {
 		if child.ID() == id {
 			return child
 		}
 	}
 
-	for _, child := range h.Composite.Children() {
+	for _, child := range c.Children() {
 		cid := child.ID()
-		if _, ok := h.Visited[cid]; ok {
+		if _, ok := visited[cid]; ok {
 			continue
 		}
-		h.Visited[cid] = struct{}{}
+		visited[cid] = struct{}{}
 
-		if composite, ok := child.(ui.Composite); ok {
-			nested := &DFSHelper{Composite: composite, Visited: h.Visited}
-			if result := nested.FindByID(id); result != nil {
-				return result
+		if nested, ok := child.(ui.Composite); ok {
+			if v := findByID(nested, id, visited); v != nil {
+				return v
 			}
 		}
 	}
 	return nil
 }
 
-// Collect recursively collects focusable views.
-func (h *DFSHelper) Collect(result *[]tui.View) {
-	for _, child := range h.Composite.Children() {
+// CollectFocusable does a DFS preorder traversal and returns all focusable
+// views under root. If a view implements ui.FocusScope and FocusScope() is
+// true, traversal does not descend into that view's children.
+func CollectFocusable(root tui.View) []tui.View {
+	composite, ok := root.(ui.Composite)
+	if !ok {
+		return nil
+	}
+
+	visited := make(map[tui.ID]struct{})
+	visited[root.ID()] = struct{}{}
+	var out []tui.View
+	collectFocusable(composite, visited, &out)
+	return out
+}
+
+func collectFocusable(c ui.Composite, visited map[tui.ID]struct{}, out *[]tui.View) {
+	for _, child := range c.Children() {
 		id := child.ID()
-		if _, ok := h.Visited[id]; ok {
+		if _, ok := visited[id]; ok {
 			continue
 		}
-		h.Visited[id] = struct{}{}
+		visited[id] = struct{}{}
 
 		if f, ok := child.(ui.Focusable); ok && f.Focusable() {
-			*result = append(*result, child)
+			*out = append(*out, child)
 		}
 
 		if fs, ok := child.(ui.FocusScope); ok && fs.FocusScope() {
-			// Skip children of focus scope
 			continue
 		}
 
-		if composite, ok := child.(ui.Composite); ok {
-			nested := &DFSHelper{Composite: composite, Visited: h.Visited}
-			nested.Collect(result)
+		if nested, ok := child.(ui.Composite); ok {
+			collectFocusable(nested, visited, out)
 		}
 	}
 }

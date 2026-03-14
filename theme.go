@@ -26,7 +26,6 @@ type Palette struct {
 // Theme defines the styling for the application.
 type Theme struct {
 	Base      style.Style // Clear-cell style (Paint Contract A)
-	Focus     style.Style // Kept for backward compatibility
 	Aesthetic Aesthetic   // High-level look hint (classic vs modern)
 	Chrome    Chrome      // Box-like chrome (borders, focus rings, etc)
 	Palette   Palette
@@ -67,7 +66,6 @@ func DefaultTheme() Theme {
 
 	return Theme{
 		Base:      monochrome,
-		Focus:     monochrome.WithAttr(style.AttrReverse),
 		Aesthetic: AestheticClassic,
 		Chrome: Chrome{
 			Border: FrameChrome{Glyphs: BoxGlyphsASCII, Edges: BoxEdgesAll},
@@ -109,7 +107,6 @@ func DefaultThemeClassic() Theme {
 
 	return Theme{
 		Base:      base,
-		Focus:     base.WithAttr(style.AttrReverse),
 		Aesthetic: AestheticClassic,
 		Chrome: Chrome{
 			Border: FrameChrome{Glyphs: BoxGlyphsASCII, Edges: BoxEdgesAll},
@@ -160,10 +157,6 @@ func DefaultThemeModern() Theme {
 			FG: fgDefault,
 			BG: bgDark,
 		},
-		Focus: style.Style{
-			FG: focusFG,
-			BG: focusBG,
-		},
 		Aesthetic: AestheticModern,
 		Chrome: Chrome{
 			Border: FrameChrome{Glyphs: BoxGlyphsLight, Edges: BoxEdgesAll},
@@ -203,7 +196,6 @@ func (t Theme) Resolved(cap style.Capability) Theme {
 	}
 
 	resolved.Base = resolveStyle(t.Base)
-	resolved.Focus = resolveStyle(t.Focus)
 	resolved.Aesthetic = t.Aesthetic
 	resolved.Chrome = t.Chrome
 
@@ -222,6 +214,12 @@ func (t Theme) Resolved(cap style.Capability) Theme {
 	resolved.Palette.Warning = resolveStyle(t.Palette.Warning)
 	resolved.Palette.Danger = resolveStyle(t.Palette.Danger)
 	resolved.Palette.Disabled = resolveStyle(t.Palette.Disabled)
+
+	// Normalize semantic focus role once, so widgets don't need ad hoc fallbacks.
+	// If a theme leaves Palette.Focus unset (zero value), use Base + reverse.
+	if resolved.Palette.Focus == (style.Style{}) {
+		resolved.Palette.Focus = resolved.Base.WithAttr(style.AttrReverse)
+	}
 
 	// Ensure chrome style functions degrade across capabilities.
 	resolved.Chrome.Border.StyleFn = resolved.Chrome.Border.StyleFn.wrapResolver(resolveStyle)

@@ -12,22 +12,22 @@ func TestANSIFlusher_New(t *testing.T) {
 	var buf bytes.Buffer
 	f := NewANSIFlusher(&buf)
 
-	if f.W == nil {
-		t.Error("NewANSIFlusher() W is nil")
+	if f.w == nil {
+		t.Error("NewANSIFlusher() w is nil")
 	}
-	if f.CurX != 0 || f.CurY != 0 {
-		t.Errorf("NewANSIFlusher() cursor = (%d,%d), want (0,0)", f.CurX, f.CurY)
+	if f.curX != 0 || f.curY != 0 {
+		t.Errorf("NewANSIFlusher() cursor = (%d,%d), want (0,0)", f.curX, f.curY)
 	}
-	if f.HasStyle {
-		t.Error("NewANSIFlusher() HasStyle should be false")
+	if f.hasStyle {
+		t.Error("NewANSIFlusher() hasStyle should be false")
 	}
 }
 
 func TestANSIFlusher_moveCursorTo_NoOp(t *testing.T) {
 	var buf bytes.Buffer
 	f := NewANSIFlusher(&buf)
-	f.CurX = 5
-	f.CurY = 3
+	f.curX = 5
+	f.curY = 3
 
 	err := f.moveCursorTo(3, 5)
 
@@ -37,8 +37,8 @@ func TestANSIFlusher_moveCursorTo_NoOp(t *testing.T) {
 	if buf.Len() != 0 {
 		t.Errorf("moveCursorTo() with same position wrote %d bytes, want 0", buf.Len())
 	}
-	if f.CurX != 5 || f.CurY != 3 {
-		t.Errorf("moveCursorTo() unchanged cursor = (%d,%d), want (5,3)", f.CurX, f.CurY)
+	if f.curX != 5 || f.curY != 3 {
+		t.Errorf("moveCursorTo() unchanged cursor = (%d,%d), want (5,3)", f.curX, f.curY)
 	}
 }
 
@@ -51,15 +51,15 @@ func TestANSIFlusher_moveCursorTo_Moves(t *testing.T) {
 	if err != nil {
 		t.Errorf("moveCursorTo() unexpected error: %v", err)
 	}
-	if err := f.W.Flush(); err != nil {
+	if err := f.w.Flush(); err != nil {
 		t.Errorf("Flush() unexpected error: %v", err)
 	}
 	expected := "\x1b[3;6H" // ANSI: row 3, col 6 (1-indexed)
 	if got := buf.String(); got != expected {
 		t.Errorf("moveCursorTo() = %q, want %q", got, expected)
 	}
-	if f.CurX != 5 || f.CurY != 2 {
-		t.Errorf("moveCursorTo() cursor = (%d,%d), want (5,2)", f.CurX, f.CurY)
+	if f.curX != 5 || f.curY != 2 {
+		t.Errorf("moveCursorTo() cursor = (%d,%d), want (5,2)", f.curX, f.curY)
 	}
 }
 
@@ -72,7 +72,7 @@ func TestANSIFlusher_emitSGR_Default(t *testing.T) {
 	if err != nil {
 		t.Errorf("emitSGR() unexpected error: %v", err)
 	}
-	if err := f.W.Flush(); err != nil {
+	if err := f.w.Flush(); err != nil {
 		t.Errorf("Flush() unexpected error: %v", err)
 	}
 	// Default style only emits reset
@@ -128,7 +128,7 @@ func TestANSIFlusher_emitSGR_BasicColors(t *testing.T) {
 			if err != nil {
 				t.Errorf("emitSGR() unexpected error: %v", err)
 			}
-			if err := f.W.Flush(); err != nil {
+			if err := f.w.Flush(); err != nil {
 				t.Errorf("Flush() unexpected error: %v", err)
 			}
 			if got := buf.String(); got != tt.expected {
@@ -178,7 +178,7 @@ func TestANSIFlusher_emitSGR_BrightColors(t *testing.T) {
 			if err != nil {
 				t.Errorf("emitSGR() unexpected error: %v", err)
 			}
-			if err := f.W.Flush(); err != nil {
+			if err := f.w.Flush(); err != nil {
 				t.Errorf("Flush() unexpected error: %v", err)
 			}
 			if got := buf.String(); got != tt.expected {
@@ -198,7 +198,7 @@ func TestANSIFlusher_emitSGR_IndexedColor(t *testing.T) {
 	if err != nil {
 		t.Errorf("emitSGR() unexpected error: %v", err)
 	}
-	if err := f.W.Flush(); err != nil {
+	if err := f.w.Flush(); err != nil {
 		t.Errorf("Flush() unexpected error: %v", err)
 	}
 	expected := "\x1b[0;38;5;232;49m"
@@ -265,7 +265,7 @@ func TestANSIFlusher_emitSGR_Attributes(t *testing.T) {
 			if err != nil {
 				t.Errorf("emitSGR() unexpected error: %v", err)
 			}
-			if err := f.W.Flush(); err != nil {
+			if err := f.w.Flush(); err != nil {
 				t.Errorf("Flush() unexpected error: %v", err)
 			}
 			if got := buf.String(); got != tt.expected {
@@ -285,7 +285,7 @@ func TestANSIFlusher_emitSGR_TrueColor(t *testing.T) {
 	if err != nil {
 		t.Errorf("emitSGR() unexpected error: %v", err)
 	}
-	if err := f.W.Flush(); err != nil {
+	if err := f.w.Flush(); err != nil {
 		t.Errorf("Flush() unexpected error: %v", err)
 	}
 	expected := "\x1b[0;38;2;1;2;3;49m"
@@ -308,7 +308,7 @@ func TestANSIFlusher_emitSGR_Complete(t *testing.T) {
 	if err != nil {
 		t.Errorf("emitSGR() unexpected error: %v", err)
 	}
-	if err := f.W.Flush(); err != nil {
+	if err := f.w.Flush(); err != nil {
 		t.Errorf("Flush() unexpected error: %v", err)
 	}
 	// Note: order is FG, BG, then attributes
@@ -327,7 +327,7 @@ func TestANSIFlusher_emitRune_UTF8(t *testing.T) {
 	if err != nil {
 		t.Errorf("emitRune() unexpected error: %v", err)
 	}
-	if err := f.W.Flush(); err != nil {
+	if err := f.w.Flush(); err != nil {
 		t.Errorf("Flush() unexpected error: %v", err)
 	}
 	if got := buf.String(); got != "A" {
@@ -344,7 +344,7 @@ func TestANSIFlusher_emitRune_WideChar(t *testing.T) {
 	if err != nil {
 		t.Errorf("emitRune() unexpected error: %v", err)
 	}
-	if err := f.W.Flush(); err != nil {
+	if err := f.w.Flush(); err != nil {
 		t.Errorf("Flush() unexpected error: %v", err)
 	}
 	if got := buf.String(); got != "日" {
@@ -361,7 +361,7 @@ func TestANSIFlusher_emitRune_Zero(t *testing.T) {
 	if err != nil {
 		t.Errorf("emitRune(0) unexpected error: %v", err)
 	}
-	if err := f.W.Flush(); err != nil {
+	if err := f.w.Flush(); err != nil {
 		t.Errorf("Flush() unexpected error: %v", err)
 	}
 	if got := buf.String(); got != " " {
@@ -440,8 +440,8 @@ func TestANSIFlusher_FlushRuns_WideChar(t *testing.T) {
 		t.Errorf("FlushRuns() unexpected error: %v", err)
 	}
 	// Cursor should advance by 2 after wide char
-	if f.CurX != 4 {
-		t.Errorf("FlushRuns() cursor X = %d, want 4", f.CurX)
+	if f.curX != 4 {
+		t.Errorf("FlushRuns() cursor X = %d, want 4", f.curX)
 	}
 }
 

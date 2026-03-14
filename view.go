@@ -29,7 +29,7 @@ type View interface {
 
 // Ctx provides context methods for views during Paint and Handle.
 type Ctx struct {
-	// Theme is the app-wide theme (includes Base + Focus styles).
+	// Theme is the app-wide theme.
 	Theme Theme
 
 	// Cap is the terminal color capability.

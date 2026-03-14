@@ -1,8 +1,8 @@
 package tui
 
-import "github.com/losinggeneration/tui/render"
+import "github.com/losinggeneration/tui/text"
 
-// RuneWidth returns the cell width of a rune (1 for narrow, 2 for wide).
+// RuneWidth returns the cell width of a rune (0 for control, 1 for narrow, 2 for wide).
 func RuneWidth(r rune) int {
-	return render.RuneWidth(r)
+	return text.WidthRune(r)
 }

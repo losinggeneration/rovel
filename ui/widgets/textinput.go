@@ -113,7 +113,7 @@ func (t *TextInput) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 		var st style.Style
 		if cursorHere {
-			st = ctx.Theme.Focus
+			st = ctx.Theme.Palette.Focus
 		} else {
 			st = ctx.Theme.Base
 		}
@@ -133,7 +133,7 @@ func (t *TextInput) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 	// Draw cursor at end of text if positioned there
 	if focused && t.cursor == len(t.text) && availableW > 0 {
-		p.SetCell(x, y, ' ', ctx.Theme.Focus)
+		p.SetCell(x, y, ' ', ctx.Theme.Palette.Focus)
 		x++
 		availableW--
 	}
