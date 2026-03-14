@@ -10,8 +10,8 @@ import (
 // TextInput is a single-line text input widget with cursor navigation.
 type TextInput struct {
 	id      tui.ID
-	text    []rune
-	cursor  int // position in [0..len(text)]
+	text    string
+	cursor  int // UTF-8 byte offset in [0..len(text)], always at a cluster boundary
 	scrollX int // horizontal scroll in cells
 	rect    tui.Rect
 }
@@ -20,7 +20,7 @@ type TextInput struct {
 func NewTextInput() *TextInput {
 	return &TextInput{
 		id:      tui.NewID(),
-		text:    make([]rune, 0),
+		text:    "",
 		cursor:  0,
 		scrollX: 0,
 	}
@@ -28,8 +28,9 @@ func NewTextInput() *TextInput {
 
 // SetText sets the input text and moves cursor to end.
 func (t *TextInput) SetText(ctx *tui.Ctx, s string) {
-	t.text = []rune(s)
+	t.text = text.Sanitize(s)
 	t.cursor = len(t.text)
+	t.cursor = text.ClampCluster(t.text, t.cursor)
 	t.updateScroll()
 	if ctx != nil {
 		ctx.Invalidate(t.rect)
@@ -38,7 +39,7 @@ func (t *TextInput) SetText(ctx *tui.Ctx, s string) {
 
 // Text returns the current text.
 func (t *TextInput) Text() string {
-	return string(t.text)
+	return t.text
 }
 
 // ID returns the text input's unique ID.
@@ -62,7 +63,7 @@ func (t *TextInput) MinSize() geom.Size {
 }
 
 func (t *TextInput) PreferredSize() geom.Size {
-	w := text.Width(string(t.text))
+	w := text.Width(t.text)
 	if w < 10 {
 		w = 10
 	}
@@ -83,33 +84,27 @@ func (t *TextInput) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	visibleW := t.rect.W
 	availableW := visibleW
 
-	// Skip runes that are scrolled out of view
-	textIdx := 0
-	skipped := 0
-	for i := 0; i < len(t.text); i++ {
-		rw := text.WidthRune(t.text[i])
-		if skipped+rw > t.scrollX {
-			// This rune is (partially) visible
-			textIdx = i
-			break
-		}
-		skipped += rw
-	}
-	if skipped > t.scrollX {
-		// We're in the middle of a wide glyph - leave a blank cell
+	startLeft := text.OffsetAtColumnBias(t.text, t.scrollX, text.BiasLeft)
+	startRight := text.OffsetAtColumnBias(t.text, t.scrollX, text.BiasRight)
+	startByte := startLeft
+	if startRight != startLeft {
+		// We're in the middle of a wide cluster; leave a blank cell.
 		p.SetCell(x, y, ' ', ctx.Theme.Base)
 		x++
 		availableW--
-		textIdx++
+		startByte = startRight
 	}
 
 	// Draw visible runes
-	for i := textIdx; i < len(t.text) && availableW > 0; i++ {
-		r := t.text[i]
-		rw := text.WidthRune(r)
+	byteOff := startByte
+	for byteOff < len(t.text) && availableW > 0 {
+		next := text.NextCluster(t.text, byteOff)
+		if next <= byteOff {
+			break
+		}
 
 		// Check if this is the cursor position
-		cursorHere := focused && i == t.cursor
+		cursorHere := focused && byteOff == t.cursor
 
 		var st style.Style
 		if cursorHere {
@@ -118,17 +113,24 @@ func (t *TextInput) Paint(p *tui.Painter, ctx *tui.Ctx) {
 			st = ctx.Theme.Base
 		}
 
-		// Don't paint continuation cells
-		if rw > 0 {
+		// Paint the cluster rune-by-rune. For some clusters (e.g. flags), this
+		// allows terminals to render ligatures across cells.
+		cluster := t.text[byteOff:next]
+		for _, r := range cluster {
+			rw := tui.RuneWidth(r)
+			if rw <= 0 {
+				continue
+			}
+			if availableW < rw {
+				availableW = 0
+				break
+			}
 			p.SetCell(x, y, r, st)
 			x += rw
 			availableW -= rw
 		}
 
-		// Skip continuation cell for wide chars
-		if rw == 2 && availableW > 0 {
-			availableW--
-		}
+		byteOff = next
 	}
 
 	// Draw cursor at end of text if positioned there
@@ -159,36 +161,41 @@ func (t *TextInput) Handle(e tui.Event, ctx *tui.Ctx) bool {
 
 	switch ke.Key {
 	case tui.KeyRune:
-		// Insert character at cursor
-		t.text = append(t.text[:t.cursor], append([]rune{ke.Rune}, t.text[t.cursor:]...)...)
-		t.cursor++
+		// Insert character at cursor.
+		insert := text.Sanitize(string(ke.Rune))
+		if insert == "" {
+			return true
+		}
+		t.cursor = text.ClampCluster(t.text, t.cursor)
+		t.text = t.text[:t.cursor] + insert + t.text[t.cursor:]
+		t.cursor += len(insert)
+		t.cursor = text.ClampCluster(t.text, t.cursor)
 		t.updateScroll()
 		ctx.Invalidate(t.rect)
 		return true
 
 	case tui.KeyLeft:
-		if t.cursor > 0 {
-			t.cursor--
-			t.updateScroll()
-			ctx.Invalidate(t.rect)
-		}
+		t.cursor = text.PrevCluster(t.text, t.cursor)
+		t.updateScroll()
+		ctx.Invalidate(t.rect)
 		return true
 
 	case tui.KeyRight:
-		if t.cursor < len(t.text) {
-			t.cursor++
-			t.updateScroll()
-			ctx.Invalidate(t.rect)
-		}
+		t.cursor = text.NextCluster(t.text, t.cursor)
+		t.updateScroll()
+		ctx.Invalidate(t.rect)
 		return true
 
 	case tui.KeyBackspace:
-		if t.cursor > 0 {
-			t.text = append(t.text[:t.cursor-1], t.text[t.cursor:]...)
-			t.cursor--
-			t.updateScroll()
-			ctx.Invalidate(t.rect)
-		}
+		t.text, t.cursor = text.DeletePrevCluster(t.text, t.cursor)
+		t.updateScroll()
+		ctx.Invalidate(t.rect)
+		return true
+
+	case tui.KeyDelete:
+		t.text, t.cursor = text.DeleteNextCluster(t.text, t.cursor)
+		t.updateScroll()
+		ctx.Invalidate(t.rect)
 		return true
 	}
 
@@ -208,10 +215,8 @@ func (t *TextInput) updateScroll() {
 	}
 
 	// Calculate cursor position in cells
-	cursorX := 0
-	for i := 0; i < t.cursor; i++ {
-		cursorX += text.WidthRune(t.text[i])
-	}
+	t.cursor = text.ClampCluster(t.text, t.cursor)
+	cursorX := text.ColumnOf(t.text, t.cursor)
 
 	// Keep cursor within visible bounds
 	if cursorX < t.scrollX {

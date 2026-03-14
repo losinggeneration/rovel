@@ -26,22 +26,26 @@ func FitPrefix(s string, maxCols int) (endByte int, cols int, clipped bool) {
 	}
 
 	width := 0
-	for i := 0; i < len(s); {
-		r, size := utf8.DecodeRuneInString(s[i:])
-		w := cellwidth.RuneWidth(r)
+	i := 0
+	for i < len(s) {
+		next := NextCluster(s, i)
+		if next <= i {
+			break
+		}
 
-		if width+w > maxCols {
-			if width == 0 {
-				return 0, 0, len(s) > 0
-			}
+		clusterW := WidthBetween(s, i, next)
+		if width == 0 && clusterW > maxCols {
+			return 0, 0, true
+		}
+		if width+clusterW > maxCols {
 			return i, width, true
 		}
 
-		width += w
-		i += size
+		width += clusterW
+		i = next
 	}
 
-	return len(s), width, false
+	return i, width, i < len(s)
 }
 
 func Truncate(s string, maxCols int, ellipsis bool) string {

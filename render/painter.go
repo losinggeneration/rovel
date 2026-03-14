@@ -48,6 +48,12 @@ func (p *Painter) setCellAt(x, y int, r rune, style style.Style) {
 	}
 
 	width := RuneWidth(r)
+	if width == 0 {
+		// The buffer is cell-based and cannot represent width-zero code points
+		// (combining marks, ZWJ, variation selectors) without corrupting the
+		// surrounding cells. Drop them consistently.
+		return
+	}
 
 	// Handle edge case: wide character at buffer edge
 	if width == 2 && x+1 >= p.buf.W {

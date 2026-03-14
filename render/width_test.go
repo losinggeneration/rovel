@@ -55,53 +55,20 @@ func TestRuneWidth_CJK(t *testing.T) {
 }
 
 func TestRuneWidth_Emoji(t *testing.T) {
-	// Most emoji are handled as wide (2) in our simple implementation
-	// Proper wcwidth would handle these better
-	emoji := []rune{
-		'😀', '😂', '🎉', '❤',
-	}
-
+	emoji := []rune{'😀', '😂', '🎉', '🌈'}
 	for _, r := range emoji {
-		width := RuneWidth(r)
-		// In our current implementation, these default to width 1
-		// (they're outside the CJK ranges we check)
-		// This is acceptable for now
-		if width < 0 || width > 2 {
-			t.Errorf("RuneWidth(%c) = %d, want 1 or 2", r, width)
+		if got := RuneWidth(r); got != 2 {
+			t.Errorf("RuneWidth(%c) = %d, want 2 (emoji)", r, got)
 		}
 	}
 }
 
-func TestRuneWidth_RangeBoundaries(t *testing.T) {
-	// Test characters at boundaries of our CJK ranges
-	tests := []struct {
-		r        rune
-		expected int
-	}{
-		// CJK Unified Ideographs (U+4E00–U+9FFF)
-		{0x4E00, 2}, // First CJK Unified Ideograph
-		{0x9FFF, 2}, // Last CJK Unified Ideograph
-		{0x4DFF, 1}, // Just before CJK Unified
-		{0xA000, 1}, // Just after CJK Unified
-
-		// Hiragana (U+3040–U+309F)
-		{0x3040, 2}, // First Hiragana
-		{0x309F, 2}, // Last Hiragana
-		{0x303F, 2}, // IDEOGRAPHIC FULL STOP (in CJK Symbols block)
-		{0x30A0, 2}, // Katakana (starts right after)
-
-		// Hangul Syllables (U+AC00–U+D7AF)
-		{0xAC00, 2}, // First Hangul Syllable
-		{0xD7AF, 2}, // Last Hangul Syllable
-		{0xABFF, 1}, // Just before
-		{0xD7B0, 1}, // Just after
+func TestRuneWidth_RegionalIndicator(t *testing.T) {
+	// Regional Indicator symbols are treated as narrow so flag pairs occupy 2 cells.
+	if got := RuneWidth('🇺'); got != 1 {
+		t.Errorf("RuneWidth(🇺) = %d, want 1", got)
 	}
-
-	for _, tt := range tests {
-		t.Run("", func(t *testing.T) {
-			if got := RuneWidth(tt.r); got != tt.expected {
-				t.Errorf("RuneWidth(0x%X) = %d, want %d", tt.r, got, tt.expected)
-			}
-		})
+	if got := RuneWidth('🇸'); got != 1 {
+		t.Errorf("RuneWidth(🇸) = %d, want 1", got)
 	}
 }

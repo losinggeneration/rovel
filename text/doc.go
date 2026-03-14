@@ -10,6 +10,7 @@
 //   - Text truncation and wrapping
 //   - Content alignment
 //
-// All functions operate on UTF-8 encoded strings and handle wide characters
-// (CJK, emoji) correctly.
+// All functions operate on UTF-8 encoded strings. Display width is currently a
+// simplified cell-width policy shared with the renderer (CJK is treated as
+// wide; emoji/combining behavior is intentionally conservative).
 package text

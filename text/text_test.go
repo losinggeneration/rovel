@@ -89,6 +89,8 @@ func TestNextCluster(t *testing.T) {
 		{"hello", 5, 5},
 		{"日abc", 0, 3},
 		{"日abc", 3, 4},
+		{"e\u0301", 0, len("e\u0301")}, // decomposed é
+		{"🏳️‍🌈", 0, len("🏳️‍🌈")}, // rainbow flag (single grapheme cluster)
 		{"", 0, 0},
 		{"a", 10, 1},
 	}
@@ -112,6 +114,8 @@ func TestPrevCluster(t *testing.T) {
 		{"hello", 0, 0},
 		{"日abc", 3, 0},
 		{"日abc", 4, 3},
+		{"e\u0301", len("e\u0301"), 0},
+		{"🏳️‍🌈", len("🏳️‍🌈"), 0},
 		{"", 0, 0},
 		{"a", 10, 0},
 	}
@@ -171,13 +175,33 @@ func TestOffsetAtColumn(t *testing.T) {
 	}
 }
 
+func TestOffsetAtColumnBias(t *testing.T) {
+	s := "日"
+	if got := OffsetAtColumnBias(s, 1, BiasLeft); got != 0 {
+		t.Errorf("OffsetAtColumnBias(%q, 1, BiasLeft) = %d, want 0", s, got)
+	}
+	if got := OffsetAtColumnBias(s, 1, BiasRight); got != len(s) {
+		t.Errorf("OffsetAtColumnBias(%q, 1, BiasRight) = %d, want %d", s, got, len(s))
+	}
+}
+
+func TestWidthBetween(t *testing.T) {
+	s := "a日b"
+	if got := WidthBetween(s, 0, len(s)); got != 4 {
+		t.Errorf("WidthBetween(%q, 0, len) = %d, want 4", s, got)
+	}
+	if got := WidthBetween(s, 1, 1); got != 0 {
+		t.Errorf("WidthBetween(%q, 1, 1) = %d, want 0", s, got)
+	}
+}
+
 func TestWrap(t *testing.T) {
 	tests := []struct {
 		input  string
 		width  int
 		expect []Line
 	}{
-		{"", 10, nil},
+		{"", 10, []Line{{Start: 0, End: 0, Width: 0}}},
 		{"hello", 10, []Line{{Start: 0, End: 5, Width: 5}}},
 		{"hello world", 5, []Line{
 			{Start: 0, End: 5, Width: 5},
@@ -192,6 +216,11 @@ func TestWrap(t *testing.T) {
 		{"日日日", 4, []Line{
 			{Start: 0, End: 6, Width: 4},
 			{Start: 6, End: 9, Width: 2},
+		}},
+		{"a\n\nb", 10, []Line{
+			{Start: 0, End: 1, Width: 1},
+			{Start: 2, End: 2, Width: 0},
+			{Start: 3, End: 4, Width: 1},
 		}},
 	}
 
