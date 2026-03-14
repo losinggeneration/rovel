@@ -294,3 +294,128 @@ func TestPost_BoundedBatch(t *testing.T) {
 		t.Errorf("Expected 36 posts remaining, got %d", remaining)
 	}
 }
+
+type testView struct {
+	id        ID
+	rect      geom.Rect
+	focusable bool
+}
+
+func newTestView(focusable bool) *testView {
+	return &testView{id: NewID(), focusable: focusable}
+}
+
+func (v *testView) ID() ID                     { return v.id }
+func (v *testView) MinSize() geom.Size         { return geom.Size{W: 1, H: 1} }
+func (v *testView) Layout(r geom.Rect)         { v.rect = r }
+func (v *testView) Rect() geom.Rect            { return v.rect }
+func (v *testView) Paint(p *Painter, ctx *Ctx) {}
+func (v *testView) Handle(e Event, ctx *Ctx) bool {
+	return false
+}
+func (v *testView) Focusable() bool { return v.focusable }
+
+type testRoot struct {
+	id       ID
+	rect     geom.Rect
+	children []View
+
+	layoutFirstChildRect geom.Rect
+}
+
+func newTestRoot(children ...View) *testRoot {
+	return &testRoot{id: NewID(), children: children}
+}
+
+func (r *testRoot) ID() ID             { return r.id }
+func (r *testRoot) MinSize() geom.Size { return geom.Size{W: 1, H: 1} }
+func (r *testRoot) Layout(gr geom.Rect) {
+	r.rect = gr
+	if len(r.children) > 0 {
+		r.children[0].Layout(r.layoutFirstChildRect)
+	}
+}
+func (r *testRoot) Rect() geom.Rect               { return r.rect }
+func (r *testRoot) Paint(p *Painter, ctx *Ctx)    {}
+func (r *testRoot) Handle(e Event, ctx *Ctx) bool { return false }
+func (r *testRoot) Children() []View              { return r.children }
+
+func containsRect(rects []geom.Rect, want geom.Rect) bool {
+	for _, r := range rects {
+		if r == want {
+			return true
+		}
+	}
+	return false
+}
+
+func TestLayout_InvalidatesOldAndNewRectsOnMove(t *testing.T) {
+	app, _ := New(AppOpts{})
+	app.size = geom.Size{W: 20, H: 10}
+
+	child := newTestView(true)
+	root := newTestRoot(child)
+	root.layoutFirstChildRect = geom.Rect{X: 0, Y: 0, W: 5, H: 1}
+
+	app.SetRoot(root)
+	app.layout()
+	app.invalidRects = nil
+
+	oldRect := root.layoutFirstChildRect
+	root.layoutFirstChildRect = geom.Rect{X: 0, Y: 1, W: 5, H: 1}
+	newRect := root.layoutFirstChildRect
+
+	app.layoutDirty = true
+	app.layout()
+
+	if !containsRect(app.invalidRects, oldRect) {
+		t.Errorf("expected old rect to be invalidated: %v", oldRect)
+	}
+	if !containsRect(app.invalidRects, newRect) {
+		t.Errorf("expected new rect to be invalidated: %v", newRect)
+	}
+}
+
+func TestLayout_FocusRepair_WhenFocusedViewRemoved(t *testing.T) {
+	app, _ := New(AppOpts{})
+	app.size = geom.Size{W: 20, H: 10}
+
+	a := newTestView(true)
+	b := newTestView(true)
+	root := newTestRoot(a, b)
+	root.layoutFirstChildRect = geom.Rect{X: 0, Y: 0, W: 5, H: 1}
+
+	app.SetRoot(root)
+	app.layout()
+	app.invalidRects = nil
+
+	// Focus the first child, then remove it from the mounted tree.
+	app.focusedID = a.ID()
+	root.children = []View{b}
+
+	app.layoutDirty = true
+	app.layout()
+
+	if app.focusedID != b.ID() {
+		t.Fatalf("expected focus repaired to remaining focusable view, got %v want %v", app.focusedID, b.ID())
+	}
+}
+
+func TestSetRequestFocus_ClearFocusDoesNotInvalidateAll(t *testing.T) {
+	app, _ := New(AppOpts{})
+	app.size = geom.Size{W: 20, H: 10}
+
+	oldID := ID(1)
+	oldRect := geom.Rect{X: 1, Y: 2, W: 3, H: 1}
+	app.rectByID[oldID] = oldRect
+	app.focusedID = oldID
+
+	app.setRequestFocus(0)
+
+	if len(app.invalidRects) != 1 {
+		t.Fatalf("expected 1 invalid rect, got %d", len(app.invalidRects))
+	}
+	if app.invalidRects[0] != oldRect {
+		t.Fatalf("expected invalid rect %v, got %v", oldRect, app.invalidRects[0])
+	}
+}

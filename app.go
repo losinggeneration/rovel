@@ -74,6 +74,14 @@ type App struct {
 	capability    style.Capability
 }
 
+type viewChildren interface {
+	Children() []View
+}
+
+type viewFocusable interface {
+	Focusable() bool
+}
+
 // backendWriter adapts a backend.Backend to io.Writer.
 type backendWriter struct {
 	b backend.Backend
@@ -124,7 +132,7 @@ func (a *App) addView(v View) {
 	}
 
 	// Recursively add child views if this is a container
-	if container, ok := v.(interface{ Children() []View }); ok {
+	if container, ok := v.(viewChildren); ok {
 		for _, child := range container.Children() {
 			a.addView(child)
 		}
@@ -225,6 +233,10 @@ func (a *App) doInitialPaint() {
 
 	// Flush everything
 	a.flush()
+
+	// Initial paint is a full-frame flush; discard any layout-driven invalidation
+	// accumulated during startup so it doesn't trigger redundant repaints.
+	a.invalidRects = a.invalidRects[:0]
 }
 
 // resizeBuffers resizes the render buffers when the terminal size changes.
@@ -235,31 +247,105 @@ func (a *App) resizeBuffers(w, h int) {
 	a.size = geom.Size{W: w, H: h}
 }
 
-// updateRectTracking walks the view tree and records rects for bounded focus
-// invalidation. Must be called after layout.
-func (a *App) updateRectTracking() {
-	if a.root == nil {
-		return
-	}
-	visited := make(map[ID]struct{}, 64)
-	a.updateRectTrackingView(a.root, visited)
+type layoutInfo struct {
+	rects          map[ID]geom.Rect
+	focusedView    View
+	firstFocusable View
 }
 
-// updateRectTrackingView recursively updates rect tracking for a view and its children.
-func (a *App) updateRectTrackingView(v View, visited map[ID]struct{}) {
-	id := v.ID()
-	if _, ok := visited[id]; ok {
+// collectLayoutInfo walks the view tree and records rects (for bounded focus
+// invalidation), and also finds (a) the currently focused view pointer (if it
+// exists in the mounted tree) and (b) the first focusable view (for focus repair).
+//
+// Must be called after layout.
+func (a *App) collectLayoutInfo() layoutInfo {
+	if a.root == nil {
+		return layoutInfo{rects: make(map[ID]geom.Rect)}
+	}
+
+	info := layoutInfo{
+		rects: make(map[ID]geom.Rect, 64),
+	}
+
+	visited := make(map[ID]struct{}, 64)
+	var walk func(v View)
+	walk = func(v View) {
+		id := v.ID()
+		if _, ok := visited[id]; ok {
+			return
+		}
+		visited[id] = struct{}{}
+
+		info.rects[id] = v.Rect()
+
+		if a.focusedID != 0 && id == a.focusedID {
+			info.focusedView = v
+		}
+
+		if info.firstFocusable == nil {
+			if f, ok := v.(viewFocusable); ok && f.Focusable() {
+				info.firstFocusable = v
+			}
+		}
+
+		if c, ok := v.(viewChildren); ok {
+			for _, child := range c.Children() {
+				walk(child)
+			}
+		}
+	}
+
+	walk(a.root)
+	return info
+}
+
+func (a *App) invalidateLayoutDiff(oldRects, newRects map[ID]geom.Rect) {
+	// Removed views.
+	for id, oldR := range oldRects {
+		if _, ok := newRects[id]; !ok {
+			if !oldR.Empty() {
+				a.Invalidate(oldR)
+			}
+		}
+	}
+
+	// Added / changed views.
+	for id, newR := range newRects {
+		oldR, okOld := oldRects[id]
+		if !okOld {
+			if !newR.Empty() {
+				a.Invalidate(newR)
+			}
+			continue
+		}
+		if oldR != newR {
+			if !oldR.Empty() {
+				a.Invalidate(oldR)
+			}
+			if !newR.Empty() {
+				a.Invalidate(newR)
+			}
+		}
+	}
+}
+
+func (a *App) ensureValidFocus(info layoutInfo) {
+	if a.focusedID == 0 {
 		return
 	}
-	visited[id] = struct{}{}
 
-	a.rectByID[id] = v.Rect()
-
-	// Recursively update children
-	if c, ok := v.(interface{ Children() []View }); ok {
-		for _, child := range c.Children() {
-			a.updateRectTrackingView(child, visited)
+	// Focused ID points to a mounted, focusable view => keep it.
+	if info.focusedView != nil {
+		if f, ok := info.focusedView.(viewFocusable); ok && f.Focusable() {
+			return
 		}
+	}
+
+	// Otherwise, repair focus to the first focusable view, or clear focus.
+	if info.firstFocusable != nil {
+		a.setRequestFocus(info.firstFocusable.ID())
+	} else {
+		a.setRequestFocus(0)
 	}
 }
 
@@ -269,12 +355,20 @@ func (a *App) layout() {
 		return
 	}
 
+	oldRects := a.rectByID
+
 	// Layout the root view to fill the entire screen
 	fullRect := geom.Rect{X: 0, Y: 0, W: a.size.W, H: a.size.H}
 	a.root.Layout(fullRect)
 
-	// Update rect tracking for bounded focus invalidation.
-	a.updateRectTracking()
+	// Update rect tracking and do conservative invalidation for structural
+	// movement/removal/addition, per focus_input.md internal-metadata guidance.
+	info := a.collectLayoutInfo()
+	a.rectByID = info.rects
+	a.invalidateLayoutDiff(oldRects, info.rects)
+
+	// If the focused view disappeared or is no longer focusable, repair focus.
+	a.ensureValidFocus(info)
 
 	a.layoutDirty = false
 }
@@ -450,6 +544,17 @@ func (a *App) setRequestFocus(id ID) {
 
 	a.focusedID = id
 
+	// Clearing focus is a real state transition. Only the old focus needs to
+	// be invalidated (if known). Do not fall back to full-screen invalidation.
+	if id == 0 {
+		if oldRect, ok := a.rectByID[old]; ok && !oldRect.Empty() {
+			a.Invalidate(oldRect)
+		} else {
+			a.InvalidateAll()
+		}
+		return
+	}
+
 	oldRect, okOld := a.rectByID[old]
 	newRect, okNew := a.rectByID[id]
 
@@ -464,8 +569,11 @@ func (a *App) setRequestFocus(id ID) {
 		a.Invalidate(newRect)
 	}
 
-	// Fallback for early startup / unknown IDs (should be rare).
-	if unknownOld || unknownNew {
+	// Fallback for early startup / unknown new focus target.
+	// If the new target's rect is unknown, we can't do bounded repaint safely.
+	// If only the old rect is unknown, the old view is likely unmounted/stale
+	// (layout invalidation handles it), so avoid a full-screen invalidate.
+	if unknownNew {
 		a.InvalidateAll()
 	}
 }
@@ -480,8 +588,6 @@ func (a *App) render() {
 	// If layout is dirty, do a layout pass
 	if a.layoutDirty {
 		a.layout()
-		// Layout may move things, so invalidate everything
-		a.InvalidateAll()
 	}
 
 	// Coalesce invalidations into damage
