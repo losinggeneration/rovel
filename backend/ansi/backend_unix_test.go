@@ -18,8 +18,8 @@ type testBackend struct {
 	backend *ansiBackend
 	r       *os.File // read end of pipe (used by backend)
 	w       *os.File // write end of pipe (for test input)
-	pipeR   *os.File // wake pipe read end
-	pipeW   *os.File // wake pipe write end
+	pipeR   int      // wake pipe read end (raw fd)
+	pipeW   int      // wake pipe write end (raw fd)
 	t       *testing.T
 }
 
@@ -31,28 +31,19 @@ func newTestBackend(t *testing.T) (*testBackend, error) {
 		return nil, err
 	}
 
-	// Create wake pipe
-	pipeR, pipeW, err := os.Pipe()
-	if err != nil {
+	// Create wake pipe using raw fds (matches production)
+	var pipeFds [2]int
+	if err := unix.Pipe2(pipeFds[:], unix.O_NONBLOCK|unix.O_CLOEXEC); err != nil {
 		closer(t, r)
 		closer(t, w)
-		return nil, err
-	}
-
-	// Set wake pipe to non-blocking (matches production)
-	if err := unix.SetNonblock(int(pipeR.Fd()), true); err != nil {
-		closer(t, r)
-		closer(t, w)
-		closer(t, pipeR)
-		closer(t, pipeW)
 		return nil, err
 	}
 
 	b := &ansiBackend{
 		r:        r,
 		eventCh:  make(chan event.Event, 10),
-		pipeR:    pipeR,
-		pipeW:    pipeW,
+		pipeR:    pipeFds[0],
+		pipeW:    pipeFds[1],
 		readDone: make(chan struct{}),
 	}
 	b.readStarted.Store(true)
@@ -62,8 +53,8 @@ func newTestBackend(t *testing.T) (*testBackend, error) {
 		backend: b,
 		r:       r,
 		w:       w,
-		pipeR:   pipeR,
-		pipeW:   pipeW,
+		pipeR:   pipeFds[0],
+		pipeW:   pipeFds[1],
 		t:       t,
 	}
 

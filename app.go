@@ -387,6 +387,12 @@ func (a *App) handleResizeEvent(e ResizeEvent) {
 	// Resize buffers
 	a.resizeBuffers(e.W, e.H)
 
+	// Clear front buffer so every cell diffs as changed, forcing full redraw.
+	// The terminal garbles content during resize (reflow), so the front buffer
+	// no longer reflects what's actually on screen.
+	a.frontBuf.Clear(render.Cell{})
+	a.flusher.ResetCursor()
+
 	// Full layout pass
 	a.layout()
 

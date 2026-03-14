@@ -25,9 +25,9 @@ type ansiBackend struct {
 	signals     *signalHandler
 	eventCh     chan event.Event
 
-	// Self-pipe for waking poll on resize/shutdown
-	pipeR *os.File // read end; owned/closed by readEvents()
-	pipeW *os.File // write end; owned/closed by Restore()
+	// Self-pipe for waking poll on resize/shutdown (raw fds, -1 = unset)
+	pipeR int // read end; owned/closed by readEvents()
+	pipeW int // write end; owned/closed by Restore()
 
 	// Read-loop lifecycle
 	readStarted  atomic.Bool
@@ -54,6 +54,8 @@ func New() (*ansiBackend, error) {
 		w:       w,
 		size:    size,
 		eventCh: make(chan event.Event, 8),
+		pipeR:   -1,
+		pipeW:   -1,
 	}
 
 	return b, nil
@@ -67,45 +69,24 @@ func (b *ansiBackend) Enable() (geom.Size, error) {
 	}
 	b.origTermios = orig
 
-	// Create self-pipe for waking poll (after raw mode succeeds)
-	pipeR, pipeW, err := os.Pipe()
-	if err != nil {
+	// Create self-pipe for waking poll using raw fds (no Go runtime involvement)
+	var pipeFds [2]int
+	if err := unix.Pipe2(pipeFds[:], unix.O_NONBLOCK|unix.O_CLOEXEC); err != nil {
 		errors.Add(restore(orig))
-
 		return geom.Size{}, err
 	}
 
-	// Set both ends to non-blocking
-	if err := unix.SetNonblock(int(pipeR.Fd()), true); err != nil {
-		errors.Add(pipeR.Close())
-		errors.Add(pipeW.Close())
-		errors.Add(restore(orig))
-		pipeR = nil
-		pipeW = nil
-
-		return geom.Size{}, err
-	}
-	if err := unix.SetNonblock(int(pipeW.Fd()), true); err != nil {
-		errors.Add(pipeR.Close())
-		errors.Add(pipeW.Close())
-		errors.Add(restore(orig))
-		pipeR = nil
-		pipeW = nil
-
-		return geom.Size{}, err
-	}
-
-	b.pipeR = pipeR
-	b.pipeW = pipeW
+	b.pipeR = pipeFds[0]
+	b.pipeW = pipeFds[1]
 
 	// Setup signal handler for resize events
 	signals, err := setupResizeHandler(b.pipeW)
 	if err != nil {
-		errors.Add(pipeR.Close())
-		errors.Add(pipeW.Close())
+		errors.Add(unix.Close(b.pipeR))
+		errors.Add(unix.Close(b.pipeW))
+		b.pipeR = -1
+		b.pipeW = -1
 		errors.Add(restore(orig))
-		pipeR = nil
-		pipeW = nil
 
 		return geom.Size{}, err
 	}
@@ -117,10 +98,10 @@ func (b *ansiBackend) Enable() (geom.Size, error) {
 		b.signals.Stop()
 		b.signals = nil
 
-		errors.Add(b.pipeR.Close())
-		errors.Add(b.pipeW.Close())
-		b.pipeR = nil
-		b.pipeW = nil
+		errors.Add(unix.Close(b.pipeR))
+		errors.Add(unix.Close(b.pipeW))
+		b.pipeR = -1
+		b.pipeW = -1
 
 		errors.Add(restore(orig))
 		b.origTermios = nil
@@ -167,25 +148,25 @@ func (b *ansiBackend) Restore() error {
 	})
 
 	// 4. Close write end of pipe to wake poll and request shutdown.
-	if b.pipeW != nil {
-		if err := b.pipeW.Close(); err != nil && firstErr == nil {
+	if b.pipeW >= 0 {
+		if err := unix.Close(b.pipeW); err != nil && firstErr == nil {
 			firstErr = err
 		}
 
-		b.pipeW = nil
+		b.pipeW = -1
 	}
 
 	// 5. Wait for read loop to exit before restoring termios, so the
 	//    read loop isn't running against a non-raw terminal.
 	if b.readStarted.Load() && b.readDone != nil {
 		<-b.readDone
-	} else if b.pipeR != nil {
+	} else if b.pipeR >= 0 {
 		// Read loop never started; no one else will close pipeR.
-		if err := b.pipeR.Close(); err != nil && firstErr == nil {
+		if err := unix.Close(b.pipeR); err != nil && firstErr == nil {
 			firstErr = err
 		}
 
-		b.pipeR = nil
+		b.pipeR = -1
 	}
 
 	// 6. Restore terminal settings last.
@@ -261,9 +242,9 @@ func (b *ansiBackend) readEvents() {
 
 		// readEvents owns pipeR: close it here after the poll/read loop exits,
 		// so Restore() never closes an fd that may still be in poll().
-		if b.pipeR != nil {
-			errors.Add(b.pipeR.Close())
-			b.pipeR = nil
+		if b.pipeR >= 0 {
+			errors.Add(unix.Close(b.pipeR))
+			b.pipeR = -1
 		}
 
 		// Close event channel to signal graceful shutdown.
@@ -275,10 +256,7 @@ func (b *ansiBackend) readEvents() {
 	// in user-space would make inputReadable() lie, causing FlushPending() to
 	// misclassify ESC/Alt-prefixed input as standalone ESC.
 	fd := int(b.r.Fd())
-	var pipeFd int
-	if b.pipeR != nil {
-		pipeFd = int(b.pipeR.Fd())
-	}
+	pipeFd := b.pipeR
 	buf := make([]byte, 256)
 	var pipeBuf [64]byte
 
@@ -288,7 +266,7 @@ func (b *ansiBackend) readEvents() {
 		pollFds := []unix.PollFd{
 			{Fd: int32(fd), Events: unix.POLLIN},
 		}
-		if b.pipeR != nil {
+		if pipeFd >= 0 {
 			pollFds = append(pollFds, unix.PollFd{Fd: int32(pipeFd), Events: unix.POLLIN})
 		}
 
@@ -303,16 +281,15 @@ func (b *ansiBackend) readEvents() {
 		// Check for shutdown signal: pipe write end was closed.
 		// Don't return immediately - fall through to drain any already-readable
 		// stdin so we don't silently drop input that arrived at shutdown time.
-		if b.pipeR != nil && len(pollFds) > 1 && pollFds[1].Revents&(unix.POLLHUP|unix.POLLERR) != 0 {
+		if pipeFd >= 0 && len(pollFds) > 1 && pollFds[1].Revents&(unix.POLLHUP|unix.POLLERR) != 0 {
 			shutdownRequested = true
 		}
 
 		// Drain pipe (resize notifications, non-blocking)
-		if b.pipeR != nil && len(pollFds) > 1 && pollFds[1].Revents&unix.POLLIN != 0 {
+		if pipeFd >= 0 && len(pollFds) > 1 && pollFds[1].Revents&unix.POLLIN != 0 {
 			for {
-				n, err := b.pipeR.Read(pipeBuf[:])
-				errors.Add(err)
-				if n <= 0 {
+				n, err := unix.Read(pipeFd, pipeBuf[:])
+				if n <= 0 || err != nil {
 					break
 				}
 			}

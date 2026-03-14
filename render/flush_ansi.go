@@ -30,6 +30,13 @@ func (f *ANSIFlusher) ResetStyle() {
 	f.HasStyle = false
 }
 
+// ResetCursor resets the tracked cursor position so the next move emits an
+// absolute positioning sequence. Call after terminal resize.
+func (f *ANSIFlusher) ResetCursor() {
+	f.CurX = -1
+	f.CurY = -1
+}
+
 func (f *ANSIFlusher) FlushRuns(back, front *Buffer, runs []Run) error {
 	for _, run := range runs {
 		y := run.Y
