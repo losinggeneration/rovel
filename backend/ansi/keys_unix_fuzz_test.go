@@ -9,7 +9,7 @@ import (
 	"github.com/losinggeneration/tui/event"
 )
 
-func FuzzKeyDecoder(f *testing.F) {
+func FuzzInputDecoder(f *testing.F) {
 	seeds := [][]byte{
 		{0x1b},
 		{0x1b, 0x1b},
@@ -31,8 +31,8 @@ func FuzzKeyDecoder(f *testing.F) {
 		{0x1b, 'O', '[', 'A'},          // ESC O [ A
 		{0xf0, 0x9f, 0x8c, 0x8d},       // 4-byte UTF-8 emoji
 		{0x1b, 0xf0, 0x9f, 0x8c, 0x8d}, // Alt+emoji
-		{0x03},                         // Ctrl+C
-		{0x1b, 0x03},                   // ESC Ctrl+C
+		{0x03},                          // Ctrl+C
+		{0x1b, 0x03},                    // ESC Ctrl+C
 	}
 
 	for _, s := range seeds {
@@ -40,8 +40,8 @@ func FuzzKeyDecoder(f *testing.F) {
 	}
 
 	f.Fuzz(func(t *testing.T, input []byte) {
-		d := &KeyDecoder{}
-		var evs []event.KeyEvent
+		d := &InputDecoder{}
+		var evs []event.Event
 
 		for _, b := range input {
 			evs = d.PushByte(evs, b)
@@ -55,9 +55,11 @@ func FuzzKeyDecoder(f *testing.F) {
 
 		// Invariant: KeyRune values are valid runes or utf8.RuneError
 		for _, ev := range evs {
-			if ev.Key == event.KeyRune {
-				if ev.Rune != utf8.RuneError && !utf8.ValidRune(ev.Rune) {
-					t.Fatalf("invalid rune: %U", ev.Rune)
+			if ke, ok := ev.(event.KeyEvent); ok {
+				if ke.Key == event.KeyRune {
+					if ke.Rune != utf8.RuneError && !utf8.ValidRune(ke.Rune) {
+						t.Fatalf("invalid rune: %U", ke.Rune)
+					}
 				}
 			}
 		}

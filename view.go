@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/losinggeneration/tui/backend"
 	"github.com/losinggeneration/tui/geom"
 	"github.com/losinggeneration/tui/style"
 )
@@ -46,4 +47,7 @@ type Ctx struct {
 
 	// Quit requests the application to stop.
 	Quit func()
+
+	// InputCaps reports which input features the backend supports.
+	InputCaps backend.InputCapabilities
 }

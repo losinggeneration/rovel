@@ -5,6 +5,7 @@ import (
 	"github.com/losinggeneration/tui/geom"
 	"github.com/losinggeneration/tui/style"
 	"github.com/losinggeneration/tui/text"
+	"github.com/losinggeneration/tui/ui"
 )
 
 // ButtonOpts holds options for creating a Button.
@@ -254,6 +255,24 @@ func (b *Button) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	default:
 		return false
 	}
+}
+
+// HandleAction handles semantic actions.
+func (b *Button) HandleAction(act int, ctx *tui.Ctx) bool {
+	if b.disabled {
+		return false
+	}
+	switch ui.Action(act) {
+	case ui.ActionActivate:
+		if b.onPress != nil {
+			b.onPress(ctx)
+		}
+		if ctx != nil {
+			ctx.Invalidate(b.rect)
+		}
+		return true
+	}
+	return false
 }
 
 // Focusable returns true - buttons can receive focus.

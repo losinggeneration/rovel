@@ -72,6 +72,7 @@ type App struct {
 
 	resolvedTheme Theme
 	capability    style.Capability
+	inputCaps     backend.InputCapabilities
 }
 
 type viewChildren interface {
@@ -165,6 +166,22 @@ func (a *App) Enable() error {
 		cap = &detected
 	}
 	a.capability = *cap
+
+	// Query backend capabilities
+	if cr, ok := a.backend.(backend.CapabilityReporter); ok {
+		a.inputCaps = cr.InputCapabilities()
+	}
+
+	// Enable requested input features
+	if fe, ok := a.backend.(backend.InputFeatureEnabler); ok {
+		features := backend.InputFeatures{
+			Mouse:          a.opts.Input.Mouse && a.inputCaps.Mouse,
+			BracketedPaste: a.opts.Input.BracketedPaste && a.inputCaps.BracketedPaste,
+		}
+		if err := fe.SetInputFeatures(features); err != nil {
+			return err
+		}
+	}
 
 	// Resolve theme for capability
 	a.resolvedTheme = a.opts.Theme.Resolved(a.capability)
@@ -464,16 +481,96 @@ func (a *App) handleEvent(e Event) {
 		a.handleKeyEvent(evt)
 	case ResizeEvent:
 		a.handleResizeEvent(evt)
+	case MouseEvent:
+		a.handleMouseEvent(evt)
+	case PasteEvent:
+		a.handlePasteEvent(evt)
 	}
 }
 
 // handleKeyEvent processes a key event by dispatching through the root.
-// Containers route to their focused descendant, then handle Tab cycling.
+// If ResolveAction is set and resolves a semantic action, dispatch via
+// HandleAction on the focused view first. Falls back to raw key dispatch.
 func (a *App) handleKeyEvent(e KeyEvent) {
-	if a.root != nil {
-		ctx := a.mkCtx(a.root)
-		a.root.Handle(e, ctx)
+	if a.root == nil {
+		return
 	}
+
+	ctx := a.mkCtx(a.root)
+
+	// Try semantic action resolution if configured
+	if a.opts.ResolveAction != nil {
+		focused := a.findFocusedView()
+		if focused != nil {
+			if action, ok := a.opts.ResolveAction(e, focused); ok {
+				// Check if focused view handles actions (structural interface)
+				type actionHandler interface {
+					HandleAction(act int, ctx *Ctx) bool
+				}
+				if ah, ok := focused.(actionHandler); ok {
+					if ah.HandleAction(action, ctx) {
+						return
+					}
+				}
+			}
+		}
+	}
+
+	// Fall back to raw key dispatch
+	a.root.Handle(e, ctx)
+}
+
+// findFocusedView returns the currently focused view, or nil.
+func (a *App) findFocusedView() View {
+	if a.focusedID == 0 || a.root == nil {
+		return nil
+	}
+	if v, ok := a.views[a.focusedID]; ok {
+		return v
+	}
+	return nil
+}
+
+// handleMouseEvent dispatches a mouse event via hit-testing the view tree.
+func (a *App) handleMouseEvent(e MouseEvent) {
+	if a.root == nil {
+		return
+	}
+	ctx := a.mkCtx(a.root)
+	target := a.hitTest(a.root, e.X, e.Y)
+	if target != nil {
+		target.Handle(e, ctx)
+	}
+}
+
+// hitTest walks the view tree to find the deepest view containing (x, y).
+func (a *App) hitTest(v View, x, y int) View {
+	r := v.Rect()
+	if x < r.X || x >= r.X+r.W || y < r.Y || y >= r.Y+r.H {
+		return nil
+	}
+
+	// Check children (deepest first)
+	if c, ok := v.(viewChildren); ok {
+		children := c.Children()
+		// Iterate in reverse so later (top-most) children take priority
+		for i := len(children) - 1; i >= 0; i-- {
+			if hit := a.hitTest(children[i], x, y); hit != nil {
+				return hit
+			}
+		}
+	}
+
+	return v
+}
+
+// handlePasteEvent dispatches a paste event to the focused view.
+func (a *App) handlePasteEvent(e PasteEvent) {
+	if a.root == nil {
+		return
+	}
+	ctx := a.mkCtx(a.root)
+	a.root.Handle(e, ctx)
 }
 
 // handleResizeEvent processes a resize event.
@@ -520,6 +617,7 @@ func (a *App) mkCtx(v View) *Ctx {
 		RequestFocus:     func(id ID) { a.setRequestFocus(id) },
 		Quit:             func() { a.Quit() },
 		FocusedID:        a.focusedID,
+		InputCaps:        a.inputCaps,
 	}
 }
 

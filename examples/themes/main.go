@@ -4,11 +4,49 @@ import (
 	"fmt"
 
 	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/tui/event"
 	"github.com/losinggeneration/tui/geom"
 	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/tui/ui"
 	"github.com/losinggeneration/tui/ui/layout"
 	widgets "github.com/losinggeneration/tui/ui/widgets"
 )
+
+// Custom actions for this application.
+// Using an offset (100) to avoid conflicts with ui.Action values.
+const (
+	ActionTheme1 ui.Action = iota + 100
+	ActionTheme2
+	ActionTheme3
+	ActionQuit
+)
+
+// themeKeymap implements ui.Keymap to provide application-specific key bindings.
+// This demonstrates the pattern to have
+// physical key events -> semantic actions -> handlers
+type themeKeymap struct{}
+
+func (themeKeymap) Resolve(ctx ui.KeyContext, k ui.Keystroke) (ui.Action, bool) {
+	switch k.Key {
+	case event.KeyRune:
+		// Number keys 1-3 switch themes
+		switch k.Rune {
+		case '1':
+			return ActionTheme1, true
+		case '2':
+			return ActionTheme2, true
+		case '3':
+			return ActionTheme3, true
+		}
+	case event.KeyEsc:
+		// Escape quits the application
+		return ActionQuit, true
+	case event.KeyCtrlC:
+		// Ctrl-C also quits (common TUI convention)
+		return ActionQuit, true
+	}
+	return ui.ActionNone, false
+}
 
 type themeOption struct {
 	name  string
@@ -32,12 +70,12 @@ type appState struct {
 	themeSelector   *widgets.Label
 	capabilityLabel *widgets.Label
 	textInput       tui.View // Use View interface to allow read-only wrapper
-	buttonNormal    tui.View // Use View interface to allow semantic wrapper
-	buttonAccent    tui.View // Use View interface to allow semantic wrapper
-	buttonSuccess   tui.View // Use View interface to allow semantic wrapper
-	buttonWarning   tui.View // Use View interface to allow semantic wrapper
-	buttonDanger    tui.View // Use View interface to allow semantic wrapper
-	buttonDisabled  tui.View // Use View interface to allow semantic wrapper
+	buttonNormal    tui.View
+	buttonAccent    tui.View
+	buttonSuccess   tui.View
+	buttonWarning   tui.View
+	buttonDanger    tui.View
+	buttonDisabled  tui.View
 }
 
 func main() {
@@ -55,9 +93,21 @@ func main() {
 		statusType:    "info",
 	}
 
-	// Create app with initial theme
+	// Create app with initial theme and semantic action resolver.
+	// This demonstrates the recommended pattern from doc/keybindings.md:
+	// - Use a composite keymap (app-specific + default)
+	// - Configure ResolveAction to enable the semantic action system
 	app, err := tui.New(tui.AppOpts{
 		Theme: state.themes[state.currentThemeIndex].theme,
+		Input: tui.InputOpts{
+			Mouse: true,
+		},
+		ResolveAction: ui.NewResolver(ui.CompositeKeymap{
+			Keymaps: []ui.Keymap{
+				themeKeymap{},      // App-specific bindings (1/2/3 for themes, Esc to quit)
+				ui.DefaultKeymap{}, // Standard navigation bindings
+			},
+		}),
 	})
 	if err != nil {
 		fmt.Printf("Failed to create app: %v\n", err)
@@ -75,68 +125,40 @@ func main() {
 	// Wrap text input to make it read-only
 	state.textInput = &readOnlyTextInput{TextInput: ti}
 
-	state.buttonNormal = widgets.NewButtonOpts(widgets.ButtonOpts{
-		Label: "Normal",
-		OnPress: func(ctx *tui.Ctx) {
-			state.buttonsClicked++
-			state.updateStatus("Normal button clicked!", "normal")
-			if ctx != nil && ctx.InvalidateAll != nil {
-				ctx.InvalidateAll()
-			}
-		},
-	})
+	// Create buttons with mouse support and semantic colors
+	state.buttonNormal = createMouseAwareButton("Normal", func(ctx *tui.Ctx) {
+		state.buttonsClicked++
+		state.updateStatus("Normal button clicked!", "normal")
+		invalidateIfNeeded(ctx)
+	}, false)
 
-	baseAccent := widgets.NewButtonOpts(widgets.ButtonOpts{
-		Label: "Accent",
-		OnPress: func(ctx *tui.Ctx) {
-			state.buttonsClicked++
-			state.updateStatus("Accent button clicked!", "info")
-			if ctx != nil && ctx.InvalidateAll != nil {
-				ctx.InvalidateAll()
-			}
-		},
-	})
-	state.buttonAccent = createSemanticButton(baseAccent, func(t *tui.Theme) style.Style {
+	state.buttonAccent = createSemanticButton("Accent", func(t *tui.Theme) style.Style {
 		return t.Palette.Accent
+	}, func(ctx *tui.Ctx) {
+		state.buttonsClicked++
+		state.updateStatus("Accent button clicked!", "info")
+		invalidateIfNeeded(ctx)
 	})
 
-	baseSuccess := widgets.NewButtonOpts(widgets.ButtonOpts{
-		Label: "Success",
-		OnPress: func(ctx *tui.Ctx) {
-			state.updateStatus("Success operation completed!", "success")
-			if ctx != nil && ctx.InvalidateAll != nil {
-				ctx.InvalidateAll()
-			}
-		},
-	})
-	state.buttonSuccess = createSemanticButton(baseSuccess, func(t *tui.Theme) style.Style {
+	state.buttonSuccess = createSemanticButton("Success", func(t *tui.Theme) style.Style {
 		return t.Palette.Success
+	}, func(ctx *tui.Ctx) {
+		state.updateStatus("Success operation completed!", "success")
+		invalidateIfNeeded(ctx)
 	})
 
-	baseWarning := widgets.NewButtonOpts(widgets.ButtonOpts{
-		Label: "Warning",
-		OnPress: func(ctx *tui.Ctx) {
-			state.updateStatus("Warning: Check your inputs!", "warning")
-			if ctx != nil && ctx.InvalidateAll != nil {
-				ctx.InvalidateAll()
-			}
-		},
-	})
-	state.buttonWarning = createSemanticButton(baseWarning, func(t *tui.Theme) style.Style {
+	state.buttonWarning = createSemanticButton("Warning", func(t *tui.Theme) style.Style {
 		return t.Palette.Warning
+	}, func(ctx *tui.Ctx) {
+		state.updateStatus("Warning: Check your inputs!", "warning")
+		invalidateIfNeeded(ctx)
 	})
 
-	baseDanger := widgets.NewButtonOpts(widgets.ButtonOpts{
-		Label: "Danger",
-		OnPress: func(ctx *tui.Ctx) {
-			state.updateStatus("Critical error occurred!", "danger")
-			if ctx != nil && ctx.InvalidateAll != nil {
-				ctx.InvalidateAll()
-			}
-		},
-	})
-	state.buttonDanger = createSemanticButton(baseDanger, func(t *tui.Theme) style.Style {
+	state.buttonDanger = createSemanticButton("Danger", func(t *tui.Theme) style.Style {
 		return t.Palette.Danger
+	}, func(ctx *tui.Ctx) {
+		state.updateStatus("Critical error occurred!", "danger")
+		invalidateIfNeeded(ctx)
 	})
 
 	state.buttonDisabled = widgets.NewButtonOpts(widgets.ButtonOpts{
@@ -152,13 +174,11 @@ func main() {
 	themeSelector.Add(createThemeButton("1. Default", 0, state))
 	themeSelector.Add(createThemeButton("2. Classic", 1, state))
 	themeSelector.Add(createThemeButton("3. Modern", 2, state))
-	// Add spacer to prevent the last button from growing
 	themeSelector.AddChild(hspacer)
 
-	// Build button row - use fixed size policies to prevent horizontal growth
+	// Build button row
 	buttonRow := layout.NewHStack()
 	buttonRow.SetGap(1)
-	// Use explicit size constraints to prevent buttons from growing
 	buttonRow.AddChild(layout.Child{View: state.buttonNormal, Opts: layout.SizePolicy{}})
 	buttonRow.AddChild(layout.Child{View: state.buttonAccent, Opts: layout.SizePolicy{}})
 	buttonRow.AddChild(layout.Child{View: state.buttonSuccess, Opts: layout.SizePolicy{}})
@@ -166,7 +186,6 @@ func main() {
 	buttonRow.AddChild(layout.Child{View: state.buttonDanger, Opts: layout.SizePolicy{}})
 	// Disabled button wrapped in focusBlockWrapper to prevent focus
 	buttonRow.AddChild(layout.Child{View: &focusBlockWrapper{id: tui.NewID(), view: state.buttonDisabled}, Opts: layout.SizePolicy{}})
-	// Add spacer to prevent the last button from growing
 	buttonRow.AddChild(hspacer)
 
 	// Build content list
@@ -175,14 +194,13 @@ func main() {
 	listSection := layout.NewVStack()
 	listSection.SetGap(1)
 	listSection.Add(buildInputSection(state))
-	// listSection.Add(buttonRow)
 	listSection.Add(contentList)
 	listSection.AddChild(layout.GrowYChild(widgets.NewLabel(""), 1))
 
 	borderedList := layout.NewBorder(listSection)
 	borderedList.SetTitle(" Content List ")
 
-	// Status bar outside the content list border
+	// Status bar
 	statusBar := buildStatusBar(state)
 
 	// Build main layout
@@ -200,7 +218,7 @@ func main() {
 	// Wrap in focus ring
 	focusRing := widgets.NewFocusRing(mainLayout)
 
-	// Wrap root with event handler for theme switching and quit
+	// Wrap root with event handler for semantic actions
 	root := &eventHandler{
 		id:       tui.NewID(),
 		app:      app,
@@ -212,13 +230,12 @@ func main() {
 	app.SetRoot(root)
 
 	// Request focus on the theme selector
-	err = app.Post(func(ctx *tui.UpdateCtx) {
+	if err := app.Post(func(ctx *tui.UpdateCtx) {
 		if ctx.RequestFocus != nil && themeSelector != nil {
 			ctx.RequestFocus(themeSelector.ID())
 		}
-	})
-	if err != nil {
-		fmt.Printf("Failed to add to schedule loop: %v\n", err)
+	}); err != nil {
+		fmt.Printf("Failed to schedule focus request: %v\n", err)
 		return
 	}
 
@@ -228,9 +245,14 @@ func main() {
 	}
 	defer func() {
 		if err := app.Restore(); err != nil {
-			fmt.Printf("Failed to restore terminal back to normal. It may be in an inconsistent state. Run `reset` if needed: %v\n", err)
+			fmt.Printf("Failed to restore terminal: %v\n", err)
 		}
 	}()
+
+	// Explicitly set the theme after Enable() to ensure proper initialization.
+	// This ensures the flusher's style cache is reset and all views are invalidated
+	// with the correct theme colors.
+	app.SetTheme(state.themes[state.currentThemeIndex].theme)
 
 	// Run the app
 	if err := app.Run(); err != nil {
@@ -238,15 +260,37 @@ func main() {
 	}
 }
 
+// invalidateIfNeeded safely invalidates the view if ctx is valid
+func invalidateIfNeeded(ctx *tui.Ctx) {
+	if ctx != nil && ctx.InvalidateAll != nil {
+		ctx.InvalidateAll()
+	}
+}
+
 // Helper functions
 
-func createThemeButton(label string, themeIndex int, state *appState) *widgets.Button {
-	return widgets.NewButtonOpts(widgets.ButtonOpts{
-		Label: label,
-		OnPress: func(ctx *tui.Ctx) {
-			state.switchTheme(ctx, themeIndex)
-		},
+func createThemeButton(label string, themeIndex int, state *appState) tui.View {
+	return createMouseAwareButton(label, func(ctx *tui.Ctx) {
+		state.switchTheme(ctx, themeIndex)
+	}, false)
+}
+
+func createMouseAwareButton(label string, onPress func(*tui.Ctx), disabled bool) tui.View {
+	btn := widgets.NewButtonOpts(widgets.ButtonOpts{
+		Label:    label,
+		OnPress:  onPress,
+		Disabled: disabled,
 	})
+	return &widgets.Clickable{View: btn, OnClick: onPress}
+}
+
+func createSemanticButton(label string, roleFunc func(*tui.Theme) style.Style, onPress func(*tui.Ctx)) tui.View {
+	btn := widgets.NewButtonOpts(widgets.ButtonOpts{
+		Label:   label,
+		OnPress: onPress,
+	})
+	sb := &semanticButton{Button: btn, semanticRole: roleFunc}
+	return &widgets.Clickable{View: sb, OnClick: onPress}
 }
 
 func buildInputSection(state *appState) tui.View {
@@ -312,6 +356,11 @@ func buildStatusBar(state *appState) tui.View {
 }
 
 func (s *appState) switchTheme(ctx *tui.Ctx, index int) {
+	// Validate index
+	if index < 0 || index >= len(s.themes) {
+		return
+	}
+
 	s.currentThemeIndex = index
 	s.statusMessage = fmt.Sprintf("Switched to %s theme", s.themes[index].name)
 	s.statusType = "info"
@@ -320,11 +369,18 @@ func (s *appState) switchTheme(ctx *tui.Ctx, index int) {
 		s.updateStatus(s.statusMessage, s.statusType)
 	}
 
-	// Switch theme via App.Post
-	if ctx != nil && ctx.Quit != nil {
-		_ = s.app.Post(func(updateCtx *tui.UpdateCtx) {
-			s.app.SetTheme(s.themes[index].theme)
-		})
+	// Update theme labels
+	s.updateLabels()
+
+	// Switch theme via App.Post to ensure it's updated on the app goroutine
+	if err := s.app.Post(func(updateCtx *tui.UpdateCtx) {
+		s.app.SetTheme(s.themes[index].theme)
+	}); err != nil {
+		s.statusMessage = fmt.Sprintf("Failed to switch theme: %v", err)
+		s.statusType = "danger"
+		if s.updateStatus != nil {
+			s.updateStatus(s.statusMessage, s.statusType)
+		}
 	}
 }
 
@@ -466,7 +522,13 @@ func (w *statusWrapper) FocusScope() bool {
 	return true
 }
 
-// eventHandler wraps the root and handles global keyboard events (theme switching, quit)
+// eventHandler wraps the root and handles global keyboard shortcuts.
+// This demonstrates handling app-global actions (quit, theme switching) that
+// are not tied to any specific focused widget.
+//
+// Note: The framework's semantic action system (HandleAction) is designed for
+// focused view actions. For app-global shortcuts, handle them directly in the
+// root view's Handle() method.
 type eventHandler struct {
 	id       tui.ID
 	app      *tui.App
@@ -486,7 +548,7 @@ func (h *eventHandler) Layout(r geom.Rect) {
 	h.rootView.Layout(r)
 }
 
-func (h *eventHandler) Rect() geom.Rect {
+func (h *eventHandler) Rect() tui.Rect {
 	return h.rootView.Rect()
 }
 
@@ -494,27 +556,64 @@ func (h *eventHandler) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	h.rootView.Paint(p, ctx)
 }
 
+// HandleAction is provided for documentation purposes to demonstrate how
+// semantic actions would be handled. It is not currently called by the
+// framework because the framework's action resolver only checks the focused
+// view, not the root view.
+//
+// For app-global shortcuts like quit and theme switching, we handle them
+// directly in Handle() instead.
+func (h *eventHandler) HandleAction(act int, ctx *tui.Ctx) bool {
+	switch ui.Action(act) {
+	case ActionTheme1:
+		h.state.switchTheme(ctx, 0)
+		return true
+	case ActionTheme2:
+		h.state.switchTheme(ctx, 1)
+		return true
+	case ActionTheme3:
+		h.state.switchTheme(ctx, 2)
+		return true
+	case ActionQuit:
+		if ctx != nil && ctx.Quit != nil {
+			ctx.Quit()
+		}
+		return true
+	}
+	return false
+}
+
+// Handle processes events and delegates to the root view.
+// For key events, it also checks for global actions like quit and theme switching.
+// This ensures that app-wide actions work even when no focused view handles them.
 func (h *eventHandler) Handle(e tui.Event, ctx *tui.Ctx) bool {
-	// Check for keyboard shortcuts first
-	ke, ok := e.(tui.KeyEvent)
-	if ok {
-		switch ke.Key {
-		case tui.KeyRune:
-			// Number keys 1-3 to switch themes
-			if ke.Rune >= '1' && ke.Rune <= '3' {
-				index := int(ke.Rune - '1')
-				h.state.switchTheme(ctx, index)
-				return true
-			}
-		case tui.KeyEsc, tui.KeyCtrlC:
+	// Check for keyboard events that might be global actions
+	if ke, ok := e.(tui.KeyEvent); ok {
+		// Handle quit keys globally
+		if ke.Key == tui.KeyEsc || ke.Key == tui.KeyCtrlC {
 			if ctx != nil && ctx.Quit != nil {
 				ctx.Quit()
 			}
 			return true
 		}
+
+		// Handle theme switching keys (1/2/3)
+		if ke.Key == tui.KeyRune {
+			switch ke.Rune {
+			case '1':
+				h.state.switchTheme(ctx, 0)
+				return true
+			case '2':
+				h.state.switchTheme(ctx, 1)
+				return true
+			case '3':
+				h.state.switchTheme(ctx, 2)
+				return true
+			}
+		}
 	}
 
-	// Pass event to root
+	// Pass all other events to the root view
 	return h.rootView.Handle(e, ctx)
 }
 
@@ -565,7 +664,7 @@ func (w *focusBlockWrapper) Layout(r geom.Rect) {
 	w.view.Layout(r)
 }
 
-func (w *focusBlockWrapper) Rect() geom.Rect {
+func (w *focusBlockWrapper) Rect() tui.Rect {
 	return w.view.Rect()
 }
 
@@ -592,10 +691,12 @@ func (w *focusBlockWrapper) Children() []tui.View {
 	return nil
 }
 
-// semanticButton wraps a Button and applies theme semantic colors
+// semanticButton wraps a Button and applies theme semantic colors.
+// This demonstrates a workaround for semantic color variants until
+// the theme system supports proper semantic roles (see doc/styling_theming.md).
 type semanticButton struct {
 	*widgets.Button
-	semanticRole func(*tui.Theme) style.Style // Function to extract semantic color from theme
+	semanticRole func(*tui.Theme) style.Style
 }
 
 func (b *semanticButton) Paint(p *tui.Painter, ctx *tui.Ctx) {
@@ -624,11 +725,4 @@ func (b *semanticButton) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	}
 
 	b.Button.Paint(p, &modifiedCtx)
-}
-
-func createSemanticButton(baseButton *widgets.Button, roleFunc func(*tui.Theme) style.Style) *semanticButton {
-	return &semanticButton{
-		Button:       baseButton,
-		semanticRole: roleFunc,
-	}
 }

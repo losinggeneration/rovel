@@ -228,11 +228,28 @@ func (t Theme) Resolved(cap style.Capability) Theme {
 	return resolved
 }
 
+// InputOpts configures which platform input features to enable.
+// All features are opt-in; zero value enables nothing.
+type InputOpts struct {
+	Mouse                  bool
+	BracketedPaste         bool
+	ClipboardWrite         bool
+	ClipboardRead          bool
+	ClipboardWriteMaxBytes int // default 64 KiB if 0
+}
+
 // AppOpts holds application options.
 type AppOpts struct {
 	Theme      Theme
 	Backend    backend.Backend   // Optional: custom backend, nil uses default backend/ansi
 	Capability *style.Capability // nil => auto-detect from env
+	Input      InputOpts
+
+	// ResolveAction is an optional closure that maps a key event + focused view
+	// to a semantic action. Used by the keybinding system (ui package) to inject
+	// action resolution without creating an import cycle.
+	// Returns (action, true) if the key maps to an action, (0, false) otherwise.
+	ResolveAction func(e KeyEvent, focused View) (action int, ok bool)
 }
 
 // DefaultAppOpts returns default application options.

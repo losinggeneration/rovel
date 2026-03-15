@@ -502,7 +502,11 @@ func buildFormPane(st *appState) tui.View {
 			ctx.InvalidateAll()
 		}
 	})
-	form.Add(submitBtn)
+	split := layout.NewHStack()
+	split.Add(submitBtn)
+	split.Add(widgets.NewLabel(""))
+	form.Add(split)
+	form.Add(widgets.NewLabel(""))
 
 	// Wrap in a border for visual separation
 	border := layout.NewBorder(form)
@@ -533,36 +537,29 @@ func buildStatusBar(st *appState) tui.View {
 }
 
 // buildRoot creates the root layout with status bar and 3-pane main area.
-func buildRoot(
-	st *appState,
-	app *tui.App,
-	status tui.View,
-	form tui.View,
-	editor tui.View,
-	history tui.View,
-) tui.View {
+func buildRoot(st *appState, app *tui.App, status tui.View, form tui.View, editor tui.View, history tui.View) tui.View {
 	root := layout.NewVStack()
 
 	// Add status bar
 	root.Add(status)
 
 	// Create horizontal container for the 3 panes
-	hpanes := layout.NewHStack()
+	hpanes := layout.NewSplit(layout.Horizontal)
 
 	// Left: Form (with border already)
-	hpanes.Add(form)
+	hpanes.SetFirst(form)
 
 	// Center: Editor (with border)
 	editorBorder := layout.NewBorder(editor)
 	editorBorder.SetTitle(" Editor ")
-	hpanes.Add(editorBorder)
+	hpanes.SetSecond(editorBorder)
 
 	// Right: History list (with border)
 	historyBorder := layout.NewBorder(history)
 	historyBorder.SetTitle(" History (100k) ")
-	hpanes.Add(historyBorder)
 
 	root.Add(hpanes)
+	root.Add(historyBorder)
 
 	// Wrap root in a container that handles Esc and Ctrl+C for quit
 	return &quitWrapper{id: tui.NewID(), root: root, state: st, app: app}

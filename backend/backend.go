@@ -26,3 +26,33 @@ type Backend interface {
 	// Size returns the current terminal size.
 	Size() geom.Size
 }
+
+// InputCapabilities describes what input features the backend supports.
+type InputCapabilities struct {
+	Mouse          bool
+	BracketedPaste bool
+	ClipboardWrite bool
+	ClipboardRead  bool
+}
+
+// CapabilityReporter is implemented by backends that can report their capabilities.
+type CapabilityReporter interface {
+	InputCapabilities() InputCapabilities
+}
+
+// InputFeatures describes which input features to enable.
+type InputFeatures struct {
+	Mouse          bool
+	BracketedPaste bool
+}
+
+// InputFeatureEnabler is implemented by backends that can enable/disable input features.
+type InputFeatureEnabler interface {
+	SetInputFeatures(f InputFeatures) error
+}
+
+// ClipboardBackend is implemented by backends that support clipboard operations.
+type ClipboardBackend interface {
+	ClipboardWrite(text string) error
+	ClipboardRead() (string, error)
+}

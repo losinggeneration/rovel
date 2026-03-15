@@ -85,6 +85,31 @@ func (s *ScrollView) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	})
 }
 
+// HandleAction handles semantic actions.
+func (s *ScrollView) HandleAction(act int, ctx *tui.Ctx) bool {
+	switch ui.Action(act) {
+	case ui.ActionMoveUp:
+		s.ScrollBy(ctx, -1)
+		return true
+	case ui.ActionMoveDown:
+		s.ScrollBy(ctx, 1)
+		return true
+	case ui.ActionPageUp:
+		s.ScrollBy(ctx, -(s.rect.H - 1))
+		return true
+	case ui.ActionPageDown:
+		s.ScrollBy(ctx, s.rect.H-1)
+		return true
+	case ui.ActionHome:
+		s.ScrollTo(ctx, 0)
+		return true
+	case ui.ActionEnd:
+		s.ScrollTo(ctx, s.maxScrollY())
+		return true
+	}
+	return false
+}
+
 func (s *ScrollView) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	ke, ok := e.(event.KeyEvent)
 	if !ok {

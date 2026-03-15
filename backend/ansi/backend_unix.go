@@ -21,7 +21,8 @@ type Backend struct {
 	origTermios *unix.Termios
 	r           *os.File
 	w           *bufio.Writer
-	decoder     KeyDecoder
+	decoder     InputDecoder
+	inputFeats  inputFeatures
 	signals     *signalHandler
 	eventCh     chan event.Event
 
@@ -128,18 +129,23 @@ func (b *Backend) Enable() (geom.Size, error) {
 func (b *Backend) Restore() error {
 	var firstErr error
 
-	// 1. Flush any pending output.
-	if err := b.w.Flush(); err != nil {
+	// 1. Disable any enabled input features before flushing.
+	if err := b.disableInputFeatures(); err != nil && firstErr == nil {
 		firstErr = err
 	}
 
-	// 2. Stop signal delivery so the signal goroutine cannot write to the
+	// 2. Flush any pending output.
+	if err := b.w.Flush(); err != nil && firstErr == nil {
+		firstErr = err
+	}
+
+	// 3. Stop signal delivery so the signal goroutine cannot write to the
 	//    wake pipe after we close it. Stop() is idempotent via sync.Once.
 	if b.signals != nil {
 		b.signals.Stop()
 	}
 
-	// 3. Tell readEvents() that shutdown has started, so blocked event sends
+	// 4. Tell readEvents() that shutdown has started, so blocked event sends
 	//    can abort instead of deadlocking Restore().
 	b.shutdownOnce.Do(func() {
 		if b.shutdownCh != nil {
@@ -147,7 +153,7 @@ func (b *Backend) Restore() error {
 		}
 	})
 
-	// 4. Close write end of pipe to wake poll and request shutdown.
+	// 5. Close write end of pipe to wake poll and request shutdown.
 	if b.pipeW >= 0 {
 		if err := unix.Close(b.pipeW); err != nil && firstErr == nil {
 			firstErr = err
@@ -156,7 +162,7 @@ func (b *Backend) Restore() error {
 		b.pipeW = -1
 	}
 
-	// 5. Wait for read loop to exit before restoring termios, so the
+	// 6. Wait for read loop to exit before restoring termios, so the
 	//    read loop isn't running against a non-raw terminal.
 	if b.readStarted.Load() && b.readDone != nil {
 		<-b.readDone
@@ -169,7 +175,7 @@ func (b *Backend) Restore() error {
 		b.pipeR = -1
 	}
 
-	// 6. Restore terminal settings last.
+	// 7. Restore terminal settings last.
 	if b.origTermios != nil {
 		if err := restore(b.origTermios); err != nil && firstErr == nil {
 			firstErr = err
@@ -212,8 +218,8 @@ func (b *Backend) sendEvent(ev event.Event) bool {
 	}
 }
 
-// emitKeyEvents sends all key events, returning false if shutdown aborted a send.
-func (b *Backend) emitKeyEvents(evs []event.KeyEvent) bool {
+// emitEvents sends all events, returning false if shutdown aborted a send.
+func (b *Backend) emitEvents(evs []event.Event) bool {
 	for _, ev := range evs {
 		if !b.sendEvent(ev) {
 			return false
@@ -227,9 +233,9 @@ func (b *Backend) readEvents() {
 	defer close(b.readDone)
 	defer func() {
 		// Resolve incomplete decoder state at EOF.
-		var evs []event.KeyEvent
+		var evs []event.Event
 		evs = b.decoder.Finalize(evs)
-		alive := b.emitKeyEvents(evs)
+		alive := b.emitEvents(evs)
 		if !alive {
 			errors.Add(fmt.Errorf("emitKeyEvents already shutdown"))
 		}
@@ -325,7 +331,7 @@ func (b *Backend) readEvents() {
 		}
 
 		// Drain all available input
-		var evs []event.KeyEvent
+		var evs []event.Event
 		eof := false
 		hupSeen := pollFds[0].Revents&(unix.POLLHUP|unix.POLLERR) != 0
 		for inputReadable(fd) {
@@ -360,7 +366,7 @@ func (b *Backend) readEvents() {
 		}
 
 		// Emit decoded events BEFORE returning on EOF or shutdown
-		b.emitKeyEvents(evs)
+		b.emitEvents(evs)
 		if eof || shutdownRequested {
 			return
 		}

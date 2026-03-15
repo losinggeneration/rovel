@@ -2,9 +2,11 @@ package widgets
 
 import (
 	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/tui/event"
 	"github.com/losinggeneration/tui/geom"
 	"github.com/losinggeneration/tui/style"
 	"github.com/losinggeneration/tui/text"
+	"github.com/losinggeneration/tui/ui"
 )
 
 // TextInput is a single-line text input widget with cursor navigation.
@@ -148,8 +150,13 @@ func (t *TextInput) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	}
 }
 
-// Handle processes keyboard events.
+// Handle processes keyboard and paste events.
 func (t *TextInput) Handle(e tui.Event, ctx *tui.Ctx) bool {
+	// Handle paste events
+	if pe, ok := e.(event.PasteEvent); ok {
+		return t.handlePaste(pe, ctx)
+	}
+
 	ke, ok := e.(tui.KeyEvent)
 	if !ok {
 		return false
@@ -200,6 +207,69 @@ func (t *TextInput) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	}
 
 	return false
+}
+
+// Handle also processes paste events.
+func (t *TextInput) handlePaste(e event.PasteEvent, ctx *tui.Ctx) bool {
+	if ctx.FocusedID != t.id {
+		return false
+	}
+	insert := text.Sanitize(e.Text)
+	if insert == "" {
+		return true
+	}
+	t.cursor = text.ClampCluster(t.text, t.cursor)
+	t.text = t.text[:t.cursor] + insert + t.text[t.cursor:]
+	t.cursor += len(insert)
+	t.cursor = text.ClampCluster(t.text, t.cursor)
+	t.updateScroll()
+	ctx.Invalidate(t.rect)
+	return true
+}
+
+// HandleAction handles semantic actions.
+func (t *TextInput) HandleAction(act int, ctx *tui.Ctx) bool {
+	if ctx.FocusedID != t.id {
+		return false
+	}
+	switch ui.Action(act) {
+	case ui.ActionMoveLeft:
+		t.cursor = text.PrevCluster(t.text, t.cursor)
+		t.updateScroll()
+		ctx.Invalidate(t.rect)
+		return true
+	case ui.ActionMoveRight:
+		t.cursor = text.NextCluster(t.text, t.cursor)
+		t.updateScroll()
+		ctx.Invalidate(t.rect)
+		return true
+	case ui.ActionDeleteBackward:
+		t.text, t.cursor = text.DeletePrevCluster(t.text, t.cursor)
+		t.updateScroll()
+		ctx.Invalidate(t.rect)
+		return true
+	case ui.ActionDeleteForward:
+		t.text, t.cursor = text.DeleteNextCluster(t.text, t.cursor)
+		t.updateScroll()
+		ctx.Invalidate(t.rect)
+		return true
+	case ui.ActionHome:
+		t.cursor = 0
+		t.updateScroll()
+		ctx.Invalidate(t.rect)
+		return true
+	case ui.ActionEnd:
+		t.cursor = len(t.text)
+		t.updateScroll()
+		ctx.Invalidate(t.rect)
+		return true
+	}
+	return false
+}
+
+// IsTextInputMode returns true, indicating the keymap should use text input context.
+func (t *TextInput) IsTextInputMode() bool {
+	return true
 }
 
 // Focusable returns true - text inputs can receive focus.

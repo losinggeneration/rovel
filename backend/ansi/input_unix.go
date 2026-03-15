@@ -8,14 +8,17 @@ import (
 	"github.com/losinggeneration/tui/event"
 )
 
-// KeyDecoder decodes deterministic byte streams into KeyEvents.
+// maxPasteBytes is the maximum paste buffer size (1 MB).
+const maxPasteBytes = 1 << 20
+
+// InputDecoder decodes deterministic byte streams into Events (key, mouse, paste).
 //
 // INVARIANT: The decoder must never silently drop bytes.
 // If a byte or buffered sequence cannot be interpreted in the current state,
 // it must either:
-//  1. Be emitted as one or more literal/semantic KeyEvents, or
+//  1. Be emitted as one or more literal/semantic Events, or
 //  2. Be replayed in stateGround.
-type KeyDecoder struct {
+type InputDecoder struct {
 	state decodeState
 
 	utf8Buf  [4]byte
@@ -23,8 +26,10 @@ type KeyDecoder struct {
 	utf8Need int
 	utf8Mod  event.ModMask
 
-	csiBuf [8]byte
+	csiBuf [32]byte // Sized for SGR mouse params like <64;200;100M (~14 bytes)
 	csiN   int
+
+	pasteBuf []byte
 }
 
 type decodeState uint8
@@ -35,18 +40,19 @@ const (
 	stateUTF8
 	stateCSI
 	stateSS3
+	statePaste
 )
 
 // Reset resets the decoder to ground state.
-func (d *KeyDecoder) Reset() {
-	*d = KeyDecoder{}
+func (d *InputDecoder) Reset() {
+	*d = InputDecoder{}
 }
 
 // PushByte processes one byte and appends any generated events to dst.
-func (d *KeyDecoder) PushByte(
-	dst []event.KeyEvent,
+func (d *InputDecoder) PushByte(
+	dst []event.Event,
 	b byte,
-) []event.KeyEvent {
+) []event.Event {
 	switch d.state {
 	case stateGround:
 		return d.handleGround(dst, b)
@@ -58,6 +64,8 @@ func (d *KeyDecoder) PushByte(
 		return d.pushCSI(dst, b)
 	case stateSS3:
 		return d.handleSS3(dst, b)
+	case statePaste:
+		return d.pushPaste(dst, b)
 	default:
 		return dst
 	}
@@ -65,10 +73,10 @@ func (d *KeyDecoder) PushByte(
 
 // FlushPending emits events that are safe to resolve at an input boundary
 // without assuming end-of-stream. This only flushes standalone ESC.
-// Partial CSI/SS3/UTF-8 remain pending.
-func (d *KeyDecoder) FlushPending(
-	dst []event.KeyEvent,
-) []event.KeyEvent {
+// Partial CSI/SS3/UTF-8/paste remain pending.
+func (d *InputDecoder) FlushPending(
+	dst []event.Event,
+) []event.Event {
 	if d.state == stateEsc {
 		d.state = stateGround
 		return append(dst, event.KeyEvent{Key: event.KeyEsc})
@@ -77,7 +85,7 @@ func (d *KeyDecoder) FlushPending(
 }
 
 // Finalize flushes any incomplete state at end-of-stream.
-func (d *KeyDecoder) Finalize(dst []event.KeyEvent) []event.KeyEvent {
+func (d *InputDecoder) Finalize(dst []event.Event) []event.Event {
 	switch d.state {
 	case stateEsc:
 		dst = append(dst, event.KeyEvent{Key: event.KeyEsc})
@@ -97,6 +105,13 @@ func (d *KeyDecoder) Finalize(dst []event.KeyEvent) []event.KeyEvent {
 
 	case stateCSI:
 		dst = d.emitLiteralCSI(dst, nil)
+
+	case statePaste:
+		// Emit accumulated paste content even if end marker wasn't seen.
+		if len(d.pasteBuf) > 0 {
+			dst = append(dst, event.PasteEvent{Text: sanitizePasteUTF8(d.pasteBuf)})
+			d.pasteBuf = nil
+		}
 	}
 
 	d.Reset()
@@ -190,7 +205,7 @@ func dispatchSS3(final byte) event.Key {
 // This is the canonical mapping for single-byte input, used by both
 // normal processing (pushGround) and literal recovery (appendLiteralByte).
 // It handles control characters, printable ASCII, and invalid bytes.
-func interpretSingleByte(dst []event.KeyEvent, b byte) []event.KeyEvent {
+func interpretSingleByte(dst []event.Event, b byte) []event.Event {
 	// Handle special control characters first
 	switch b {
 	case 0x09: // \t
@@ -222,14 +237,14 @@ func interpretSingleByte(dst []event.KeyEvent, b byte) []event.KeyEvent {
 
 // appendLiteralByte appends a single byte as a literal KeyEvent.
 // Delegates to interpretSingleByte for the canonical mapping.
-func appendLiteralByte(dst []event.KeyEvent, b byte) []event.KeyEvent {
+func appendLiteralByte(dst []event.Event, b byte) []event.Event {
 	return interpretSingleByte(dst, b)
 }
 
-func (d *KeyDecoder) emitLiteralCSI(
-	dst []event.KeyEvent,
+func (d *InputDecoder) emitLiteralCSI(
+	dst []event.Event,
 	final *byte,
-) []event.KeyEvent {
+) []event.Event {
 	dst = append(dst, event.KeyEvent{Key: event.KeyEsc})
 	dst = append(dst, event.KeyEvent{Key: event.KeyRune, Rune: '['})
 	// CSI non-final bytes are in 0x20..0x3F (all printable ASCII including
@@ -245,10 +260,10 @@ func (d *KeyDecoder) emitLiteralCSI(
 	return dst
 }
 
-func (d *KeyDecoder) handleGround(
-	dst []event.KeyEvent,
+func (d *InputDecoder) handleGround(
+	dst []event.Event,
 	b byte,
-) []event.KeyEvent {
+) []event.Event {
 	if b == 0x1b {
 		d.state = stateEsc
 		return dst
@@ -256,10 +271,10 @@ func (d *KeyDecoder) handleGround(
 	return d.pushGround(dst, b)
 }
 
-func (d *KeyDecoder) handleEsc(
-	dst []event.KeyEvent,
+func (d *InputDecoder) handleEsc(
+	dst []event.Event,
 	b byte,
-) []event.KeyEvent {
+) []event.Event {
 	switch b {
 	case '[':
 		d.state = stateCSI
@@ -331,10 +346,10 @@ func isValidUTF8NextByte(first byte, have int, b byte) bool {
 	return isUTF8Cont(b)
 }
 
-func (d *KeyDecoder) pushUTF8(
-	dst []event.KeyEvent,
+func (d *InputDecoder) pushUTF8(
+	dst []event.Event,
 	b byte,
-) []event.KeyEvent {
+) []event.Event {
 	// First byte is already validated by the caller that entered stateUTF8.
 	// For continuation bytes, validate incrementally so malformed UTF-8 does not
 	// consume unrelated following bytes.
@@ -438,6 +453,58 @@ func parseCSIParams2(buf []byte) (p0, p1, n int, ok bool) {
 	return p0, p1, n, true
 }
 
+// parseCSIParams3 parses at most three semicolon-separated numeric CSI params.
+// Used for SGR mouse sequences: Pb;Px;Py.
+func parseCSIParams3(buf []byte) (p0, p1, p2, n int, ok bool) {
+	if len(buf) == 0 {
+		return 0, 0, 0, 0, true
+	}
+
+	cur := -1
+	commit := func(v int) bool {
+		switch n {
+		case 0:
+			p0 = v
+		case 1:
+			p1 = v
+		case 2:
+			p2 = v
+		default:
+			return false
+		}
+		n++
+		return true
+	}
+
+	for _, b := range buf {
+		switch {
+		case b >= '0' && b <= '9':
+			if cur < 0 {
+				cur = 0
+			}
+			cur = cur*10 + int(b-'0')
+		case b == ';':
+			if cur < 0 {
+				return 0, 0, 0, 0, false
+			}
+			if !commit(cur) {
+				return 0, 0, 0, 0, false
+			}
+			cur = -1
+		default:
+			return 0, 0, 0, 0, false
+		}
+	}
+
+	if cur < 0 {
+		return 0, 0, 0, 0, false
+	}
+	if !commit(cur) {
+		return 0, 0, 0, 0, false
+	}
+	return p0, p1, p2, n, true
+}
+
 // acceptsCSIKey reports whether the CSI final byte and parsed param shape are
 // keyboard-shaped enough to normalize semantically rather than preserve literally.
 func acceptsCSIKey(final byte, p0, _ /* mod */, n int) bool {
@@ -472,10 +539,10 @@ func acceptsCSIKey(final byte, p0, _ /* mod */, n int) bool {
 	}
 }
 
-func (d *KeyDecoder) pushCSI(
-	dst []event.KeyEvent,
+func (d *InputDecoder) pushCSI(
+	dst []event.Event,
 	b byte,
-) []event.KeyEvent {
+) []event.Event {
 	// Buffer overflow guard: preserve all bytes literally.
 	if d.csiN >= len(d.csiBuf) {
 		return d.emitLiteralCSI(dst, &b)
@@ -491,6 +558,27 @@ func (d *KeyDecoder) pushCSI(
 
 	// Final byte: 0x40..0x7E
 	if b >= 0x40 && b <= 0x7E {
+		// Check for SGR mouse: CSI < Pb;Px;Py M/m
+		if (b == 'M' || b == 'm') && d.csiN > 0 && d.csiBuf[0] == '<' {
+			if me, ok := d.parseSGRMouse(b); ok {
+				d.state = stateGround
+				d.csiN = 0
+				return append(dst, me)
+			}
+		}
+
+		// Check for bracketed paste: CSI 200~ (start) or CSI 201~ (end)
+		if b == '~' {
+			p0, _, n, ok := parseCSIParams2(d.csiBuf[:d.csiN])
+			if ok && n == 1 && p0 == 200 {
+				d.state = statePaste
+				d.csiN = 0
+				d.pasteBuf = d.pasteBuf[:0]
+				return dst
+			}
+			// CSI 201~ outside paste state: ignore (shouldn't happen normally)
+		}
+
 		p0, p1, n, ok := parseCSIParams2(d.csiBuf[:d.csiN])
 		if ok && acceptsCSIKey(b, p0, p1, n) {
 			if b == '~' {
@@ -515,10 +603,173 @@ func (d *KeyDecoder) pushCSI(
 	return d.PushByte(dst, b)
 }
 
-func (d *KeyDecoder) handleSS3(
-	dst []event.KeyEvent,
+// parseSGRMouse parses an SGR mouse sequence from the CSI buffer.
+// The CSI buffer should contain '<' followed by Pb;Px;Py params.
+// final is 'M' (press/move) or 'm' (release).
+func (d *InputDecoder) parseSGRMouse(final byte) (event.MouseEvent, bool) {
+	// Skip the leading '<'
+	if d.csiN < 2 || d.csiBuf[0] != '<' {
+		return event.MouseEvent{}, false
+	}
+
+	pb, px, py, n, ok := parseCSIParams3(d.csiBuf[1:d.csiN])
+	if !ok || n != 3 {
+		return event.MouseEvent{}, false
+	}
+
+	// Coordinates are 1-based in SGR, convert to 0-based
+	x := px - 1
+	y := py - 1
+	if x < 0 {
+		x = 0
+	}
+	if y < 0 {
+		y = 0
+	}
+
+	// Extract modifiers from button value
+	var mod event.ModMask
+	if pb&4 != 0 {
+		mod |= event.ModShift
+	}
+	if pb&8 != 0 {
+		mod |= event.ModAlt
+	}
+	if pb&16 != 0 {
+		mod |= event.ModCtrl
+	}
+
+	// Determine button and action
+	buttonBits := pb & 0xC3 // bits 0-1 and 6-7
+	var button event.MouseButton
+	var action event.MouseAction
+
+	if pb&64 != 0 {
+		// Wheel events
+		switch buttonBits & 3 {
+		case 0:
+			button = event.MouseButtonWheelUp
+		case 1:
+			button = event.MouseButtonWheelDown
+		default:
+			button = event.MouseButtonNone
+		}
+		action = event.MousePress
+	} else if pb&32 != 0 {
+		// Motion events
+		action = event.MouseMove
+		switch buttonBits & 3 {
+		case 0:
+			button = event.MouseButtonLeft
+		case 1:
+			button = event.MouseButtonMiddle
+		case 2:
+			button = event.MouseButtonRight
+		default:
+			button = event.MouseButtonNone
+		}
+	} else {
+		// Regular button events
+		switch buttonBits & 3 {
+		case 0:
+			button = event.MouseButtonLeft
+		case 1:
+			button = event.MouseButtonMiddle
+		case 2:
+			button = event.MouseButtonRight
+		case 3:
+			button = event.MouseButtonNone // Release in X10 mode
+		}
+
+		if final == 'm' {
+			action = event.MouseRelease
+		} else {
+			action = event.MousePress
+		}
+	}
+
+	return event.MouseEvent{
+		X:      x,
+		Y:      y,
+		Button: button,
+		Action: action,
+		Mod:    mod,
+	}, true
+}
+
+// pushPaste accumulates bytes in paste state until the end marker ESC[201~ is seen.
+func (d *InputDecoder) pushPaste(dst []event.Event, b byte) []event.Event {
+	// Watch for ESC which could start the end marker sequence
+	if b == 0x1b {
+		// Check if we can peek ahead in the paste buffer for [201~
+		// We can't peek ahead since we process byte-by-byte.
+		// Instead, append the ESC and check for the end marker pattern
+		// in the accumulated buffer.
+		d.pasteBuf = append(d.pasteBuf, b)
+		if len(d.pasteBuf) > maxPasteBytes {
+			// Cap exceeded: emit what we have and reset
+			dst = append(dst, event.PasteEvent{Text: sanitizePasteUTF8(d.pasteBuf)})
+			d.pasteBuf = nil
+			d.state = stateGround
+		}
+		return dst
+	}
+
+	d.pasteBuf = append(d.pasteBuf, b)
+
+	// Check for end marker: ESC [ 2 0 1 ~
+	// That's 6 bytes: 0x1b, '[', '2', '0', '1', '~'
+	if b == '~' && len(d.pasteBuf) >= 6 {
+		n := len(d.pasteBuf)
+		if d.pasteBuf[n-6] == 0x1b &&
+			d.pasteBuf[n-5] == '[' &&
+			d.pasteBuf[n-4] == '2' &&
+			d.pasteBuf[n-3] == '0' &&
+			d.pasteBuf[n-2] == '1' &&
+			d.pasteBuf[n-1] == '~' {
+			// Found end marker. Emit paste event without the marker.
+			content := d.pasteBuf[:n-6]
+			dst = append(dst, event.PasteEvent{Text: sanitizePasteUTF8(content)})
+			d.pasteBuf = nil
+			d.state = stateGround
+			return dst
+		}
+	}
+
+	if len(d.pasteBuf) > maxPasteBytes {
+		dst = append(dst, event.PasteEvent{Text: sanitizePasteUTF8(d.pasteBuf)})
+		d.pasteBuf = nil
+		d.state = stateGround
+	}
+
+	return dst
+}
+
+// sanitizePasteUTF8 replaces invalid UTF-8 sequences with U+FFFD.
+func sanitizePasteUTF8(buf []byte) string {
+	if utf8.Valid(buf) {
+		return string(buf)
+	}
+
+	// Build valid UTF-8 string, replacing invalid bytes with replacement char
+	var out []byte
+	for i := 0; i < len(buf); {
+		r, size := utf8.DecodeRune(buf[i:])
+		if r == utf8.RuneError && size <= 1 {
+			out = append(out, []byte(string(utf8.RuneError))...)
+			i++
+		} else {
+			out = append(out, buf[i:i+size]...)
+			i += size
+		}
+	}
+	return string(out)
+}
+
+func (d *InputDecoder) handleSS3(
+	dst []event.Event,
 	b byte,
-) []event.KeyEvent {
+) []event.Event {
 	if key := dispatchSS3(b); key != event.KeyNone {
 		d.state = stateGround
 		return append(dst, event.KeyEvent{Key: key})
@@ -531,10 +782,10 @@ func (d *KeyDecoder) handleSS3(
 	return d.PushByte(dst, b)
 }
 
-func (d *KeyDecoder) pushGround(
-	dst []event.KeyEvent,
+func (d *InputDecoder) pushGround(
+	dst []event.Event,
 	b byte,
-) []event.KeyEvent {
+) []event.Event {
 	// Handle UTF-8 start bytes (state transition)
 	if n := utf8StartLen(b); n > 1 {
 		d.state = stateUTF8

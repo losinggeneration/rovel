@@ -192,6 +192,38 @@ func (s *HStack) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	})
 }
 
+// HandleAction handles semantic actions for focus navigation.
+func (s *HStack) HandleAction(act int, ctx *tui.Ctx) bool {
+	switch ui.Action(act) {
+	case ui.ActionFocusNext:
+		focusables := s.collectFocusable()
+		next, atBoundary := s.findNextFocusable(focusables, ctx.FocusedID)
+		if atBoundary {
+			return false
+		}
+		if next != nil {
+			ctx.RequestFocus(next.ID())
+			ctx.Invalidate(s.Rect())
+			return true
+		}
+		return false
+
+	case ui.ActionFocusPrev:
+		focusables := s.collectFocusable()
+		prev, atBoundary := s.findPrevFocusable(focusables, ctx.FocusedID)
+		if atBoundary {
+			return false
+		}
+		if prev != nil {
+			ctx.RequestFocus(prev.ID())
+			ctx.Invalidate(s.Rect())
+			return true
+		}
+		return false
+	}
+	return false
+}
+
 func (s *HStack) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	ke, ok := e.(event.KeyEvent)
 	if !ok {

@@ -65,3 +65,32 @@ type KeyEvent = event.KeyEvent
 
 // ResizeEvent represents a terminal resize event.
 type ResizeEvent = event.ResizeEvent
+
+// MouseEvent represents a mouse event.
+type MouseEvent = event.MouseEvent
+
+// MouseButton represents a mouse button.
+type MouseButton = event.MouseButton
+
+// MouseButton constants re-exported for convenience.
+const (
+	MouseButtonNone     = event.MouseButtonNone
+	MouseButtonLeft     = event.MouseButtonLeft
+	MouseButtonMiddle   = event.MouseButtonMiddle
+	MouseButtonRight    = event.MouseButtonRight
+	MouseButtonWheelUp  = event.MouseButtonWheelUp
+	MouseButtonWheelDown = event.MouseButtonWheelDown
+)
+
+// MouseAction represents the type of mouse action.
+type MouseAction = event.MouseAction
+
+// MouseAction constants re-exported for convenience.
+const (
+	MousePress   = event.MousePress
+	MouseRelease = event.MouseRelease
+	MouseMove    = event.MouseMove
+)
+
+// PasteEvent represents a bracketed paste event.
+type PasteEvent = event.PasteEvent
