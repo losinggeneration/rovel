@@ -1,0 +1,197 @@
+package widgets
+
+import (
+	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/tui/geom"
+)
+
+// ScrollbarOpts holds options for creating a Scrollbar.
+type ScrollbarOpts struct {
+	ID          tui.ID
+	ContentSize int
+	ViewSize    int
+	Position    int
+	OnScroll    func(pos int, ctx *tui.Ctx)
+}
+
+// Scrollbar is a standalone vertical scroll indicator. It can be used
+// independently or composed into containers like ScrollView.
+type Scrollbar struct {
+	id           tui.ID
+	rect         geom.Rect
+	contentSize  int
+	viewSize     int
+	position     int
+	onScroll     func(pos int, ctx *tui.Ctx)
+	dragging     bool
+	dragStartY   int
+	dragStartPos int
+}
+
+// NewScrollbar creates a new scrollbar widget.
+func NewScrollbar(opts ScrollbarOpts) *Scrollbar {
+	id := opts.ID
+	if isZeroID(id) {
+		id = tui.NewID()
+	}
+	return &Scrollbar{
+		id:          id,
+		contentSize: opts.ContentSize,
+		viewSize:    opts.ViewSize,
+		position:    opts.Position,
+		onScroll:    opts.OnScroll,
+	}
+}
+
+func (s *Scrollbar) ID() tui.ID      { return s.id }
+func (s *Scrollbar) Rect() geom.Rect { return s.rect }
+func (s *Scrollbar) Focusable() bool { return false }
+
+func (s *Scrollbar) Layout(r geom.Rect) {
+	s.rect = r
+}
+
+func (s *Scrollbar) MinSize() geom.Size {
+	return geom.Size{W: 1, H: 1}
+}
+
+// SetState updates the scrollbar's content size, view size, and position.
+func (s *Scrollbar) SetState(contentSize, viewSize, position int) {
+	s.contentSize = contentSize
+	s.viewSize = viewSize
+	s.position = position
+}
+
+// Position returns the current scroll position.
+func (s *Scrollbar) Position() int {
+	return s.position
+}
+
+// Dragging reports whether the scrollbar thumb is being dragged.
+func (s *Scrollbar) Dragging() bool {
+	return s.dragging
+}
+
+// maxScroll returns the maximum scroll offset.
+func (s *Scrollbar) maxScroll() int {
+	m := s.contentSize - s.viewSize
+	if m < 0 {
+		return 0
+	}
+	return m
+}
+
+// thumbGeometry returns (thumbHeight, thumbY) in rows relative to the rect.
+func (s *Scrollbar) thumbGeometry() (thumbH, thumbY int) {
+	h := s.rect.H
+	if h <= 0 || s.contentSize <= s.viewSize {
+		return 0, 0
+	}
+
+	thumbH = max(1, s.viewSize*h/s.contentSize)
+
+	maxS := s.maxScroll()
+	if maxS <= 0 {
+		thumbY = 0
+	} else {
+		thumbY = s.position * (h - thumbH) / maxS
+	}
+
+	if thumbY+thumbH > h {
+		thumbY = h - thumbH
+	}
+	if thumbY < 0 {
+		thumbY = 0
+	}
+
+	return thumbH, thumbY
+}
+
+func (s *Scrollbar) Paint(p *tui.Painter, ctx *tui.Ctx) {
+	r := s.rect
+	if r.W <= 0 || r.H <= 0 || s.contentSize <= s.viewSize {
+		return
+	}
+
+	trackSt := ctx.Theme.Palette.BorderMuted
+	thumbSt := ctx.Theme.Palette.Border
+
+	thumbH, thumbY := s.thumbGeometry()
+
+	for y := 0; y < r.H; y++ {
+		if y >= thumbY && y < thumbY+thumbH {
+			p.SetCell(r.X, r.Y+y, '█', thumbSt)
+		} else {
+			p.SetCell(r.X, r.Y+y, '░', trackSt)
+		}
+	}
+}
+
+// MouseOpaque marks the scrollbar as opaque to hit-testing.
+func (s *Scrollbar) MouseOpaque() {}
+
+func (s *Scrollbar) Handle(e tui.Event, ctx *tui.Ctx) bool {
+	me, ok := e.(tui.MouseEvent)
+	if !ok {
+		return false
+	}
+
+	if s.contentSize <= s.viewSize {
+		return false
+	}
+
+	switch me.Action {
+	case tui.MousePress:
+		if me.Button != tui.MouseButtonLeft {
+			return false
+		}
+
+		clickY := me.Y - s.rect.Y
+		thumbH, thumbY := s.thumbGeometry()
+
+		if clickY >= thumbY && clickY < thumbY+thumbH {
+			// Click on thumb — start drag
+			s.dragging = true
+			s.dragStartY = me.Y
+			s.dragStartPos = s.position
+		} else {
+			// Click on track — jump to proportional position
+			maxS := s.maxScroll()
+			newPos := clickY * maxS / (s.rect.H - 1)
+			newPos = max(0, min(newPos, maxS))
+			s.position = newPos
+			if s.onScroll != nil {
+				s.onScroll(newPos, ctx)
+			}
+		}
+		return true
+
+	case tui.MouseDrag:
+		if !s.dragging {
+			return false
+		}
+		deltaY := me.Y - s.dragStartY
+		thumbH, _ := s.thumbGeometry()
+		trackSpace := s.rect.H - thumbH
+		if trackSpace <= 0 {
+			return true
+		}
+		maxS := s.maxScroll()
+		newPos := s.dragStartPos + deltaY*maxS/trackSpace
+		newPos = max(0, min(newPos, maxS))
+		s.position = newPos
+		if s.onScroll != nil {
+			s.onScroll(newPos, ctx)
+		}
+		return true
+
+	case tui.MouseRelease:
+		if s.dragging {
+			s.dragging = false
+			return true
+		}
+		return false
+	}
+
+	return false
+}

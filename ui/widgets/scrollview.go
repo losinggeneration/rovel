@@ -12,18 +12,31 @@ var (
 	_ ui.Composite = (*ScrollView)(nil)
 )
 
+// ScrollbarMode controls scrollbar visibility on a ScrollView.
+type ScrollbarMode uint8
+
+const (
+	ScrollbarAuto   ScrollbarMode = iota // show when content overflows (default)
+	ScrollbarAlways                      // always reserve space
+	ScrollbarHidden                      // never show
+)
+
 type ScrollViewOpts struct {
 	ID        tui.ID
 	Child     tui.View
 	Focusable bool
+	Scrollbar ScrollbarMode
 }
 
 type ScrollView struct {
-	id        tui.ID
-	child     tui.View
-	rect      geom.Rect
-	scrollY   int
-	focusable bool
+	id            tui.ID
+	child         tui.View
+	rect          geom.Rect
+	scrollY       int
+	focusable     bool
+	scrollbarMode ScrollbarMode
+	scrollbar     *Scrollbar
+	showScrollbar bool
 }
 
 func NewScrollView(opts ScrollViewOpts) *ScrollView {
@@ -33,9 +46,10 @@ func NewScrollView(opts ScrollViewOpts) *ScrollView {
 	}
 
 	return &ScrollView{
-		id:        id,
-		child:     opts.Child,
-		focusable: opts.Focusable,
+		id:            id,
+		child:         opts.Child,
+		focusable:     opts.Focusable,
+		scrollbarMode: opts.Scrollbar,
 	}
 }
 
@@ -49,15 +63,54 @@ func (s *ScrollView) Rect() geom.Rect {
 
 func (s *ScrollView) Layout(r geom.Rect) {
 	s.rect = r
-	if s.child != nil {
-		s.child.Layout(r)
+
+	// Resolve scrollbar visibility
+	switch s.scrollbarMode {
+	case ScrollbarHidden:
+		s.showScrollbar = false
+	case ScrollbarAlways:
+		s.showScrollbar = true
+	default: // ScrollbarAuto
+		s.showScrollbar = s.child != nil && s.child.MinSize().H > r.H
 	}
+
+	// Layout child — reduce width if scrollbar is visible
+	if s.child != nil {
+		childRect := r
+		if s.showScrollbar && r.W > 1 {
+			childRect.W = r.W - 1
+		}
+		s.child.Layout(childRect)
+	}
+
 	s.clampScroll()
+
+	// Layout scrollbar
+	if s.showScrollbar {
+		if s.scrollbar == nil {
+			s.scrollbar = NewScrollbar(ScrollbarOpts{
+				OnScroll: func(pos int, ctx *tui.Ctx) {
+					s.ScrollTo(ctx, pos)
+				},
+			})
+		}
+		s.scrollbar.Layout(geom.Rect{
+			X: r.X + r.W - 1,
+			Y: r.Y,
+			W: 1,
+			H: r.H,
+		})
+		s.scrollbar.SetState(s.contentHeight(), r.H, s.scrollY)
+	}
 }
 
 func (s *ScrollView) MinSize() geom.Size {
 	if s.child != nil {
-		return s.child.MinSize()
+		ms := s.child.MinSize()
+		if s.scrollbarMode == ScrollbarAlways {
+			ms.W++
+		}
+		return ms
 	}
 	return geom.Size{W: 1, H: 1}
 }
@@ -78,11 +131,23 @@ func (s *ScrollView) Paint(p *tui.Painter, ctx *tui.Ctx) {
 		return
 	}
 
-	p.WithClip(s.rect, func(cp *tui.Painter) {
+	// Clip region for child excludes scrollbar column
+	clipRect := s.rect
+	if s.showScrollbar && clipRect.W > 1 {
+		clipRect.W--
+	}
+
+	p.WithClip(clipRect, func(cp *tui.Painter) {
 		cp.WithOffset(0, -s.scrollY, func(op *tui.Painter) {
 			s.child.Paint(op, ctx)
 		})
 	})
+
+	// Paint scrollbar
+	if s.showScrollbar && s.scrollbar != nil {
+		s.scrollbar.SetState(s.contentHeight(), s.rect.H, s.scrollY)
+		s.scrollbar.Paint(p, ctx)
+	}
 }
 
 // HandleAction handles semantic actions.
@@ -127,6 +192,18 @@ func (s *ScrollView) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			s.ScrollBy(ctx, 3)
 			return true
 		default:
+			// Delegate to scrollbar if the click is in the scrollbar column
+			if s.showScrollbar && s.scrollbar != nil {
+				sbRect := s.scrollbar.Rect()
+				if me.X >= sbRect.X && me.X < sbRect.X+sbRect.W {
+					return s.scrollbar.Handle(me, ctx)
+				}
+				// Dragging: if scrollbar is in drag mode, delegate regardless of X
+				if s.scrollbar.dragging {
+					return s.scrollbar.Handle(me, ctx)
+				}
+			}
+
 			if s.child != nil {
 				adjusted := me
 				adjusted.Y += s.scrollY
@@ -207,7 +284,8 @@ func (s *ScrollView) contentHeight() int {
 
 func (s *ScrollView) maxScrollY() int {
 	contentH := s.contentHeight()
-	maxScroll := contentH - s.rect.H
+	viewH := s.rect.H
+	maxScroll := contentH - viewH
 	if maxScroll < 0 {
 		return 0
 	}

@@ -127,6 +127,41 @@ func (ta *TextArea) cursorCol() int {
 	return text.ColumnOf(ta.text[ln.startByte:ln.endByte], ta.cursor-ln.startByte)
 }
 
+// ScrollY returns the current vertical scroll offset (line index).
+func (ta *TextArea) ScrollY() int { return ta.scrollY }
+
+// LineCount returns the number of lines in the text.
+func (ta *TextArea) LineCount() int { return len(ta.lines) }
+
+// SetScrollY sets the vertical scroll offset and invalidates.
+func (ta *TextArea) SetScrollY(ctx *tui.Ctx, y int) {
+	old := ta.scrollY
+	ta.scrollY = y
+	ta.clampScrollY()
+	if ta.scrollY != old && ctx != nil {
+		ctx.Invalidate(ta.rect)
+	}
+}
+
+// scrollBy adjusts scrollY by delta, clamping to valid range.
+func (ta *TextArea) scrollBy(delta int) {
+	ta.scrollY += delta
+	ta.clampScrollY()
+}
+
+// clampScrollY keeps scrollY within valid bounds.
+func (ta *TextArea) clampScrollY() {
+	maxScroll := len(ta.lines) - ta.rect.H
+	if maxScroll < 0 {
+		maxScroll = 0
+	}
+	if ta.scrollY < 0 {
+		ta.scrollY = 0
+	} else if ta.scrollY > maxScroll {
+		ta.scrollY = maxScroll
+	}
+}
+
 // scrollToCursor ensures the cursor line is visible.
 func (ta *TextArea) scrollToCursor() {
 	if ta.rect.H <= 0 {
@@ -235,9 +270,17 @@ func (ta *TextArea) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 // Handle processes keyboard, mouse, and paste events.
 func (ta *TextArea) Handle(e tui.Event, ctx *tui.Ctx) bool {
-	// Mouse handling: press, drag, double-click
+	// Mouse handling: press, drag, double-click, wheel
 	if me, ok := e.(tui.MouseEvent); ok {
 		switch {
+		case me.Button == tui.MouseButtonWheelUp:
+			ta.scrollBy(-3)
+			ctx.Invalidate(ta.rect)
+			return true
+		case me.Button == tui.MouseButtonWheelDown:
+			ta.scrollBy(3)
+			ctx.Invalidate(ta.rect)
+			return true
 		case me.Button == tui.MouseButtonLeft && me.Action == tui.MousePress:
 			if ctx != nil && ctx.RequestFocus != nil {
 				ctx.RequestFocus(ta.id)

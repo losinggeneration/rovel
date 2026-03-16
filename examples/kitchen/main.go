@@ -9,7 +9,7 @@
 //   - Select / Dropdown (overlay-based)
 //   - ProgressBar (display-only indicator)
 //   - Tabs (switchable content panels)
-//   - ScrollView (scrollable container with mouse wheel)
+//   - ScrollView (scrollable container with mouse wheel + scrollbar)
 //   - VirtualList (efficient large-dataset rendering)
 //   - Canvas (custom paint/handle escape hatch)
 //   - Dialog (modal overlay)
@@ -408,12 +408,13 @@ func (s *state) buildInfoTab() tui.View {
 			"  Click tab bar to switch tabs\n" +
 			"  Click text input to position cursor\n" +
 			"  Scroll wheel on ScrollView / VirtualList\n" +
+			"  Click/drag scrollbar to scroll\n" +
 			"\n" +
 			"Widgets: Button, TextInput, Checkbox,\n" +
 			"RadioGroup, Select, ProgressBar, Tabs,\n" +
-			"ScrollView, VirtualList, Canvas, Dialog,\n" +
-			"Label, FocusRing, Border, HStack, VStack,\n" +
-			"Split, Padding")
+			"ScrollView, Scrollbar, VirtualList,\n" +
+			"Canvas, Dialog, Label, FocusRing, Border,\n" +
+			"HStack, VStack, Split, Padding")
 }
 
 func (s *state) buildScrollTab() tui.View {
@@ -427,6 +428,7 @@ func (s *state) buildScrollTab() tui.View {
 	sv := widgets.NewScrollView(widgets.ScrollViewOpts{
 		Child:     label,
 		Focusable: true,
+		Scrollbar: widgets.ScrollbarAuto,
 	})
 
 	return sv
@@ -455,7 +457,13 @@ func (s *state) buildVirtualListTab() tui.View {
 		},
 	})
 
-	return s.vlist
+	return newScrollPanel(s.vlist, widgets.NewScrollbar(widgets.ScrollbarOpts{
+		OnScroll: func(pos int, ctx *tui.Ctx) {
+			s.vlist.ScrollTo(ctx, pos)
+		},
+	}), func() (contentSize, viewSize, position int) {
+		return len(s.listItems), s.vlist.Rect().H, s.vlist.ScrollItem()
+	})
 }
 
 func (s *state) buildTextAreaTab() tui.View {
@@ -471,11 +479,19 @@ func (s *state) buildTextAreaTab() tui.View {
 		"  - Shift+Arrow to select\n"+
 		"  - Ctrl+A to select all\n"+
 		"  - Ctrl+C to copy, Ctrl+X to cut\n"+
+		"  - Mouse wheel to scroll\n"+
 		"\n"+
 		"The cursor column is \"sticky\" — moving\n"+
 		"through short lines preserves your\n"+
 		"original column position.")
-	return s.textArea
+
+	return newScrollPanel(s.textArea, widgets.NewScrollbar(widgets.ScrollbarOpts{
+		OnScroll: func(pos int, ctx *tui.Ctx) {
+			s.textArea.SetScrollY(ctx, pos)
+		},
+	}), func() (contentSize, viewSize, position int) {
+		return s.textArea.LineCount(), s.textArea.Rect().H, s.textArea.ScrollY()
+	})
 }
 
 // ── dialog overlay ───────────────────────────────────────────────────
@@ -566,4 +582,111 @@ func (r *rootView) HandleAction(act int, ctx *tui.Ctx) bool {
 		return true
 	}
 	return false
+}
+
+// scrollPanel composes a content view with a standalone scrollbar.
+// It demonstrates using Scrollbar outside of ScrollView.
+//
+// Invalidation challenge: the child may scroll or change line count via
+// keyboard actions, rune input, or paste — and some of those event paths
+// bypass this view entirely (e.g. VStack.Handle dispatches directly to the
+// focused descendant). So we can't rely on intercepting events.
+//
+// Instead, Paint tracks the last-known scroll state. When the state has
+// changed since the last paint (meaning the child scrolled or content changed),
+// it schedules a follow-up invalidation for the scrollbar column. This adds
+// one extra repaint frame for the scrollbar but is completely reliable.
+type scrollPanel struct {
+	id        tui.ID
+	content   tui.View
+	scrollbar *widgets.Scrollbar
+	getState  func() (contentSize, viewSize, position int)
+	rect      geom.Rect
+
+	// Last-known state for change detection in Paint.
+	lastCS, lastVS, lastPos int
+}
+
+func newScrollPanel(
+	content tui.View,
+	sb *widgets.Scrollbar,
+	getState func() (contentSize, viewSize, position int),
+) *scrollPanel {
+	return &scrollPanel{
+		id:        tui.NewID(),
+		content:   content,
+		scrollbar: sb,
+		getState:  getState,
+		lastPos:   -1, // sentinel so first paint always syncs
+	}
+}
+
+func (sp *scrollPanel) ID() tui.ID          { return sp.id }
+func (sp *scrollPanel) Rect() geom.Rect     { return sp.rect }
+func (sp *scrollPanel) Focusable() bool      { return false }
+func (sp *scrollPanel) Children() []tui.View { return []tui.View{sp.content} }
+
+// MouseOpaque ensures scrollPanel receives all mouse events for its rect,
+// so it can intercept scrollbar clicks/drags and wheel events.
+func (sp *scrollPanel) MouseOpaque() {}
+
+func (sp *scrollPanel) MinSize() geom.Size {
+	ms := sp.content.MinSize()
+	ms.W++
+	return ms
+}
+
+func (sp *scrollPanel) Layout(r geom.Rect) {
+	sp.rect = r
+	if r.W > 1 {
+		sp.content.Layout(geom.Rect{X: r.X, Y: r.Y, W: r.W - 1, H: r.H})
+		sp.scrollbar.Layout(geom.Rect{X: r.X + r.W - 1, Y: r.Y, W: 1, H: r.H})
+	} else {
+		sp.content.Layout(r)
+	}
+}
+
+func (sp *scrollPanel) Paint(p *tui.Painter, ctx *tui.Ctx) {
+	sp.content.Paint(p, ctx)
+	cs, vs, pos := sp.getState()
+	sp.scrollbar.SetState(cs, vs, pos)
+	sp.scrollbar.Paint(p, ctx)
+
+	// If scroll state changed since last paint, the scrollbar column was
+	// probably not in the damage region (child only invalidated its own rect).
+	// Schedule a follow-up invalidation so the scrollbar repaints next frame.
+	if cs != sp.lastCS || vs != sp.lastVS || pos != sp.lastPos {
+		ctx.Invalidate(sp.scrollbar.Rect())
+		sp.lastCS, sp.lastVS, sp.lastPos = cs, vs, pos
+	}
+}
+
+func (sp *scrollPanel) Handle(e tui.Event, ctx *tui.Ctx) bool {
+	if me, ok := e.(tui.MouseEvent); ok {
+		// Scrollbar drag in progress — delegate regardless of X position
+		if sp.scrollbar.Dragging() {
+			sp.scrollbar.Handle(me, ctx)
+			ctx.Invalidate(sp.scrollbar.Rect())
+			return true
+		}
+
+		// Click/drag in scrollbar column
+		sbRect := sp.scrollbar.Rect()
+		if me.X >= sbRect.X && me.X < sbRect.X+sbRect.W {
+			sp.scrollbar.Handle(me, ctx)
+			ctx.Invalidate(sp.scrollbar.Rect())
+			return true
+		}
+
+		// Wheel events: forward to content, then invalidate scrollbar
+		if me.Button == tui.MouseButtonWheelUp || me.Button == tui.MouseButtonWheelDown {
+			handled := sp.content.Handle(me, ctx)
+			ctx.Invalidate(sp.scrollbar.Rect())
+			return handled
+		}
+
+		// Other mouse events: forward to content
+		return sp.content.Handle(me, ctx)
+	}
+	return sp.content.Handle(e, ctx)
 }

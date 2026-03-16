@@ -59,6 +59,7 @@ func TestScrollView_Layout(t *testing.T) {
 	sv := NewScrollView(ScrollViewOpts{
 		Child:     child,
 		Focusable: false,
+		Scrollbar: ScrollbarHidden,
 	})
 
 	rect := geom.Rect{X: 5, Y: 10, W: 20, H: 15}
