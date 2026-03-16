@@ -14,6 +14,7 @@ type inputFeatures struct {
 func (b *Backend) InputCapabilities() backend.InputCapabilities {
 	return backend.InputCapabilities{
 		Mouse:          true,
+		MouseMotion:    true,
 		BracketedPaste: true,
 		ClipboardWrite: true,
 		ClipboardRead:  false,
@@ -22,14 +23,14 @@ func (b *Backend) InputCapabilities() backend.InputCapabilities {
 
 // SetInputFeatures enables or disables input features.
 func (b *Backend) SetInputFeatures(f backend.InputFeatures) error {
-	// Mouse: SGR mode (1006) + basic tracking (1000)
+	// Mouse: basic (1000) + button-event / motion (1002) + SGR (1006)
 	if f.Mouse && !b.inputFeats.mouse {
-		if _, err := b.w.WriteString("\x1b[?1000h\x1b[?1006h"); err != nil {
+		if _, err := b.w.WriteString("\x1b[?1000h\x1b[?1002h\x1b[?1006h"); err != nil {
 			return err
 		}
 		b.inputFeats.mouse = true
 	} else if !f.Mouse && b.inputFeats.mouse {
-		if _, err := b.w.WriteString("\x1b[?1006l\x1b[?1000l"); err != nil {
+		if _, err := b.w.WriteString("\x1b[?1006l\x1b[?1002l\x1b[?1000l"); err != nil {
 			return err
 		}
 		b.inputFeats.mouse = false

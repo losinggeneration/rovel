@@ -19,15 +19,17 @@ const (
 	MousePress MouseAction = iota
 	MouseRelease
 	MouseMove
+	MouseDrag
 )
 
 // MouseEvent represents a mouse event.
 type MouseEvent struct {
-	X      int
-	Y      int
-	Button MouseButton
-	Action MouseAction
-	Mod    ModMask
+	X          int
+	Y          int
+	Button     MouseButton
+	Action     MouseAction
+	Mod        ModMask
+	ClickCount int // 1 = single, 2 = double, 3 = triple, etc.
 }
 
 func (MouseEvent) isEvent() {}

@@ -90,6 +90,7 @@ const (
 	MousePress   = event.MousePress
 	MouseRelease = event.MouseRelease
 	MouseMove    = event.MouseMove
+	MouseDrag    = event.MouseDrag
 )
 
 // PasteEvent represents a bracketed paste event.

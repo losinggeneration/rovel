@@ -30,6 +30,7 @@ type Backend interface {
 // InputCapabilities describes what input features the backend supports.
 type InputCapabilities struct {
 	Mouse          bool
+	MouseMotion    bool
 	BracketedPaste bool
 	ClipboardWrite bool
 	ClipboardRead  bool
@@ -43,6 +44,7 @@ type CapabilityReporter interface {
 // InputFeatures describes which input features to enable.
 type InputFeatures struct {
 	Mouse          bool
+	MouseMotion    bool
 	BracketedPaste bool
 }
 
