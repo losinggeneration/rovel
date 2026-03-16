@@ -1017,7 +1017,7 @@ func (a *App) ShowOverlay(opts OverlayOpts) *Overlay {
 	o.root.Layout(o.rect)
 	a.rebuildTree()
 	a.updateBounds()
-	a.InvalidateAll()
+	a.Invalidate(o.rect)
 
 	// Focus first focusable in overlay
 	a.focusFirstIn(o.root)
@@ -1040,7 +1040,7 @@ func (a *App) DismissOverlay() *Overlay {
 	a.updateBounds()
 	// Restore focus
 	a.setRequestFocus(o.savedFocus)
-	a.InvalidateAll()
+	a.Invalidate(o.rect)
 	return o
 }
 
@@ -1056,7 +1056,7 @@ func (a *App) DismissOverlayByID(id ID) *Overlay {
 	a.rebuildTree()
 	a.updateBounds()
 	a.setRequestFocus(o.savedFocus)
-	a.InvalidateAll()
+	a.Invalidate(o.rect)
 	return o
 }
 

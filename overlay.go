@@ -152,6 +152,10 @@ func hitTestView(v View, x, y int) View {
 	if x < r.X || x >= r.X+r.W || y < r.Y || y >= r.Y+r.H {
 		return nil
 	}
+	// Mirror the mouseOpaque check in App.hitTest (app.go).
+	if _, ok := v.(mouseOpaque); ok {
+		return v
+	}
 	if c, ok := v.(viewChildren); ok {
 		children := c.Children()
 		for i := len(children) - 1; i >= 0; i-- {
