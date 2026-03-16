@@ -3,6 +3,7 @@
 // Widgets demonstrated:
 //   - Button (normal, solid chrome, disabled)
 //   - TextInput (single-line editing with paste support)
+//   - TextArea (multi-line editing with selection)
 //   - Checkbox (toggle with label)
 //   - RadioGroup (mutually exclusive selection)
 //   - Select / Dropdown (overlay-based)
@@ -42,7 +43,11 @@ const (
 
 type appKeymap struct{}
 
-func (appKeymap) Resolve(_ ui.KeyContext, k ui.Keystroke) (ui.Action, bool) {
+func (appKeymap) Resolve(ctx ui.KeyContext, k ui.Keystroke) (ui.Action, bool) {
+	// In text input mode, let Ctrl+C be handled as copy by the default keymap.
+	if ctx == ui.KeyCtxTextInput && k.Key == event.KeyCtrlC {
+		return ui.ActionNone, false
+	}
 	switch k.Key {
 	case event.KeyCtrlC:
 		return ActionQuit, true
@@ -58,6 +63,7 @@ type state struct {
 	status *widgets.Label
 
 	textInput *widgets.TextInput
+	textArea  *widgets.TextArea
 	checkbox1 *widgets.Checkbox
 	checkbox2 *widgets.Checkbox
 	radio     *widgets.RadioGroup
@@ -366,15 +372,17 @@ func (s *state) buildTabsSection() tui.View {
 	tab1 := s.buildInfoTab()
 	tab2 := s.buildScrollTab()
 	tab3 := s.buildVirtualListTab()
+	tab4 := s.buildTextAreaTab()
 
 	s.tabs = widgets.NewTabsOpts(widgets.TabsOpts{
 		Tabs: []widgets.Tab{
 			{Title: "Info", Content: tab1},
 			{Title: "ScrollView", Content: tab2},
 			{Title: "VirtualList", Content: tab3},
+			{Title: "TextArea", Content: tab4},
 		},
 		OnTab: func(idx int, ctx *tui.Ctx) {
-			titles := []string{"Info", "ScrollView", "VirtualList"}
+			titles := []string{"Info", "ScrollView", "VirtualList", "TextArea"}
 			s.setStatus(ctx, fmt.Sprintf("Tab: %s", titles[idx]))
 		},
 	})
@@ -448,6 +456,26 @@ func (s *state) buildVirtualListTab() tui.View {
 	})
 
 	return s.vlist
+}
+
+func (s *state) buildTextAreaTab() tui.View {
+	s.textArea = widgets.NewTextArea()
+	s.textArea.SetText(nil, "Multi-line text editor\n"+
+		"\n"+
+		"Try editing this text:\n"+
+		"  - Arrow keys to move cursor\n"+
+		"  - Up/Down navigates lines\n"+
+		"  - Home/End for line start/end\n"+
+		"  - Enter to insert newline\n"+
+		"  - Backspace/Delete to remove\n"+
+		"  - Shift+Arrow to select\n"+
+		"  - Ctrl+A to select all\n"+
+		"  - Ctrl+C to copy, Ctrl+X to cut\n"+
+		"\n"+
+		"The cursor column is \"sticky\" — moving\n"+
+		"through short lines preserves your\n"+
+		"original column position.")
+	return s.textArea
 }
 
 // ── dialog overlay ───────────────────────────────────────────────────

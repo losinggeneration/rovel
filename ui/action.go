@@ -25,6 +25,9 @@ const (
 	ActionDeleteBackward
 	ActionDeleteForward
 	ActionPaste
+	ActionSelectAll
+	ActionCopy
+	ActionCut
 )
 
 // ActionHandler is implemented by views that can handle semantic actions.

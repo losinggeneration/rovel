@@ -48,8 +48,15 @@ type Ctx struct {
 	// Quit requests the application to stop.
 	Quit func()
 
+	// Mod holds the modifier keys active for the current key event.
+	Mod ModMask
+
 	// InputCaps reports which input features the backend supports.
 	InputCaps backend.InputCapabilities
+
+	// ClipboardWrite writes text to the system clipboard.
+	// Nil if clipboard is not available.
+	ClipboardWrite func(string)
 
 	// ShowOverlay pushes an overlay. Nil if overlay system not available.
 	ShowOverlay func(opts OverlayOpts) *Overlay

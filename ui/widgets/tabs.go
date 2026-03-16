@@ -257,6 +257,7 @@ func (t *Tabs) switchTab(ctx *tui.Ctx, idx int) {
 	t.selected = idx
 	t.layoutContent()
 	if ctx != nil {
+		ctx.InvalidateLayout(t.id)
 		ctx.Invalidate(t.rect)
 		// Focus the new tab's content if it's focusable
 		t.focusContent(ctx)

@@ -59,6 +59,24 @@ func defaultGlobalBinding(k Keystroke) (Action, bool) {
 }
 
 func defaultTextInputBinding(k Keystroke) (Action, bool) {
+	// Ctrl+key bindings
+	if k.Mod == event.ModCtrl && k.Key == event.KeyRune {
+		switch k.Rune {
+		case 'a':
+			return ActionSelectAll, true
+		case 'c':
+			return ActionCopy, true
+		case 'x':
+			return ActionCut, true
+		}
+	}
+
+	// KeyCtrlC is emitted as a distinct key by some parsers; treat as copy
+	// in text input context.
+	if k.Key == event.KeyCtrlC {
+		return ActionCopy, true
+	}
+
 	switch k.Key {
 	case event.KeyTab:
 		if k.Mod == 0 {
@@ -74,6 +92,14 @@ func defaultTextInputBinding(k Keystroke) (Action, bool) {
 		return ActionMoveLeft, true
 	case event.KeyRight:
 		return ActionMoveRight, true
+	case event.KeyUp:
+		return ActionMoveUp, true
+	case event.KeyDown:
+		return ActionMoveDown, true
+	case event.KeyPageUp:
+		return ActionPageUp, true
+	case event.KeyPageDown:
+		return ActionPageDown, true
 	case event.KeyBackspace:
 		return ActionDeleteBackward, true
 	case event.KeyDelete:

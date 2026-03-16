@@ -16,6 +16,7 @@ type TextInput struct {
 	cursor  int // UTF-8 byte offset in [0..len(text)], always at a cluster boundary
 	scrollX int // horizontal scroll in cells
 	rect    tui.Rect
+	anchor  int // selection anchor; -1 = no selection
 }
 
 // NewTextInput creates a new text input.
@@ -25,6 +26,7 @@ func NewTextInput() *TextInput {
 		text:    "",
 		cursor:  0,
 		scrollX: 0,
+		anchor:  -1,
 	}
 }
 
@@ -105,12 +107,16 @@ func (t *TextInput) Paint(p *tui.Painter, ctx *tui.Ctx) {
 			break
 		}
 
-		// Check if this is the cursor position
-		cursorHere := focused && byteOff == t.cursor
+		// Check if this is the cursor position or in selection
+		hasSel := t.hasSelection()
+		cursorHere := focused && !hasSel && byteOff == t.cursor
+		inSelection := focused && hasSel && byteOff >= t.selectionRange().Start && byteOff < t.selectionRange().End
 
 		var st style.Style
 		if cursorHere {
 			st = ctx.Theme.Palette.Focus
+		} else if inSelection {
+			st = ctx.Theme.Palette.Selection
 		} else {
 			st = ctx.Theme.Base
 		}
@@ -135,8 +141,8 @@ func (t *TextInput) Paint(p *tui.Painter, ctx *tui.Ctx) {
 		byteOff = next
 	}
 
-	// Draw cursor at end of text if positioned there
-	if focused && t.cursor == len(t.text) && availableW > 0 {
+	// Draw cursor at end of text if positioned there (not during selection)
+	if focused && !t.hasSelection() && t.cursor == len(t.text) && availableW > 0 {
 		p.SetCell(x, y, ' ', ctx.Theme.Palette.Focus)
 		x++
 		availableW--
@@ -185,15 +191,19 @@ func (t *TextInput) Handle(e tui.Event, ctx *tui.Ctx) bool {
 
 	switch ke.Key {
 	case tui.KeyRune:
-		// Insert character at cursor.
+		// Insert character at cursor (replacing selection if any).
 		insert := text.Sanitize(string(ke.Rune))
 		if insert == "" {
 			return true
+		}
+		if t.hasSelection() {
+			t.deleteSelection()
 		}
 		t.cursor = text.ClampCluster(t.text, t.cursor)
 		t.text = t.text[:t.cursor] + insert + t.text[t.cursor:]
 		t.cursor += len(insert)
 		t.cursor = text.ClampCluster(t.text, t.cursor)
+		t.anchor = -1
 		t.updateScroll()
 		ctx.Invalidate(t.rect)
 		return true
@@ -244,41 +254,137 @@ func (t *TextInput) handlePaste(e event.PasteEvent, ctx *tui.Ctx) bool {
 	return true
 }
 
+// hasSelection reports whether a selection is active.
+func (t *TextInput) hasSelection() bool {
+	return t.anchor >= 0 && t.anchor != t.cursor
+}
+
+// selectionRange returns the normalized selection range.
+func (t *TextInput) selectionRange() text.Range {
+	if t.anchor < 0 {
+		return text.Range{Start: t.cursor, End: t.cursor}
+	}
+	return text.Range{Start: t.anchor, End: t.cursor}.Normalized()
+}
+
+// selectedText returns the currently selected text.
+func (t *TextInput) selectedText() string {
+	if !t.hasSelection() {
+		return ""
+	}
+	r := t.selectionRange()
+	return t.text[r.Start:r.End]
+}
+
+// deleteSelection removes the selected text and clears the anchor.
+func (t *TextInput) deleteSelection() {
+	if !t.hasSelection() {
+		return
+	}
+	r := t.selectionRange()
+	t.text, _ = text.DeleteRange(t.text, r)
+	t.cursor = r.Start
+	t.anchor = -1
+}
+
 // HandleAction handles semantic actions.
 func (t *TextInput) HandleAction(act int, ctx *tui.Ctx) bool {
 	if ctx.FocusedID != t.id {
 		return false
 	}
+
+	// Handle shift+move for selection extension.
+	isShift := ctx.Mod&tui.ModShift != 0
+
 	switch ui.Action(act) {
 	case ui.ActionMoveLeft:
+		if isShift {
+			if t.anchor < 0 {
+				t.anchor = t.cursor
+			}
+		} else {
+			t.anchor = -1
+		}
 		t.cursor = text.PrevCluster(t.text, t.cursor)
 		t.updateScroll()
 		ctx.Invalidate(t.rect)
 		return true
 	case ui.ActionMoveRight:
+		if isShift {
+			if t.anchor < 0 {
+				t.anchor = t.cursor
+			}
+		} else {
+			t.anchor = -1
+		}
 		t.cursor = text.NextCluster(t.text, t.cursor)
 		t.updateScroll()
 		ctx.Invalidate(t.rect)
 		return true
 	case ui.ActionDeleteBackward:
-		t.text, t.cursor = text.DeletePrevCluster(t.text, t.cursor)
+		if t.hasSelection() {
+			t.deleteSelection()
+		} else {
+			t.text, t.cursor = text.DeletePrevCluster(t.text, t.cursor)
+		}
+		t.anchor = -1
 		t.updateScroll()
 		ctx.Invalidate(t.rect)
 		return true
 	case ui.ActionDeleteForward:
-		t.text, t.cursor = text.DeleteNextCluster(t.text, t.cursor)
+		if t.hasSelection() {
+			t.deleteSelection()
+		} else {
+			t.text, t.cursor = text.DeleteNextCluster(t.text, t.cursor)
+		}
+		t.anchor = -1
 		t.updateScroll()
 		ctx.Invalidate(t.rect)
 		return true
 	case ui.ActionHome:
+		if isShift {
+			if t.anchor < 0 {
+				t.anchor = t.cursor
+			}
+		} else {
+			t.anchor = -1
+		}
 		t.cursor = 0
 		t.updateScroll()
 		ctx.Invalidate(t.rect)
 		return true
 	case ui.ActionEnd:
+		if isShift {
+			if t.anchor < 0 {
+				t.anchor = t.cursor
+			}
+		} else {
+			t.anchor = -1
+		}
 		t.cursor = len(t.text)
 		t.updateScroll()
 		ctx.Invalidate(t.rect)
+		return true
+	case ui.ActionSelectAll:
+		t.anchor = 0
+		t.cursor = len(t.text)
+		t.updateScroll()
+		ctx.Invalidate(t.rect)
+		return true
+	case ui.ActionCopy:
+		if t.hasSelection() && ctx.ClipboardWrite != nil {
+			ctx.ClipboardWrite(t.selectedText())
+		}
+		return true
+	case ui.ActionCut:
+		if t.hasSelection() {
+			if ctx.ClipboardWrite != nil {
+				ctx.ClipboardWrite(t.selectedText())
+			}
+			t.deleteSelection()
+			t.updateScroll()
+			ctx.Invalidate(t.rect)
+		}
 		return true
 	}
 	return false
