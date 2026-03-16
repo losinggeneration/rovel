@@ -110,7 +110,40 @@ func (s *ScrollView) HandleAction(act int, ctx *tui.Ctx) bool {
 	return false
 }
 
+// MouseOpaque marks ScrollView as opaque to hit-testing. The app dispatches
+// all mouse events for its rect here; ScrollView intercepts wheel events and
+// delegates other mouse events to its child with scroll-adjusted coordinates.
+func (s *ScrollView) MouseOpaque() {}
+
 func (s *ScrollView) Handle(e tui.Event, ctx *tui.Ctx) bool {
+	// Mouse handling — ScrollView is mouseOpaque, so it receives all mouse
+	// events for its rect and must delegate non-wheel events to its child.
+	if me, ok := e.(tui.MouseEvent); ok {
+		switch me.Button {
+		case tui.MouseButtonWheelUp:
+			s.ScrollBy(ctx, -3)
+			return true
+		case tui.MouseButtonWheelDown:
+			s.ScrollBy(ctx, 3)
+			return true
+		default:
+			if s.child != nil {
+				adjusted := me
+				adjusted.Y += s.scrollY
+				if s.child.Handle(adjusted, ctx) {
+					return true
+				}
+			}
+			if me.Button == tui.MouseButtonLeft && me.Action == tui.MousePress && s.focusable {
+				if ctx != nil && ctx.RequestFocus != nil {
+					ctx.RequestFocus(s.id)
+				}
+				return true
+			}
+			return false
+		}
+	}
+
 	ke, ok := e.(event.KeyEvent)
 	if !ok {
 		return false

@@ -46,8 +46,9 @@ type App struct {
 
 	errs *errbuf.ErrorBuffer
 
-	root  View
-	views map[ID]View
+	root     View
+	views    map[ID]View
+	overlays OverlayManager
 
 	rectByID map[ID]geom.Rect
 
@@ -75,8 +76,19 @@ type App struct {
 	inputCaps     backend.InputCapabilities
 }
 
+// actionCancel mirrors ui.ActionCancel to avoid an import cycle.
+// This must stay in sync with the value in ui/action.go.
+const actionCancel = 6
+
 type viewChildren interface {
 	Children() []View
+}
+
+// mouseOpaque is a marker interface. Views that implement it stop hit-test
+// recursion — the view receives all mouse events for its rect and is
+// responsible for delegating to children itself (e.g. ScrollView).
+type mouseOpaque interface {
+	MouseOpaque()
 }
 
 type viewFocusable interface {
@@ -387,6 +399,9 @@ func (a *App) layout() {
 	// If the focused view disappeared or is no longer focusable, repair focus.
 	a.ensureValidFocus(info)
 
+	// Layout overlays after main tree
+	a.overlays.layoutOverlays(a.size)
+
 	a.layoutDirty = false
 }
 
@@ -489,6 +504,7 @@ func (a *App) handleEvent(e Event) {
 }
 
 // handleKeyEvent processes a key event by dispatching through the root.
+// If overlays are present, the topmost overlay gets first crack.
 // If ResolveAction is set and resolves a semantic action, dispatch via
 // HandleAction on the focused view first. Falls back to raw key dispatch.
 func (a *App) handleKeyEvent(e KeyEvent) {
@@ -498,29 +514,46 @@ func (a *App) handleKeyEvent(e KeyEvent) {
 
 	ctx := a.mkCtx(a.root)
 
-	// Try semantic action resolution if configured
+	// Try semantic action resolution if configured.
+	// Route the resolved action to the focused view first, then bubble up
+	// through the view tree to the root so that container/root-level
+	// ActionHandlers (e.g. quit) can catch unhandled actions.
+	// Resolution works even with no focused view (nil is safe for the
+	// resolver — it defaults to KeyCtxGlobal), enabling global actions
+	// like quit to work before anything has focus.
 	if a.opts.ResolveAction != nil {
-		focused := a.findFocusedView()
-		if focused != nil {
-			if action, ok := a.opts.ResolveAction(e, focused); ok {
-				// Check if focused view handles actions (structural interface)
-				type actionHandler interface {
-					HandleAction(act int, ctx *Ctx) bool
-				}
-				if ah, ok := focused.(actionHandler); ok {
-					if ah.HandleAction(action, ctx) {
-						return
-					}
-				}
+		focused := a.findFocusedView() // walks live tree as fallback
+		if action, ok := a.opts.ResolveAction(e, focused); ok {
+			// If overlays are present and ActionCancel, dismiss the topmost overlay
+			if a.overlays.HasOverlays() && action == actionCancel {
+				a.DismissOverlay()
+				return
+			}
+			if a.dispatchAction(action, ctx) {
+				return
 			}
 		}
 	}
 
-	// Fall back to raw key dispatch
+	// Route to topmost overlay if present
+	if top := a.overlays.TopOverlay(); top != nil {
+		if top.root.Handle(e, ctx) {
+			return
+		}
+		// Modal overlay blocks propagation to main tree
+		if top.modal {
+			return
+		}
+	}
+
+	// Fall back to raw key dispatch on main tree
 	a.root.Handle(e, ctx)
 }
 
 // findFocusedView returns the currently focused view, or nil.
+// It checks the view registry first, then walks the live tree as a fallback
+// for views that appear dynamically (e.g. tab content that wasn't registered
+// at startup).
 func (a *App) findFocusedView() View {
 	if a.focusedID == 0 || a.root == nil {
 		return nil
@@ -528,35 +561,114 @@ func (a *App) findFocusedView() View {
 	if v, ok := a.views[a.focusedID]; ok {
 		return v
 	}
+	// Fallback: walk the live tree. This handles views that were added
+	// dynamically (e.g. Tabs switching content) without re-registration.
+	return a.findViewInTree(a.root, a.focusedID)
+}
+
+// findViewInTree walks the view tree looking for a view with the given ID.
+func (a *App) findViewInTree(v View, id ID) View {
+	if v.ID() == id {
+		return v
+	}
+	if c, ok := v.(viewChildren); ok {
+		for _, child := range c.Children() {
+			if found := a.findViewInTree(child, id); found != nil {
+				return found
+			}
+		}
+	}
 	return nil
 }
 
+// dispatchAction routes a semantic action through the view tree: focused view
+// first, then ancestors up to the root. Returns true if any handler consumed it.
+func (a *App) dispatchAction(action int, ctx *Ctx) bool {
+	type actionHandler interface {
+		HandleAction(act int, ctx *Ctx) bool
+	}
+
+	// Try focused view first
+	focused := a.findFocusedView()
+	if focused != nil {
+		if ah, ok := focused.(actionHandler); ok {
+			if ah.HandleAction(action, ctx) {
+				return true
+			}
+		}
+	}
+
+	// Walk the tree from root looking for action handlers.
+	// This is a simple DFS — we try every ActionHandler in the tree.
+	// A more precise approach would walk ancestors of the focused view,
+	// but we don't yet have parent links. This is sufficient for now.
+	var walk func(v View) bool
+	walk = func(v View) bool {
+		// Skip the focused view (already tried)
+		if focused != nil && v.ID() == focused.ID() {
+			return false
+		}
+		if ah, ok := v.(actionHandler); ok {
+			if ah.HandleAction(action, ctx) {
+				return true
+			}
+		}
+		if c, ok := v.(viewChildren); ok {
+			for _, child := range c.Children() {
+				if walk(child) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+
+	if a.root != nil {
+		return walk(a.root)
+	}
+	return false
+}
+
 // handleMouseEvent dispatches a mouse event via hit-testing the view tree.
+// Overlays are tested first (top to bottom); a modal overlay blocks the main tree.
+// The deepest hit-tested view receives the event directly (flat dispatch).
 func (a *App) handleMouseEvent(e MouseEvent) {
 	if a.root == nil {
 		return
 	}
 	ctx := a.mkCtx(a.root)
-	target := a.hitTest(a.root, e.X, e.Y)
-	if target != nil {
+
+	// Check overlays first
+	if target, blocked := a.overlays.overlayHitTest(e.X, e.Y); target != nil {
+		target.Handle(e, ctx)
+		return
+	} else if blocked {
+		return // modal overlay blocked
+	}
+
+	if target := a.hitTest(a.root, e.X, e.Y); target != nil {
 		target.Handle(e, ctx)
 	}
 }
 
-// hitTest walks the view tree to find the deepest view containing (x, y).
+// hitTest returns the deepest view containing (x, y). Views implementing
+// mouseOpaque stop recursion — they receive all mouse events for their rect
+// and are responsible for delegating to children themselves.
 func (a *App) hitTest(v View, x, y int) View {
 	r := v.Rect()
 	if x < r.X || x >= r.X+r.W || y < r.Y || y >= r.Y+r.H {
 		return nil
 	}
 
-	// Check children (deepest first)
+	if _, ok := v.(mouseOpaque); ok {
+		return v
+	}
+
 	if c, ok := v.(viewChildren); ok {
 		children := c.Children()
-		// Iterate in reverse so later (top-most) children take priority
 		for i := len(children) - 1; i >= 0; i-- {
-			if hit := a.hitTest(children[i], x, y); hit != nil {
-				return hit
+			if target := a.hitTest(children[i], x, y); target != nil {
+				return target
 			}
 		}
 	}
@@ -565,11 +677,20 @@ func (a *App) hitTest(v View, x, y int) View {
 }
 
 // handlePasteEvent dispatches a paste event to the focused view.
+// If a modal overlay is present, it receives the event exclusively.
 func (a *App) handlePasteEvent(e PasteEvent) {
 	if a.root == nil {
 		return
 	}
 	ctx := a.mkCtx(a.root)
+
+	if top := a.overlays.TopOverlay(); top != nil {
+		top.root.Handle(e, ctx)
+		if top.modal {
+			return
+		}
+	}
+
 	a.root.Handle(e, ctx)
 }
 
@@ -618,6 +739,8 @@ func (a *App) mkCtx(v View) *Ctx {
 		Quit:             func() { a.Quit() },
 		FocusedID:        a.focusedID,
 		InputCaps:        a.inputCaps,
+		ShowOverlay:      func(opts OverlayOpts) *Overlay { return a.ShowOverlay(opts) },
+		DismissOverlay:   func() *Overlay { return a.DismissOverlay() },
 	}
 }
 
@@ -747,6 +870,9 @@ func (a *App) paintViews() {
 
 	// Paint the root (which will paint its children)
 	a.root.Paint(p, ctx)
+
+	// Paint overlays above the main tree, in z-order (bottom to top)
+	a.overlays.paintOverlays(p, ctx)
 }
 
 // flush diffs the buffers and flushes changes to the terminal.
@@ -814,6 +940,75 @@ func (a *App) wake() {
 // Size returns the current terminal size.
 func (a *App) Size() geom.Size {
 	return a.size
+}
+
+// ShowOverlay pushes an overlay onto the stack. The overlay is laid out
+// immediately and the screen is invalidated. If modal, focus is saved and
+// moved to the first focusable view in the overlay subtree.
+// Must be called from the app loop (or via App.Post).
+func (a *App) ShowOverlay(opts OverlayOpts) *Overlay {
+	o := a.overlays.PushOverlay(opts, a.focusedID)
+	o.rect = o.place.Resolve(o.root, a.size)
+	o.root.Layout(o.rect)
+	a.addView(o.root)
+	a.InvalidateAll()
+
+	// Focus first focusable in overlay
+	a.focusFirstIn(o.root)
+	return o
+}
+
+// DismissOverlay removes the topmost overlay. Restores saved focus if modal.
+// Returns the dismissed overlay, or nil if no overlays exist.
+func (a *App) DismissOverlay() *Overlay {
+	o := a.overlays.PopOverlay()
+	if o == nil {
+		return nil
+	}
+	if o.onDismiss != nil {
+		o.onDismiss()
+	}
+	// Restore focus
+	a.setRequestFocus(o.savedFocus)
+	a.InvalidateAll()
+	return o
+}
+
+// DismissOverlayByID removes a specific overlay by ID.
+func (a *App) DismissOverlayByID(id ID) *Overlay {
+	o := a.overlays.PopOverlayByID(id)
+	if o == nil {
+		return nil
+	}
+	if o.onDismiss != nil {
+		o.onDismiss()
+	}
+	a.setRequestFocus(o.savedFocus)
+	a.InvalidateAll()
+	return o
+}
+
+// focusFirstIn sets focus to the first focusable descendant of v.
+func (a *App) focusFirstIn(v View) {
+	type composite interface {
+		Children() []View
+	}
+	var walk func(View) bool
+	walk = func(v View) bool {
+		if f, ok := v.(viewFocusable); ok && f.Focusable() {
+			a.setRequestFocus(v.ID())
+			return true
+		}
+		if c, ok := v.(composite); ok {
+			for _, child := range c.Children() {
+				if walk(child) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	walk(v)
 }
 
 // SetTheme changes the application theme at runtime.

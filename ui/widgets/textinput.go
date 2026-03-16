@@ -150,8 +150,25 @@ func (t *TextInput) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	}
 }
 
-// Handle processes keyboard and paste events.
+// Handle processes keyboard, mouse, and paste events.
 func (t *TextInput) Handle(e tui.Event, ctx *tui.Ctx) bool {
+	// Mouse click positions the cursor
+	if me, ok := e.(tui.MouseEvent); ok {
+		if me.Button == tui.MouseButtonLeft && me.Action == tui.MousePress {
+			if ctx != nil && ctx.RequestFocus != nil {
+				ctx.RequestFocus(t.id)
+			}
+			// Convert click X to cursor position
+			col := me.X - t.rect.X + t.scrollX
+			t.cursor = text.OffsetAtColumnBias(t.text, col, text.BiasLeft)
+			t.cursor = text.ClampCluster(t.text, t.cursor)
+			t.updateScroll()
+			ctx.Invalidate(t.rect)
+			return true
+		}
+		return false
+	}
+
 	// Handle paste events
 	if pe, ok := e.(event.PasteEvent); ok {
 		return t.handlePaste(pe, ctx)

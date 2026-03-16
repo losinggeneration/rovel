@@ -3,6 +3,7 @@ package virtual
 import (
 	"github.com/losinggeneration/tui"
 	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/tui/ui"
 )
 
 // RenderRowFunc is the callback for rendering a single row in the virtual list.
@@ -140,9 +141,36 @@ func (v *VirtualList) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	})
 }
 
-// Handle processes keyboard events.
+// Handle processes keyboard and mouse events.
 // Accepts both KeyEvent and *KeyEvent for pipeline compatibility.
 func (v *VirtualList) Handle(e tui.Event, ctx *tui.Ctx) bool {
+	// Mouse click selects the item at the clicked row
+	if me, ok := e.(tui.MouseEvent); ok {
+		if me.Button == tui.MouseButtonLeft && me.Action == tui.MousePress {
+			if ctx != nil {
+				if ctx.RequestFocus != nil {
+					ctx.RequestFocus(v.id)
+				}
+			}
+			rowOffset := me.Y - v.rect.Y
+			idx := v.scrollItem + rowOffset/v.rowHeight
+			if idx >= 0 && idx < v.safeCount() {
+				v.SelectIndex(ctx, idx)
+			}
+			return true
+		}
+		// Mouse wheel scrolling
+		switch me.Button {
+		case tui.MouseButtonWheelUp:
+			v.ScrollBy(ctx, -3)
+			return true
+		case tui.MouseButtonWheelDown:
+			v.ScrollBy(ctx, 3)
+			return true
+		}
+		return false
+	}
+
 	// Handle both value and pointer key events
 	switch ev := e.(type) {
 	case tui.KeyEvent:
@@ -155,6 +183,60 @@ func (v *VirtualList) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	default:
 		return false
 	}
+}
+
+// HandleAction handles semantic actions for navigation and activation.
+func (v *VirtualList) HandleAction(act int, ctx *tui.Ctx) bool {
+	n := v.safeCount()
+	if n == 0 {
+		return false
+	}
+
+	visible := v.visibleItems()
+
+	switch ui.Action(act) {
+	case ui.ActionMoveUp:
+		if v.selectedIndex == -1 {
+			v.SelectIndex(ctx, 0)
+		} else {
+			v.SelectIndex(ctx, v.selectedIndex-1)
+		}
+		return true
+	case ui.ActionMoveDown:
+		if v.selectedIndex == -1 {
+			v.SelectIndex(ctx, 0)
+		} else {
+			v.SelectIndex(ctx, v.selectedIndex+1)
+		}
+		return true
+	case ui.ActionActivate:
+		if v.selectedIndex >= 0 && v.selectedIndex < n && v.onActivate != nil {
+			v.onActivate(v.selectedIndex, ctx)
+			return true
+		}
+		return false
+	case ui.ActionPageUp:
+		if v.selectedIndex == -1 {
+			v.SelectIndex(ctx, 0)
+		} else {
+			v.SelectIndex(ctx, v.selectedIndex-visible)
+		}
+		return true
+	case ui.ActionPageDown:
+		if v.selectedIndex == -1 {
+			v.SelectIndex(ctx, 0)
+		} else {
+			v.SelectIndex(ctx, v.selectedIndex+visible)
+		}
+		return true
+	case ui.ActionHome:
+		v.SelectIndex(ctx, 0)
+		return true
+	case ui.ActionEnd:
+		v.SelectIndex(ctx, n-1)
+		return true
+	}
+	return false
 }
 
 // ScrollTo scrolls to the given item index.

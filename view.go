@@ -50,4 +50,10 @@ type Ctx struct {
 
 	// InputCaps reports which input features the backend supports.
 	InputCaps backend.InputCapabilities
+
+	// ShowOverlay pushes an overlay. Nil if overlay system not available.
+	ShowOverlay func(opts OverlayOpts) *Overlay
+
+	// DismissOverlay removes the topmost overlay. Nil if not available.
+	DismissOverlay func() *Overlay
 }

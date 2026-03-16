@@ -220,6 +220,22 @@ func (b *Button) Paint(p *tui.Painter, ctx *tui.Ctx) {
 }
 
 func (b *Button) Handle(e tui.Event, ctx *tui.Ctx) bool {
+	if me, ok := e.(tui.MouseEvent); ok {
+		if me.Button == tui.MouseButtonLeft && me.Action == tui.MousePress && !b.disabled {
+			if ctx != nil && ctx.RequestFocus != nil {
+				ctx.RequestFocus(b.id)
+			}
+			if b.onPress != nil {
+				b.onPress(ctx)
+			}
+			if ctx != nil {
+				ctx.Invalidate(b.rect)
+			}
+			return true
+		}
+		return false
+	}
+
 	ke, ok := e.(tui.KeyEvent)
 	if !ok {
 		return false

@@ -31,6 +31,10 @@ func (c *Clickable) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	return c.View.Handle(e, ctx)
 }
 
+// MouseOpaque marks Clickable as opaque to hit-testing so it always receives
+// clicks even when wrapping a composite view.
+func (c *Clickable) MouseOpaque() {}
+
 // Children delegates to the wrapped view if it implements the Children interface.
 // This preserves hit-test traversal for composite views.
 func (c *Clickable) Children() []tui.View {
