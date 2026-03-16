@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/losinggeneration/tui/event"
 	"github.com/losinggeneration/tui/geom"
 )
 
@@ -398,6 +399,93 @@ func TestLayout_FocusRepair_WhenFocusedViewRemoved(t *testing.T) {
 
 	if app.focusedID != b.ID() {
 		t.Fatalf("expected focus repaired to remaining focusable view, got %v want %v", app.focusedID, b.ID())
+	}
+}
+
+func TestDrainMotionEvents_CoalescesToLast(t *testing.T) {
+	app, _ := New(AppOpts{})
+
+	// Pre-fill channel with consecutive move events.
+	app.eventCh <- MouseEvent{X: 1, Y: 1, Action: event.MouseMove}
+	app.eventCh <- MouseEvent{X: 2, Y: 2, Action: event.MouseMove}
+	app.eventCh <- MouseEvent{X: 3, Y: 3, Action: event.MouseMove}
+
+	initial := MouseEvent{X: 0, Y: 0, Action: event.MouseMove}
+	got, extra := app.drainMotionEvents(initial)
+
+	if got.X != 3 || got.Y != 3 {
+		t.Errorf("expected last position (3,3), got (%d,%d)", got.X, got.Y)
+	}
+	if len(extra) != 0 {
+		t.Errorf("expected no extra events, got %d", len(extra))
+	}
+}
+
+func TestDrainMotionEvents_StopsAtNonMotion(t *testing.T) {
+	app, _ := New(AppOpts{})
+
+	app.eventCh <- MouseEvent{X: 5, Y: 5, Action: event.MouseMove}
+	app.eventCh <- KeyEvent{Key: event.KeyEnter}
+	// This move should NOT be drained (it's after the non-motion event).
+	app.eventCh <- MouseEvent{X: 9, Y: 9, Action: event.MouseMove}
+
+	initial := MouseEvent{X: 0, Y: 0, Action: event.MouseMove}
+	got, extra := app.drainMotionEvents(initial)
+
+	if got.X != 5 || got.Y != 5 {
+		t.Errorf("expected coalesced to (5,5), got (%d,%d)", got.X, got.Y)
+	}
+	if len(extra) != 1 {
+		t.Fatalf("expected 1 queued event, got %d", len(extra))
+	}
+	if _, ok := extra[0].(KeyEvent); !ok {
+		t.Errorf("expected queued KeyEvent, got %T", extra[0])
+	}
+}
+
+func TestDrainMotionEvents_EmptyChannel(t *testing.T) {
+	app, _ := New(AppOpts{})
+
+	initial := MouseEvent{X: 7, Y: 8, Action: event.MouseMove}
+	got, extra := app.drainMotionEvents(initial)
+
+	if got != initial {
+		t.Errorf("expected input returned unchanged, got (%d,%d)", got.X, got.Y)
+	}
+	if len(extra) != 0 {
+		t.Errorf("expected no extra events, got %d", len(extra))
+	}
+}
+
+func TestDrainMotionEvents_DragCoalesces(t *testing.T) {
+	app, _ := New(AppOpts{})
+
+	app.eventCh <- MouseEvent{X: 1, Y: 1, Action: event.MouseDrag}
+	app.eventCh <- MouseEvent{X: 2, Y: 2, Action: event.MouseDrag}
+
+	initial := MouseEvent{X: 0, Y: 0, Action: event.MouseDrag}
+	got, extra := app.drainMotionEvents(initial)
+
+	if got.X != 2 || got.Y != 2 {
+		t.Errorf("expected last drag position (2,2), got (%d,%d)", got.X, got.Y)
+	}
+	if len(extra) != 0 {
+		t.Errorf("expected no extra events, got %d", len(extra))
+	}
+}
+
+func TestDrainMotionEvents_ClosedChannel(t *testing.T) {
+	app, _ := New(AppOpts{})
+	close(app.eventCh)
+
+	initial := MouseEvent{X: 4, Y: 4, Action: event.MouseMove}
+	got, extra := app.drainMotionEvents(initial)
+
+	if got != initial {
+		t.Errorf("expected input returned unchanged on closed channel")
+	}
+	if len(extra) != 0 {
+		t.Errorf("expected no extra events, got %d", len(extra))
 	}
 }
 

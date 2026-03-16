@@ -398,11 +398,29 @@ func (a *App) Run() (err error) {
 				a.setClosed()
 				return nil
 			}
+
+			// Coalesce consecutive motion events — keep only latest position.
+			var extra []Event
+			if me, ok := e.(MouseEvent); ok &&
+				(me.Action == event.MouseMove || me.Action == event.MouseDrag) {
+				var coalesced MouseEvent
+				coalesced, extra = a.drainMotionEvents(me)
+				e = coalesced
+			}
+
 			a.handleEvent(e)
 
 			if !a.running.Load() {
 				a.setClosed()
 				return nil
+			}
+
+			for _, qe := range extra {
+				a.handleEvent(qe)
+				if !a.running.Load() {
+					a.setClosed()
+					return nil
+				}
 			}
 
 			a.render()
@@ -448,6 +466,30 @@ func (a *App) handleEvent(e Event) {
 		a.handleMouseEvent(evt)
 	case PasteEvent:
 		a.handlePasteEvent(evt)
+	}
+}
+
+// drainMotionEvents non-blocking drains consecutive motion events from eventCh,
+// keeping only the latest position. Stops when a non-motion event is encountered
+// (queued for ordered processing) or the channel is empty.
+func (a *App) drainMotionEvents(latest MouseEvent) (MouseEvent, []Event) {
+	var queued []Event
+	for {
+		select {
+		case e, ok := <-a.eventCh:
+			if !ok {
+				return latest, queued
+			}
+			if me, ok := e.(MouseEvent); ok &&
+				(me.Action == event.MouseMove || me.Action == event.MouseDrag) {
+				latest = me
+				continue
+			}
+			queued = append(queued, e)
+			return latest, queued
+		default:
+			return latest, queued
+		}
 	}
 }
 
