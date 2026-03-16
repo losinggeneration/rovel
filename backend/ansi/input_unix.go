@@ -174,6 +174,27 @@ func dispatchCSITilde(p0 int) event.Key {
 	}
 }
 
+// csiModToMask converts a CSI modifier parameter to a ModMask.
+// CSI modifier encoding: value = 1 + bitmask (shift=1, alt=2, ctrl=4).
+// n is the number of parsed params; if n < 2, there's no modifier param.
+func csiModToMask(p1, n int) event.ModMask {
+	if n < 2 || p1 <= 1 {
+		return 0
+	}
+	bits := p1 - 1
+	var mod event.ModMask
+	if bits&1 != 0 {
+		mod |= event.ModShift
+	}
+	if bits&2 != 0 {
+		mod |= event.ModAlt
+	}
+	if bits&4 != 0 {
+		mod |= event.ModCtrl
+	}
+	return mod
+}
+
 func dispatchSS3(final byte) event.Key {
 	switch final {
 	case 'A':
@@ -220,6 +241,16 @@ func interpretSingleByte(dst []event.Event, b byte) []event.Event {
 		return append(dst, event.KeyEvent{Key: event.KeyCtrlC})
 	}
 
+	// Ctrl+letter: 0x01-0x1A maps to Ctrl+A through Ctrl+Z
+	// (excluding 0x03/Ctrl+C handled above, 0x08/BS, 0x09/Tab, 0x0A/LF, 0x0D/CR)
+	if b >= 0x01 && b <= 0x1A {
+		return append(dst, event.KeyEvent{
+			Key:  event.KeyRune,
+			Rune: rune('a' + b - 1),
+			Mod:  event.ModCtrl,
+		})
+	}
+
 	// Printable ASCII range (space through ~, excluding DEL)
 	if b >= 0x20 && b < 0x7f {
 		return append(dst, event.KeyEvent{
@@ -228,7 +259,7 @@ func interpretSingleByte(dst []event.Event, b byte) []event.Event {
 		})
 	}
 
-	// Other control bytes (< 0x20 or 0x7f+)
+	// Other control bytes (0x7f+ that weren't caught above)
 	return append(dst, event.KeyEvent{
 		Key:  event.KeyRune,
 		Rune: utf8.RuneError,
@@ -581,16 +612,17 @@ func (d *InputDecoder) pushCSI(
 
 		p0, p1, n, ok := parseCSIParams2(d.csiBuf[:d.csiN])
 		if ok && acceptsCSIKey(b, p0, p1, n) {
+			mod := csiModToMask(p1, n)
 			if b == '~' {
 				if key := dispatchCSITilde(p0); key != event.KeyNone {
 					d.state = stateGround
 					d.csiN = 0
-					return append(dst, event.KeyEvent{Key: key})
+					return append(dst, event.KeyEvent{Key: key, Mod: mod})
 				}
 			} else if key := dispatchCSI(b); key != event.KeyNone {
 				d.state = stateGround
 				d.csiN = 0
-				return append(dst, event.KeyEvent{Key: key})
+				return append(dst, event.KeyEvent{Key: key, Mod: mod})
 			}
 		}
 

@@ -217,7 +217,7 @@ func TestInputDecoder_CSIShiftTab_FlushPendingDoesNotEmit(t *testing.T) {
 func TestInputDecoder_CSI_ParamArrow_Normalized(t *testing.T) {
 	d := &InputDecoder{}
 	var evs []event.Event
-	// ESC [ 1 ; 2 A -> parameterized arrow should normalize to plain KeyUp
+	// ESC [ 1 ; 2 A -> Shift+Up (modifier param 2 = Shift)
 	evs = d.PushByte(evs, 0x1b)
 	evs = d.PushByte(evs, '[')
 	evs = d.PushByte(evs, '1')
@@ -230,7 +230,57 @@ func TestInputDecoder_CSI_ParamArrow_Normalized(t *testing.T) {
 	}
 	k := ke(t, evs[0], 0)
 	if k.Key != event.KeyUp {
-		t.Fatalf("got %#v, want KeyUp", k)
+		t.Fatalf("got key %#v, want KeyUp", k)
+	}
+	if k.Mod != event.ModShift {
+		t.Fatalf("got mod %d, want ModShift (%d)", k.Mod, event.ModShift)
+	}
+}
+
+func TestInputDecoder_CSI_ShiftArrow_Modifiers(t *testing.T) {
+	tests := []struct {
+		name  string
+		param byte // modifier param
+		mod   event.ModMask
+	}{
+		{"Shift+Left", '2', event.ModShift},
+		{"Alt+Left", '3', event.ModAlt},
+		{"Shift+Alt+Left", '4', event.ModShift | event.ModAlt},
+		{"Ctrl+Left", '5', event.ModCtrl},
+		{"Ctrl+Shift+Left", '6', event.ModCtrl | event.ModShift},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &InputDecoder{}
+			var evs []event.Event
+			// CSI 1;<mod> D
+			for _, b := range []byte{0x1b, '[', '1', ';', tt.param, 'D'} {
+				evs = d.PushByte(evs, b)
+			}
+			if len(evs) != 1 {
+				t.Fatalf("got %d events, want 1", len(evs))
+			}
+			k := ke(t, evs[0], 0)
+			if k.Key != event.KeyLeft {
+				t.Fatalf("got key %v, want KeyLeft", k.Key)
+			}
+			if k.Mod != tt.mod {
+				t.Fatalf("got mod %d, want %d", k.Mod, tt.mod)
+			}
+		})
+	}
+}
+
+func TestInputDecoder_CtrlA(t *testing.T) {
+	d := &InputDecoder{}
+	var evs []event.Event
+	evs = d.PushByte(evs, 0x01) // Ctrl+A
+	if len(evs) != 1 {
+		t.Fatalf("got %d events, want 1", len(evs))
+	}
+	k := ke(t, evs[0], 0)
+	if k.Key != event.KeyRune || k.Rune != 'a' || k.Mod != event.ModCtrl {
+		t.Fatalf("got %#v, want KeyRune 'a' ModCtrl", k)
 	}
 }
 
@@ -929,6 +979,48 @@ func TestInputDecoder_SGRMouse_WheelDown(t *testing.T) {
 	me := evs[0].(event.MouseEvent)
 	if me.Button != event.MouseButtonWheelDown {
 		t.Fatalf("got button=%v, want WheelDown", me.Button)
+	}
+}
+
+func TestInputDecoder_SGRMouse_ButtonMotion(t *testing.T) {
+	// Button-motion events have bit 5 (32) set.
+	// Left button held + motion: pb = 32 | 0 = 32
+	d := &InputDecoder{}
+	var evs []event.Event
+	for _, b := range []byte("\x1b[<32;15;25M") {
+		evs = d.PushByte(evs, b)
+	}
+	if len(evs) != 1 {
+		t.Fatalf("got %d events, want 1", len(evs))
+	}
+	me := evs[0].(event.MouseEvent)
+	if me.Action != event.MouseMove {
+		t.Errorf("action: got %v, want MouseMove", me.Action)
+	}
+	if me.Button != event.MouseButtonLeft {
+		t.Errorf("button: got %v, want Left", me.Button)
+	}
+	if me.X != 14 || me.Y != 24 {
+		t.Errorf("pos: got (%d,%d), want (14,24)", me.X, me.Y)
+	}
+}
+
+func TestInputDecoder_SGRMouse_RightButtonMotion(t *testing.T) {
+	// Right button held + motion: pb = 32 | 2 = 34
+	d := &InputDecoder{}
+	var evs []event.Event
+	for _, b := range []byte("\x1b[<34;5;5M") {
+		evs = d.PushByte(evs, b)
+	}
+	if len(evs) != 1 {
+		t.Fatalf("got %d events, want 1", len(evs))
+	}
+	me := evs[0].(event.MouseEvent)
+	if me.Action != event.MouseMove {
+		t.Errorf("action: got %v, want MouseMove", me.Action)
+	}
+	if me.Button != event.MouseButtonRight {
+		t.Errorf("button: got %v, want Right", me.Button)
 	}
 }
 
