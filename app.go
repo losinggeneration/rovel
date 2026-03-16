@@ -25,9 +25,11 @@ package tui
 import (
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/losinggeneration/tui/backend"
 	errbuf "github.com/losinggeneration/tui/errors"
+	"github.com/losinggeneration/tui/event"
 	"github.com/losinggeneration/tui/geom"
 	"github.com/losinggeneration/tui/render"
 	"github.com/losinggeneration/tui/style"
@@ -47,16 +49,15 @@ type App struct {
 	errs *errbuf.ErrorBuffer
 
 	root     View
-	views    map[ID]View
+	nodes    map[ID]*nodeEntry
 	overlays OverlayManager
-
-	rectByID map[ID]geom.Rect
 
 	layoutDirty bool
 
 	invalidRects []geom.Rect
 
-	focusedID ID
+	focusedID   ID
+	scopeMemory map[ID]*scopeState
 
 	eventCh chan Event
 
@@ -71,14 +72,34 @@ type App struct {
 
 	backendWriter *backendWriter
 
+	mouse mouseState
+
 	resolvedTheme Theme
 	capability    style.Capability
 	inputCaps     backend.InputCapabilities
 }
 
-// actionCancel mirrors ui.ActionCancel to avoid an import cycle.
-// This must stay in sync with the value in ui/action.go.
-const actionCancel = 6
+// mouseState tracks press/drag/click state for mouse event enrichment.
+type mouseState struct {
+	pressButton event.MouseButton
+	pressX      int
+	pressY      int
+	dragging    bool
+
+	lastClickTime   time.Time
+	lastClickX      int
+	lastClickY      int
+	lastClickButton event.MouseButton
+	clickCount      int
+}
+
+// Action constants mirror ui/action.go values to avoid an import cycle.
+// These must stay in sync with the values in ui/action.go.
+const (
+	actionFocusNext = 1
+	actionFocusPrev = 2
+	actionCancel    = 6
+)
 
 type viewChildren interface {
 	Children() []View
@@ -114,8 +135,8 @@ func New(opts AppOpts) (*App, error) {
 		backBuf:   render.NewBuffer(size.W, size.H),
 		frontBuf:  render.NewBuffer(size.W, size.H),
 		damage:    render.NewDamage(size.W, size.H),
-		views:     make(map[ID]View),
-		rectByID:  make(map[ID]geom.Rect),
+		nodes:       make(map[ID]*nodeEntry),
+		scopeMemory: make(map[ID]*scopeState),
 		eventCh:   make(chan Event, 16),
 		postQueue: make([]func(*UpdateCtx), 0, 64),
 		wakeCh:    make(chan struct{}, 1),
@@ -131,25 +152,8 @@ func New(opts AppOpts) (*App, error) {
 // SetRoot sets the root view of the application.
 func (a *App) SetRoot(v View) {
 	a.root = v
-	a.addView(v)
+	a.rebuildTree()
 	a.layoutDirty = true
-}
-
-// addView adds a view to the view registry.
-func (a *App) addView(v View) {
-	a.views[v.ID()] = v
-
-	// Track rect for focus invalidation (will be updated during layout).
-	if _, ok := a.rectByID[v.ID()]; !ok {
-		a.rectByID[v.ID()] = geom.Rect{} // Empty until first layout
-	}
-
-	// Recursively add child views if this is a container
-	if container, ok := v.(viewChildren); ok {
-		for _, child := range container.Children() {
-			a.addView(child)
-		}
-	}
 }
 
 // Enable enables the terminal and starts the application.
@@ -276,106 +280,42 @@ func (a *App) resizeBuffers(w, h int) {
 	a.size = geom.Size{W: w, H: h}
 }
 
-type layoutInfo struct {
-	rects          map[ID]geom.Rect
-	focusedView    View
-	firstFocusable View
-}
-
-// collectLayoutInfo walks the view tree and records rects (for bounded focus
-// invalidation), and also finds (a) the currently focused view pointer (if it
-// exists in the mounted tree) and (b) the first focusable view (for focus repair).
-//
-// Must be called after layout.
-func (a *App) collectLayoutInfo() layoutInfo {
-	if a.root == nil {
-		return layoutInfo{rects: make(map[ID]geom.Rect)}
-	}
-
-	info := layoutInfo{
-		rects: make(map[ID]geom.Rect, 64),
-	}
-
-	visited := make(map[ID]struct{}, 64)
-	var walk func(v View)
-	walk = func(v View) {
-		id := v.ID()
-		if _, ok := visited[id]; ok {
-			return
-		}
-		visited[id] = struct{}{}
-
-		info.rects[id] = v.Rect()
-
-		if a.focusedID != 0 && id == a.focusedID {
-			info.focusedView = v
-		}
-
-		if info.firstFocusable == nil {
-			if f, ok := v.(viewFocusable); ok && f.Focusable() {
-				info.firstFocusable = v
-			}
-		}
-
-		if c, ok := v.(viewChildren); ok {
-			for _, child := range c.Children() {
-				walk(child)
-			}
-		}
-	}
-
-	walk(a.root)
-	return info
-}
-
-func (a *App) invalidateLayoutDiff(oldRects, newRects map[ID]geom.Rect) {
-	// Removed views.
-	for id, oldR := range oldRects {
-		if _, ok := newRects[id]; !ok {
-			if !oldR.Empty() {
-				a.Invalidate(oldR)
+// invalidateLayoutDiff compares old and new node rects and invalidates regions
+// that changed, were added, or were removed.
+func (a *App) invalidateLayoutDiff(oldNodes map[ID]*nodeEntry) {
+	// Removed views — present in old but not in new.
+	for id, oldEntry := range oldNodes {
+		if _, ok := a.nodes[id]; !ok {
+			if !oldEntry.rect.Empty() {
+				a.Invalidate(oldEntry.rect)
 			}
 		}
 	}
 
 	// Added / changed views.
-	for id, newR := range newRects {
-		oldR, okOld := oldRects[id]
+	for id, newEntry := range a.nodes {
+		oldEntry, okOld := oldNodes[id]
 		if !okOld {
-			if !newR.Empty() {
-				a.Invalidate(newR)
+			if !newEntry.rect.Empty() {
+				a.Invalidate(newEntry.rect)
 			}
 			continue
 		}
-		if oldR != newR {
-			if !oldR.Empty() {
-				a.Invalidate(oldR)
+		if oldEntry.rect != newEntry.rect {
+			if !oldEntry.rect.Empty() {
+				a.Invalidate(oldEntry.rect)
 			}
-			if !newR.Empty() {
-				a.Invalidate(newR)
+			if !newEntry.rect.Empty() {
+				a.Invalidate(newEntry.rect)
 			}
 		}
 	}
 }
 
-func (a *App) ensureValidFocus(info layoutInfo) {
-	if a.focusedID == 0 {
-		return
-	}
-
-	// Focused ID points to a mounted, focusable view => keep it.
-	if info.focusedView != nil {
-		if f, ok := info.focusedView.(viewFocusable); ok && f.Focusable() {
-			return
-		}
-	}
-
-	// Otherwise, repair focus to the first focusable view, or clear focus.
-	if info.firstFocusable != nil {
-		a.setRequestFocus(info.firstFocusable.ID())
-	} else {
-		a.setRequestFocus(0)
-	}
+// ensureValidFocus checks that the focused view is still mounted and focusable.
+// If not, it repairs focus using scope-aware fallback.
+func (a *App) ensureValidFocus() {
+	a.ensureValidFocusScoped()
 }
 
 // layout performs a full layout pass from the root.
@@ -384,22 +324,30 @@ func (a *App) layout() {
 		return
 	}
 
-	oldRects := a.rectByID
+	// Snapshot old node rects for diff-based invalidation.
+	oldNodes := make(map[ID]*nodeEntry, len(a.nodes))
+	for id, e := range a.nodes {
+		snapshot := *e // copy by value
+		oldNodes[id] = &snapshot
+	}
 
-	// Layout the root view to fill the entire screen
+	// Layout the root view to fill the entire screen.
 	fullRect := geom.Rect{X: 0, Y: 0, W: a.size.W, H: a.size.H}
 	a.root.Layout(fullRect)
 
-	// Update rect tracking and do conservative invalidation for structural
-	// movement/removal/addition, per focus_input.md internal-metadata guidance.
-	info := a.collectLayoutInfo()
-	a.rectByID = info.rects
-	a.invalidateLayoutDiff(oldRects, info.rects)
+	// Rebuild tree structure (handles dynamic children like Tabs).
+	a.rebuildTree()
+
+	// Update geometry in the nodes map.
+	a.updateBounds()
+
+	// Invalidate regions that changed structurally.
+	a.invalidateLayoutDiff(oldNodes)
 
 	// If the focused view disappeared or is no longer focusable, repair focus.
-	a.ensureValidFocus(info)
+	a.ensureValidFocus()
 
-	// Layout overlays after main tree
+	// Layout overlays after main tree.
 	a.overlays.layoutOverlays(a.size)
 
 	a.layoutDirty = false
@@ -513,6 +461,7 @@ func (a *App) handleKeyEvent(e KeyEvent) {
 	}
 
 	ctx := a.mkCtx(a.root)
+	ctx.Mod = e.Mod
 
 	// Try semantic action resolution if configured.
 	// Route the resolved action to the focused view first, then bubble up
@@ -530,6 +479,15 @@ func (a *App) handleKeyEvent(e KeyEvent) {
 				return
 			}
 			if a.dispatchAction(action, ctx) {
+				return
+			}
+			// App-level fallback for focus navigation (scope-aware).
+			switch action {
+			case actionFocusNext:
+				a.focusNextInScope()
+				return
+			case actionFocusPrev:
+				a.focusPrevInScope()
 				return
 			}
 		}
@@ -551,18 +509,16 @@ func (a *App) handleKeyEvent(e KeyEvent) {
 }
 
 // findFocusedView returns the currently focused view, or nil.
-// It checks the view registry first, then walks the live tree as a fallback
-// for views that appear dynamically (e.g. tab content that wasn't registered
-// at startup).
 func (a *App) findFocusedView() View {
 	if a.focusedID == 0 || a.root == nil {
 		return nil
 	}
-	if v, ok := a.views[a.focusedID]; ok {
-		return v
+	if entry, ok := a.nodes[a.focusedID]; ok {
+		return entry.view
 	}
 	// Fallback: walk the live tree. This handles views that were added
-	// dynamically (e.g. Tabs switching content) without re-registration.
+	// dynamically (e.g. Tabs switching content) and not yet in nodes
+	// (e.g. before next rebuildTree call).
 	return a.findViewInTree(a.root, a.focusedID)
 }
 
@@ -588,7 +544,7 @@ func (a *App) dispatchAction(action int, ctx *Ctx) bool {
 		HandleAction(act int, ctx *Ctx) bool
 	}
 
-	// Try focused view first
+	// Try focused view first.
 	focused := a.findFocusedView()
 	if focused != nil {
 		if ah, ok := focused.(actionHandler); ok {
@@ -598,16 +554,27 @@ func (a *App) dispatchAction(action int, ctx *Ctx) bool {
 		}
 	}
 
-	// Walk the tree from root looking for action handlers.
-	// This is a simple DFS — we try every ActionHandler in the tree.
-	// A more precise approach would walk ancestors of the focused view,
-	// but we don't yet have parent links. This is sufficient for now.
+	// Walk ancestors of focused view toward root using parent pointers.
+	// This is O(depth) rather than a full-tree DFS.
+	if focused != nil {
+		for _, ancestorID := range a.ancestorIDs(focused.ID()) {
+			entry, ok := a.nodes[ancestorID]
+			if !ok {
+				continue
+			}
+			if ah, ok := entry.view.(actionHandler); ok {
+				if ah.HandleAction(action, ctx) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+
+	// No focused view: fall back to full-tree DFS so global handlers (e.g.
+	// quit) still fire before anything has focus.
 	var walk func(v View) bool
 	walk = func(v View) bool {
-		// Skip the focused view (already tried)
-		if focused != nil && v.ID() == focused.ID() {
-			return false
-		}
 		if ah, ok := v.(actionHandler); ok {
 			if ah.HandleAction(action, ctx) {
 				return true
@@ -636,6 +603,10 @@ func (a *App) handleMouseEvent(e MouseEvent) {
 	if a.root == nil {
 		return
 	}
+
+	// Enrich the event with drag/click state.
+	a.enrichMouseEvent(&e)
+
 	ctx := a.mkCtx(a.root)
 
 	// Check overlays first
@@ -651,13 +622,76 @@ func (a *App) handleMouseEvent(e MouseEvent) {
 	}
 }
 
+const doubleClickTimeout = 500 * time.Millisecond
+
+// enrichMouseEvent updates the mouse state machine and sets ClickCount / MouseDrag.
+func (a *App) enrichMouseEvent(e *MouseEvent) {
+	switch e.Action {
+	case event.MousePress:
+		a.mouse.pressButton = e.Button
+		a.mouse.pressX = e.X
+		a.mouse.pressY = e.Y
+		a.mouse.dragging = false
+
+		// Check for multi-click.
+		now := time.Now()
+		samePos := abs(e.X-a.mouse.lastClickX) <= 1 && abs(e.Y-a.mouse.lastClickY) <= 1
+		sameButton := e.Button == a.mouse.lastClickButton
+		withinTime := now.Sub(a.mouse.lastClickTime) < doubleClickTimeout
+
+		if samePos && sameButton && withinTime {
+			a.mouse.clickCount++
+		} else {
+			a.mouse.clickCount = 1
+		}
+		e.ClickCount = a.mouse.clickCount
+
+	case event.MouseMove:
+		// Promote to drag if a button is held.
+		if a.mouse.pressButton != event.MouseButtonNone {
+			a.mouse.dragging = true
+			e.Action = event.MouseDrag
+			e.Button = a.mouse.pressButton
+		}
+
+	case event.MouseRelease:
+		if !a.mouse.dragging {
+			// Record for multi-click tracking.
+			a.mouse.lastClickTime = time.Now()
+			a.mouse.lastClickX = e.X
+			a.mouse.lastClickY = e.Y
+			a.mouse.lastClickButton = e.Button
+		}
+		a.mouse.pressButton = event.MouseButtonNone
+		a.mouse.dragging = false
+	}
+}
+
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
 // hitTest returns the deepest view containing (x, y). Views implementing
 // mouseOpaque stop recursion — they receive all mouse events for their rect
 // and are responsible for delegating to children themselves.
+// Uses clipRect from nodes for an early-out when the point is outside the
+// clipped region.
 func (a *App) hitTest(v View, x, y int) View {
 	r := v.Rect()
 	if x < r.X || x >= r.X+r.W || y < r.Y || y >= r.Y+r.H {
 		return nil
+	}
+
+	// Clip-rect short-circuit: if the node's clipped region is known and the
+	// point falls outside it, skip the entire subtree.
+	if entry, ok := a.nodes[v.ID()]; ok {
+		cr := entry.clipRect
+		if x < cr.X || x >= cr.X+cr.W || y < cr.Y || y >= cr.Y+cr.H {
+			return nil
+		}
 	}
 
 	if _, ok := v.(mouseOpaque); ok {
@@ -689,6 +723,14 @@ func (a *App) handlePasteEvent(e PasteEvent) {
 		if top.modal {
 			return
 		}
+	}
+
+	// Dispatch directly to focused view — container Handle methods
+	// typically only forward KeyEvents, not PasteEvents.
+	focused := a.findFocusedView()
+	if focused != nil {
+		focused.Handle(e, ctx)
+		return
 	}
 
 	a.root.Handle(e, ctx)
@@ -729,7 +771,7 @@ func (a *App) InvalidateLayout(id ID) {
 
 // mkCtx creates a context for a view.
 func (a *App) mkCtx(v View) *Ctx {
-	return &Ctx{
+	ctx := &Ctx{
 		Theme:            a.resolvedTheme,
 		Cap:              a.capability,
 		Invalidate:       func(r geom.Rect) { a.Invalidate(r) },
@@ -742,6 +784,10 @@ func (a *App) mkCtx(v View) *Ctx {
 		ShowOverlay:      func(opts OverlayOpts) *Overlay { return a.ShowOverlay(opts) },
 		DismissOverlay:   func() *Overlay { return a.DismissOverlay() },
 	}
+	if cb, ok := a.backend.(backend.ClipboardBackend); ok {
+		ctx.ClipboardWrite = func(s string) { _ = cb.ClipboardWrite(s) }
+	}
+	return ctx
 }
 
 // mkUpdateCtx creates an update context for posted callbacks.
@@ -765,10 +811,29 @@ func (a *App) setRequestFocus(id ID) {
 
 	a.focusedID = id
 
+	// Update scope memory for the new focus target.
+	if id != 0 {
+		if entry, ok := a.nodes[id]; ok {
+			scope := entry.focusScopeID
+			if a.scopeMemory[scope] == nil {
+				a.scopeMemory[scope] = &scopeState{}
+			}
+			a.scopeMemory[scope].lastFocused = id
+		}
+	}
+
+	// Helper: look up rect from nodes map.
+	rectFor := func(nodeID ID) (geom.Rect, bool) {
+		if entry, ok := a.nodes[nodeID]; ok {
+			return entry.rect, true
+		}
+		return geom.Rect{}, false
+	}
+
 	// Clearing focus is a real state transition. Only the old focus needs to
 	// be invalidated (if known). Do not fall back to full-screen invalidation.
 	if id == 0 {
-		if oldRect, ok := a.rectByID[old]; ok && !oldRect.Empty() {
+		if oldRect, ok := rectFor(old); ok && !oldRect.Empty() {
 			a.Invalidate(oldRect)
 		} else {
 			a.InvalidateAll()
@@ -776,8 +841,8 @@ func (a *App) setRequestFocus(id ID) {
 		return
 	}
 
-	oldRect, okOld := a.rectByID[old]
-	newRect, okNew := a.rectByID[id]
+	oldRect, okOld := rectFor(old)
+	newRect, okNew := rectFor(id)
 
 	// Treat empty rect as unknown (handles pre-layout focus requests)
 	unknownOld := !okOld || oldRect.Empty()
@@ -950,7 +1015,8 @@ func (a *App) ShowOverlay(opts OverlayOpts) *Overlay {
 	o := a.overlays.PushOverlay(opts, a.focusedID)
 	o.rect = o.place.Resolve(o.root, a.size)
 	o.root.Layout(o.rect)
-	a.addView(o.root)
+	a.rebuildTree()
+	a.updateBounds()
 	a.InvalidateAll()
 
 	// Focus first focusable in overlay
@@ -968,6 +1034,10 @@ func (a *App) DismissOverlay() *Overlay {
 	if o.onDismiss != nil {
 		o.onDismiss()
 	}
+	// Clean up scope memory for the dismissed overlay's scope.
+	delete(a.scopeMemory, o.id)
+	a.rebuildTree()
+	a.updateBounds()
 	// Restore focus
 	a.setRequestFocus(o.savedFocus)
 	a.InvalidateAll()
@@ -983,6 +1053,8 @@ func (a *App) DismissOverlayByID(id ID) *Overlay {
 	if o.onDismiss != nil {
 		o.onDismiss()
 	}
+	a.rebuildTree()
+	a.updateBounds()
 	a.setRequestFocus(o.savedFocus)
 	a.InvalidateAll()
 	return o

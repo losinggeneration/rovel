@@ -242,8 +242,8 @@ func TestUpdateCtx_InvalidateLayout(t *testing.T) {
 
 func TestUpdateCtx_RequestFocus(t *testing.T) {
 	app, _ := New(AppOpts{})
-	app.rectByID[ID(1)] = geom.Rect{X: 0, Y: 0, W: 10, H: 1}
-	app.rectByID[ID(2)] = geom.Rect{X: 0, Y: 1, W: 10, H: 1}
+	app.nodes[ID(1)] = &nodeEntry{id: ID(1), rect: geom.Rect{X: 0, Y: 0, W: 10, H: 1}}
+	app.nodes[ID(2)] = &nodeEntry{id: ID(2), rect: geom.Rect{X: 0, Y: 1, W: 10, H: 1}}
 	app.focusedID = ID(1)
 
 	ctx := app.mkUpdateCtx()
@@ -407,7 +407,7 @@ func TestSetRequestFocus_ClearFocusDoesNotInvalidateAll(t *testing.T) {
 
 	oldID := ID(1)
 	oldRect := geom.Rect{X: 1, Y: 2, W: 3, H: 1}
-	app.rectByID[oldID] = oldRect
+	app.nodes[oldID] = &nodeEntry{id: oldID, rect: oldRect}
 	app.focusedID = oldID
 
 	app.setRequestFocus(0)
