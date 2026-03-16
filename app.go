@@ -466,6 +466,8 @@ func (a *App) handleEvent(e Event) {
 		a.handleMouseEvent(evt)
 	case PasteEvent:
 		a.handlePasteEvent(evt)
+	case ClipboardResponseEvent:
+		a.handleClipboardResponseEvent(evt)
 	}
 }
 
@@ -778,6 +780,30 @@ func (a *App) handlePasteEvent(e PasteEvent) {
 	a.root.Handle(e, ctx)
 }
 
+// handleClipboardResponseEvent dispatches a clipboard response to the focused view.
+func (a *App) handleClipboardResponseEvent(e ClipboardResponseEvent) {
+	if a.root == nil {
+		return
+	}
+	ctx := a.mkCtx(a.root)
+
+	if top := a.overlays.TopOverlay(); top != nil {
+		top.root.Handle(e, ctx)
+		if top.modal {
+			return
+		}
+	}
+
+	focused := a.findFocusedView()
+	if focused != nil {
+		if focused.Handle(e, ctx) {
+			return
+		}
+	}
+
+	a.root.Handle(e, ctx)
+}
+
 // handleResizeEvent processes a resize event.
 func (a *App) handleResizeEvent(e ResizeEvent) {
 	// Resize buffers
@@ -828,6 +854,9 @@ func (a *App) mkCtx(v View) *Ctx {
 	}
 	if cb, ok := a.backend.(backend.ClipboardBackend); ok {
 		ctx.ClipboardWrite = func(s string) { _ = cb.ClipboardWrite(s) }
+	}
+	if ar, ok := a.backend.(backend.ClipboardAsyncReader); ok && a.inputCaps.ClipboardRead {
+		ctx.ClipboardRead = func() { _ = ar.ClipboardReadRequest() }
 	}
 	return ctx
 }

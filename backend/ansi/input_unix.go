@@ -3,6 +3,8 @@
 package ansi
 
 import (
+	"encoding/base64"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/losinggeneration/tui/event"
@@ -10,6 +12,9 @@ import (
 
 // maxPasteBytes is the maximum paste buffer size (1 MB).
 const maxPasteBytes = 1 << 20
+
+// maxOSCBytes is the maximum OSC payload size (128 KiB, generous for base64 clipboard).
+const maxOSCBytes = 128 * 1024
 
 // InputDecoder decodes deterministic byte streams into Events (key, mouse, paste).
 //
@@ -30,6 +35,7 @@ type InputDecoder struct {
 	csiN   int
 
 	pasteBuf []byte
+	oscBuf   []byte
 }
 
 type decodeState uint8
@@ -41,6 +47,8 @@ const (
 	stateCSI
 	stateSS3
 	statePaste
+	stateOSC
+	stateOSCEsc // saw ESC inside OSC, waiting for '\' to confirm ST
 )
 
 // Reset resets the decoder to ground state.
@@ -66,6 +74,10 @@ func (d *InputDecoder) PushByte(
 		return d.handleSS3(dst, b)
 	case statePaste:
 		return d.pushPaste(dst, b)
+	case stateOSC:
+		return d.pushOSC(dst, b)
+	case stateOSCEsc:
+		return d.pushOSCEsc(dst, b)
 	default:
 		return dst
 	}
@@ -112,6 +124,10 @@ func (d *InputDecoder) Finalize(dst []event.Event) []event.Event {
 			dst = append(dst, event.PasteEvent{Text: sanitizePasteUTF8(d.pasteBuf)})
 			d.pasteBuf = nil
 		}
+
+	case stateOSC, stateOSCEsc:
+		// Discard incomplete OSC at end-of-stream.
+		d.oscBuf = d.oscBuf[:0]
 	}
 
 	d.Reset()
@@ -310,6 +326,11 @@ func (d *InputDecoder) handleEsc(
 	case '[':
 		d.state = stateCSI
 		d.csiN = 0
+		return dst
+
+	case ']':
+		d.state = stateOSC
+		d.oscBuf = d.oscBuf[:0]
 		return dst
 
 	case 'O':
@@ -727,6 +748,69 @@ func (d *InputDecoder) parseSGRMouse(final byte) (event.MouseEvent, bool) {
 		Action: action,
 		Mod:    mod,
 	}, true
+}
+
+// pushOSC accumulates bytes in OSC state.
+// Terminators: BEL (0x07) or ESC \ (ST).
+func (d *InputDecoder) pushOSC(dst []event.Event, b byte) []event.Event {
+	switch b {
+	case 0x07: // BEL — immediate terminator
+		dst = d.finishOSC(dst)
+		return dst
+	case 0x1b: // Possible start of ESC \ (ST)
+		d.state = stateOSCEsc
+		return dst
+	}
+
+	d.oscBuf = append(d.oscBuf, b)
+	if len(d.oscBuf) > maxOSCBytes {
+		// Overflow: discard and return to ground.
+		d.oscBuf = d.oscBuf[:0]
+		d.state = stateGround
+	}
+	return dst
+}
+
+// pushOSCEsc handles the byte after ESC inside an OSC sequence.
+// If it's '\', the OSC is terminated (ST = ESC \).
+// Otherwise, the ESC was not a terminator — append it and the current byte.
+func (d *InputDecoder) pushOSCEsc(dst []event.Event, b byte) []event.Event {
+	if b == '\\' {
+		// ESC \ = ST — terminate OSC
+		dst = d.finishOSC(dst)
+		return dst
+	}
+	// Not ST — the ESC was part of the payload (unusual but possible).
+	d.oscBuf = append(d.oscBuf, 0x1b, b)
+	d.state = stateOSC
+	if len(d.oscBuf) > maxOSCBytes {
+		d.oscBuf = d.oscBuf[:0]
+		d.state = stateGround
+	}
+	return dst
+}
+
+// finishOSC parses a completed OSC payload and emits events.
+func (d *InputDecoder) finishOSC(dst []event.Event) []event.Event {
+	payload := string(d.oscBuf)
+	d.oscBuf = d.oscBuf[:0]
+	d.state = stateGround
+
+	// OSC 52 clipboard response: "52;c;<base64-data>"
+	if after, ok := strings.CutPrefix(payload, "52;"); ok {
+		// Strip the selection parameter (typically "c" or "s" or "p")
+		if idx := strings.IndexByte(after, ';'); idx >= 0 {
+			encoded := after[idx+1:]
+			decoded, err := base64.StdEncoding.DecodeString(encoded)
+			if err == nil {
+				dst = append(dst, event.ClipboardResponseEvent{Text: string(decoded)})
+			}
+			// Invalid base64: silently discard
+		}
+	}
+	// Other OSC sequences: silently discard (we don't use them yet)
+
+	return dst
 }
 
 // pushPaste accumulates bytes in paste state until the end marker ESC[201~ is seen.

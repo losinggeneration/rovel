@@ -95,3 +95,6 @@ const (
 
 // PasteEvent represents a bracketed paste event.
 type PasteEvent = event.PasteEvent
+
+// ClipboardResponseEvent is emitted when the terminal responds to a clipboard read query.
+type ClipboardResponseEvent = event.ClipboardResponseEvent

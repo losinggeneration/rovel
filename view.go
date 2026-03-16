@@ -58,6 +58,10 @@ type Ctx struct {
 	// Nil if clipboard is not available.
 	ClipboardWrite func(string)
 
+	// ClipboardRead sends a clipboard read request. The response arrives
+	// asynchronously as a ClipboardResponseEvent. Nil if not available.
+	ClipboardRead func()
+
 	// ShowOverlay pushes an overlay. Nil if overlay system not available.
 	ShowOverlay func(opts OverlayOpts) *Overlay
 

@@ -1166,3 +1166,146 @@ func TestInputDecoder_Paste_Finalize(t *testing.T) {
 		t.Fatalf("got text=%q, want %q", pe.Text, "partial")
 	}
 }
+
+// ── OSC 52 clipboard response tests ─────────────────────────────────
+
+func pushAll(d *InputDecoder, data []byte) []event.Event {
+	var evs []event.Event
+	for _, b := range data {
+		evs = d.PushByte(evs, b)
+	}
+	return evs
+}
+
+func TestOSC52_BELTerminator(t *testing.T) {
+	d := &InputDecoder{}
+	// "hello" → base64 "aGVsbG8="
+	// ESC ] 52;c;aGVsbG8= BEL
+	evs := pushAll(d, []byte("\x1b]52;c;aGVsbG8=\x07"))
+
+	if len(evs) != 1 {
+		t.Fatalf("got %d events, want 1", len(evs))
+	}
+	cr, ok := evs[0].(event.ClipboardResponseEvent)
+	if !ok {
+		t.Fatalf("event is %T, want ClipboardResponseEvent", evs[0])
+	}
+	if cr.Text != "hello" {
+		t.Fatalf("got text=%q, want %q", cr.Text, "hello")
+	}
+}
+
+func TestOSC52_STTerminator(t *testing.T) {
+	d := &InputDecoder{}
+	// ESC ] 52;c;aGVsbG8= ESC \
+	evs := pushAll(d, []byte("\x1b]52;c;aGVsbG8=\x1b\\"))
+
+	if len(evs) != 1 {
+		t.Fatalf("got %d events, want 1", len(evs))
+	}
+	cr, ok := evs[0].(event.ClipboardResponseEvent)
+	if !ok {
+		t.Fatalf("event is %T, want ClipboardResponseEvent", evs[0])
+	}
+	if cr.Text != "hello" {
+		t.Fatalf("got text=%q, want %q", cr.Text, "hello")
+	}
+}
+
+func TestOSC52_EmptyPayload(t *testing.T) {
+	d := &InputDecoder{}
+	// Empty clipboard: ESC ] 52;c; BEL
+	// base64 of "" is ""
+	evs := pushAll(d, []byte("\x1b]52;c;\x07"))
+
+	if len(evs) != 1 {
+		t.Fatalf("got %d events, want 1", len(evs))
+	}
+	cr := evs[0].(event.ClipboardResponseEvent)
+	if cr.Text != "" {
+		t.Fatalf("got text=%q, want empty", cr.Text)
+	}
+}
+
+func TestOSC52_InvalidBase64(t *testing.T) {
+	d := &InputDecoder{}
+	// Invalid base64 payload should be silently discarded
+	evs := pushAll(d, []byte("\x1b]52;c;!!!invalid!!!\x07"))
+
+	if len(evs) != 0 {
+		t.Fatalf("got %d events for invalid base64, want 0", len(evs))
+	}
+}
+
+func TestOSC52_NonClipboardOSC(t *testing.T) {
+	d := &InputDecoder{}
+	// OSC 0 (set title) should be silently discarded
+	evs := pushAll(d, []byte("\x1b]0;my title\x07"))
+
+	if len(evs) != 0 {
+		t.Fatalf("got %d events for non-clipboard OSC, want 0", len(evs))
+	}
+}
+
+func TestOSC52_InterleavedWithInput(t *testing.T) {
+	d := &InputDecoder{}
+	// Type 'a', then clipboard response, then 'b'
+	var evs []event.Event
+	evs = d.PushByte(evs, 'a')
+	for _, b := range []byte("\x1b]52;c;aGVsbG8=\x07") {
+		evs = d.PushByte(evs, b)
+	}
+	evs = d.PushByte(evs, 'b')
+
+	if len(evs) != 3 {
+		t.Fatalf("got %d events, want 3", len(evs))
+	}
+	k0 := ke(t, evs[0], 0)
+	if k0.Key != event.KeyRune || k0.Rune != 'a' {
+		t.Fatalf("event 0: got %#v, want 'a'", k0)
+	}
+	cr, ok := evs[1].(event.ClipboardResponseEvent)
+	if !ok {
+		t.Fatalf("event 1 is %T, want ClipboardResponseEvent", evs[1])
+	}
+	if cr.Text != "hello" {
+		t.Fatalf("got text=%q, want %q", cr.Text, "hello")
+	}
+	k2 := ke(t, evs[2], 2)
+	if k2.Key != event.KeyRune || k2.Rune != 'b' {
+		t.Fatalf("event 2: got %#v, want 'b'", k2)
+	}
+}
+
+func TestOSC52_IncompleteAtFinalize(t *testing.T) {
+	d := &InputDecoder{}
+	// Incomplete OSC at end-of-stream should be discarded
+	evs := pushAll(d, []byte("\x1b]52;c;aGVsbG8="))
+	if len(evs) != 0 {
+		t.Fatalf("got %d events before finalize, want 0", len(evs))
+	}
+	evs = d.Finalize(evs)
+	if len(evs) != 0 {
+		t.Fatalf("got %d events after finalize, want 0 (incomplete OSC discarded)", len(evs))
+	}
+}
+
+func TestOSC52_Overflow(t *testing.T) {
+	d := &InputDecoder{}
+	// Push ESC ] to enter OSC state
+	evs := pushAll(d, []byte("\x1b]52;c;"))
+	// Push more than maxOSCBytes
+	big := make([]byte, maxOSCBytes+100)
+	for i := range big {
+		big[i] = 'A'
+	}
+	evs = pushAll(d, big)
+	// Should have discarded and returned to ground
+	if d.state != stateGround {
+		t.Fatalf("state = %d, want stateGround after overflow", d.state)
+	}
+	// The 'A' bytes after overflow should have been processed as ground input
+	if len(evs) == 0 {
+		t.Fatal("expected some events from overflow bytes processed in ground state")
+	}
+}

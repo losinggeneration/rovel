@@ -58,3 +58,10 @@ type ClipboardBackend interface {
 	ClipboardWrite(text string) error
 	ClipboardRead() (string, error)
 }
+
+// ClipboardAsyncReader is implemented by backends that support async clipboard
+// read via terminal query/response (e.g., OSC 52). The response arrives
+// asynchronously as a ClipboardResponseEvent from ReadEvent.
+type ClipboardAsyncReader interface {
+	ClipboardReadRequest() error
+}

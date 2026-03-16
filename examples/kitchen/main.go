@@ -251,18 +251,23 @@ func (s *state) buildOverlaySection() tui.View {
 	btnDialog := widgets.NewButton("Open Dialog")
 	btnDialog.SetOnPress(func(ctx *tui.Ctx) { s.openDialog(ctx) })
 
-	btnSelect := widgets.NewButton("Open Select")
-	btnSelect.SetOnPress(func(ctx *tui.Ctx) {
-		s.setStatus(ctx, "Use the Select widget in the right column")
+	btnClipRead := widgets.NewButton("Read Clipboard")
+	btnClipRead.SetOnPress(func(ctx *tui.Ctx) {
+		if ctx.ClipboardRead != nil {
+			ctx.ClipboardRead()
+			s.setStatus(ctx, "Clipboard read requested...")
+		} else {
+			s.setStatus(ctx, "Clipboard read not available")
+		}
 	})
 
 	row := layout.NewHStackWithGap([]layout.Child{
 		layout.NewChild(btnDialog),
-		layout.NewChild(btnSelect),
+		layout.NewChild(btnClipRead),
 	}, 1)
 
 	b := layout.NewBorder(row)
-	b.SetTitle("Overlays (Dialog)")
+	b.SetTitle("Overlays / Clipboard")
 	return b
 }
 
@@ -573,6 +578,14 @@ func (r *rootView) Paint(p *tui.Painter, ctx *tui.Ctx) {
 }
 
 func (r *rootView) Handle(e tui.Event, ctx *tui.Ctx) bool {
+	if cr, ok := e.(tui.ClipboardResponseEvent); ok {
+		txt := cr.Text
+		if len(txt) > 60 {
+			txt = txt[:60] + "..."
+		}
+		r.state.setStatus(ctx, fmt.Sprintf("Clipboard: %s", txt))
+		return true
+	}
 	return r.child.Handle(e, ctx)
 }
 

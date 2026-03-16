@@ -25,7 +25,19 @@ func (b *Backend) ClipboardWrite(text string) error {
 	return b.w.Flush()
 }
 
-// ClipboardRead is not supported by the ANSI backend (would require async response parsing).
+// ClipboardRead is not supported synchronously by the ANSI backend.
+// Use ClipboardReadRequest for async clipboard reading via OSC 52.
 func (b *Backend) ClipboardRead() (string, error) {
-	return "", fmt.Errorf("clipboard read not supported")
+	return "", fmt.Errorf("clipboard read not supported synchronously; use ClipboardReadRequest")
+}
+
+// ClipboardReadRequest sends an OSC 52 read request to the terminal.
+// The response arrives asynchronously as a ClipboardResponseEvent.
+func (b *Backend) ClipboardReadRequest() error {
+	// OSC 52 ; c ; ? ST — query clipboard contents
+	_, err := b.w.WriteString("\x1b]52;c;?\x1b\\")
+	if err != nil {
+		return err
+	}
+	return b.w.Flush()
 }

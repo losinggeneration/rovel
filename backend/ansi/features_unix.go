@@ -17,7 +17,7 @@ func (b *Backend) InputCapabilities() backend.InputCapabilities {
 		MouseMotion:    true,
 		BracketedPaste: true,
 		ClipboardWrite: true,
-		ClipboardRead:  false,
+		ClipboardRead:  true,
 	}
 }
 
