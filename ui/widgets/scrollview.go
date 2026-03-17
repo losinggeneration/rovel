@@ -308,6 +308,7 @@ func (s *ScrollView) maxScrollY() int {
 
 func (s *ScrollView) clampScroll() {
 	maxScroll := s.maxScrollY()
+
 	if s.scrollY < 0 {
 		s.scrollY = 0
 	} else if s.scrollY > maxScroll {

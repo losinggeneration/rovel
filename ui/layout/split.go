@@ -167,6 +167,7 @@ func (s *Split) MinSize() tui.Size {
 			sz := s.first.MinSize()
 
 			totalW += sz.W
+
 			if sz.H > maxH {
 				maxH = sz.H
 			}
@@ -176,6 +177,7 @@ func (s *Split) MinSize() tui.Size {
 			sz := s.second.MinSize()
 
 			totalW += sz.W
+
 			if sz.H > maxH {
 				maxH = sz.H
 			}

@@ -190,6 +190,7 @@ func (t *Tabs) Handle(e tui.Event, ctx *tui.Ctx) bool {
 				}
 				// Walk tab positions to find which was clicked
 				x := t.rect.X
+
 				for i, tab := range t.tabs {
 					w := 2 + text.Width(tab.Title) // " title "
 					if me.X >= x && me.X < x+w {

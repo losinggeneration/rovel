@@ -87,6 +87,7 @@ func (s *Select) SetOnChange(fn func(int, *tui.Ctx)) { s.onChange = fn }
 
 func (s *Select) MinSize() geom.Size {
 	maxW := text.Width(s.placeholder)
+
 	for _, item := range s.items {
 		w := text.Width(item)
 		if w > maxW {

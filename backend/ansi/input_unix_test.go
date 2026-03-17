@@ -366,6 +366,7 @@ func TestInputDecoder_SS3_Unknown(t *testing.T) {
 	k1 := ke(t, evs[1], 1)
 
 	k2 := ke(t, evs[2], 2)
+
 	if k0.Key != event.KeyEsc {
 		t.Fatalf("event 0 = %#v, want KeyEsc", k0)
 	}

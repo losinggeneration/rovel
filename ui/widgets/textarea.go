@@ -204,6 +204,7 @@ func (ta *TextArea) Paint(p *tui.Painter, ctx *tui.Ctx) {
 			// Fill empty rows
 			for availW > 0 {
 				p.SetCell(x, y, ' ', ctx.Theme.Base)
+
 				x++
 				availW--
 			}
@@ -268,6 +269,7 @@ func (ta *TextArea) Paint(p *tui.Painter, ctx *tui.Ctx) {
 		// Draw cursor at end of line if positioned there (not during selection)
 		if focused && !hasSel && lineIdx == curLine && ta.cursor == ln.endByte && availW > 0 {
 			p.SetCell(x, y, ' ', ctx.Theme.Palette.Focus)
+
 			x++
 			availW--
 		}
@@ -275,6 +277,7 @@ func (ta *TextArea) Paint(p *tui.Painter, ctx *tui.Ctx) {
 		// Fill remaining space
 		for availW > 0 {
 			p.SetCell(x, y, ' ', ctx.Theme.Base)
+
 			x++
 			availW--
 		}

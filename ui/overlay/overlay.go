@@ -73,6 +73,7 @@ func preferredOrMin(v tui.View) geom.Size {
 	type preferredSizer interface {
 		PreferredSize() geom.Size
 	}
+
 	if ps, ok := v.(preferredSizer); ok {
 		return ps.PreferredSize()
 	}

@@ -49,6 +49,7 @@ func NewDialog(opts DialogOpts) *Dialog {
 	if w <= 0 {
 		// Auto-size: max of title, message lines, and button row
 		w = text.Width(opts.Title) + 4
+
 		for _, line := range splitLines(opts.Message) {
 			lw := text.Width(line) + 4
 			if lw > w {

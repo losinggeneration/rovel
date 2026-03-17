@@ -58,6 +58,7 @@ func TestBuffer_At(t *testing.T) {
 
 	// Test that returned cell is a pointer to actual data
 	b.At(5, 3).R = 'X'
+
 	if b.At(5, 3).R != 'X' {
 		t.Error("At() should return pointer to actual cell")
 	}

@@ -94,9 +94,11 @@ func (t *TextInput) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	startRight := text.OffsetAtColumnBias(t.text, t.scrollX, text.BiasRight)
 
 	startByte := startLeft
+
 	if startRight != startLeft {
 		// We're in the middle of a wide cluster; leave a blank cell.
 		p.SetCell(x, y, ' ', ctx.Theme.Base)
+
 		x++
 		availableW--
 		startByte = startRight
@@ -149,6 +151,7 @@ func (t *TextInput) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	// Draw cursor at end of text if positioned there (not during selection)
 	if focused && !t.hasSelection() && t.cursor == len(t.text) && availableW > 0 {
 		p.SetCell(x, y, ' ', ctx.Theme.Palette.Focus)
+
 		x++
 		availableW--
 	}
@@ -156,6 +159,7 @@ func (t *TextInput) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	// Fill remaining space with base style
 	for availableW > 0 {
 		p.SetCell(x, y, ' ', ctx.Theme.Base)
+
 		x++
 		availableW--
 	}

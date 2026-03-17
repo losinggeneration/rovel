@@ -110,6 +110,7 @@ func CollectFocusable(root tui.View) []tui.View {
 	visited[root.ID()] = struct{}{}
 
 	var out []tui.View
+
 	collectFocusable(composite, visited, &out)
 
 	return out

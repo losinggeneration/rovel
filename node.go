@@ -146,6 +146,7 @@ func (a *App) ancestorIDs(id ID) []ID {
 	var result []ID
 
 	current := id
+
 	for {
 		entry, ok := a.nodes[current]
 		if !ok || entry.parentID == 0 {

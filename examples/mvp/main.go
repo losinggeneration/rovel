@@ -218,6 +218,7 @@ func paintEditor(st *appState, p *tui.Painter, rect geom.Rect, ctx *tui.Ctx) {
 		cx := rect.X + cursorDisplayX
 
 		cy := rect.Y + st.cursorY
+
 		if cx >= rect.X && cx < rect.X+rect.W {
 			ch := " "
 			if st.cursorX >= 0 && st.cursorX < len(runes) {
@@ -316,6 +317,7 @@ func insertRune(st *appState, r rune) {
 	ensureCursor(st)
 
 	lineRunes := []rune(st.lines[st.cursorY])
+
 	if st.cursorX < 0 {
 		st.cursorX = 0
 	}
@@ -388,6 +390,7 @@ func splitLine(st *appState) {
 	ensureCursor(st)
 
 	lineRunes := []rune(st.lines[st.cursorY])
+
 	if st.cursorX < 0 {
 		st.cursorX = 0
 	}
@@ -461,6 +464,7 @@ func ensureCursor(st *appState) {
 // clampCursorX ensures cursorX is within the current line bounds.
 func clampCursorX(st *appState) {
 	lineLen := len([]rune(st.lines[st.cursorY]))
+
 	if st.cursorX < 0 {
 		st.cursorX = 0
 	}

@@ -67,7 +67,6 @@ func FuzzTruncate(f *testing.F) {
 					s, maxCols, ellipsis, resultWidth)
 			}
 		}
-
 		// Invariant: should not panic (the fuzz engine catches this).
 	})
 }

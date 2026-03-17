@@ -337,6 +337,7 @@ func (a *App) layout() {
 
 	// Snapshot old node rects for diff-based invalidation.
 	oldNodes := make(map[ID]*nodeEntry, len(a.nodes))
+
 	for id, e := range a.nodes {
 		snapshot := *e // copy by value
 		oldNodes[id] = &snapshot

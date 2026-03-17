@@ -90,6 +90,7 @@ func (s *VStack) Layout(r tui.Rect) {
 		minSz := c.View.MinSize()
 
 		info.minH = minSz.H
+
 		if minSz.W > maxW {
 			maxW = minSz.W
 		}
@@ -178,6 +179,7 @@ func (s *VStack) MinSize() tui.Size {
 	totalH := 0
 
 	n := len(s.children)
+
 	for _, c := range s.children {
 		sz := c.View.MinSize()
 		if sz.W > maxW {
