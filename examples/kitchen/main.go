@@ -553,8 +553,8 @@ type rootView struct {
 	state *state
 }
 
-func (r *rootView) ID() tui.ID          { return r.id }
-func (r *rootView) Rect() geom.Rect     { return r.rect }
+func (r *rootView) ID() tui.ID           { return r.id }
+func (r *rootView) Rect() geom.Rect      { return r.rect }
 func (r *rootView) MinSize() geom.Size   { return r.child.MinSize() }
 func (r *rootView) Focusable() bool      { return false }
 func (r *rootView) Children() []tui.View { return []tui.View{r.child} }
@@ -634,8 +634,8 @@ func newScrollPanel(
 	}
 }
 
-func (sp *scrollPanel) ID() tui.ID          { return sp.id }
-func (sp *scrollPanel) Rect() geom.Rect     { return sp.rect }
+func (sp *scrollPanel) ID() tui.ID           { return sp.id }
+func (sp *scrollPanel) Rect() geom.Rect      { return sp.rect }
 func (sp *scrollPanel) Focusable() bool      { return false }
 func (sp *scrollPanel) Children() []tui.View { return []tui.View{sp.content} }
 

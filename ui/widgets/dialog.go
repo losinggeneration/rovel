@@ -29,13 +29,13 @@ type DialogOpts struct {
 // Dialog implements tui.View and can serve as an overlay root. It manages
 // its own internal focus for the button row.
 type Dialog struct {
-	id       tui.ID
-	rect     tui.Rect
-	title    string
-	message  string
-	buttons  []DialogButton
-	focused  int // which button has focus
-	prefW    int
+	id      tui.ID
+	rect    tui.Rect
+	title   string
+	message string
+	buttons []DialogButton
+	focused int // which button has focus
+	prefW   int
 }
 
 // NewDialog creates a new dialog.
@@ -76,10 +76,10 @@ func NewDialog(opts DialogOpts) *Dialog {
 	}
 }
 
-func (d *Dialog) ID() tui.ID      { return d.id }
-func (d *Dialog) Rect() tui.Rect  { return d.rect }
+func (d *Dialog) ID() tui.ID        { return d.id }
+func (d *Dialog) Rect() tui.Rect    { return d.rect }
 func (d *Dialog) Layout(r tui.Rect) { d.rect = r }
-func (d *Dialog) Focusable() bool  { return len(d.buttons) > 0 }
+func (d *Dialog) Focusable() bool   { return len(d.buttons) > 0 }
 
 func (d *Dialog) MinSize() geom.Size {
 	lines := splitLines(d.message)

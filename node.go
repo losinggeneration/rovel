@@ -7,7 +7,7 @@ type nodeEntry struct {
 	id   ID
 	view View
 
-	parentID ID  // 0 for root
+	parentID ID   // 0 for root
 	childIDs []ID // insertion-ordered
 
 	// Layout geometry
@@ -151,5 +151,3 @@ func (a *App) ancestorIDs(id ID) []ID {
 	}
 	return result
 }
-
-

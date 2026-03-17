@@ -7,8 +7,8 @@ import (
 	"os/signal"
 	"sync"
 
-	"github.com/losinggeneration/tui/errors"
 	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/tui/internal/errbuf"
 	"golang.org/x/sys/unix"
 )
 
@@ -18,16 +18,18 @@ type signalHandler struct {
 	stopCh   chan struct{}
 	once     sync.Once
 	wakeFd   int // write end of wake pipe (raw fd)
+	errs     *errbuf.ErrorBuffer
 }
 
 // setupResizeHandler sets up a SIGWINCH signal handler for future resize events.
 // It does not synthesize an initial ResizeEvent; the initial terminal size is
 // obtained synchronously from Enable() / Size().
-func setupResizeHandler(wakeFd int) (*signalHandler, error) {
+func setupResizeHandler(wakeFd int, errs *errbuf.ErrorBuffer) (*signalHandler, error) {
 	h := &signalHandler{
 		resizeCh: make(chan geom.Size, 1),
 		stopCh:   make(chan struct{}),
 		wakeFd:   wakeFd,
+		errs:     errs,
 	}
 
 	// Start signal listener
@@ -75,7 +77,7 @@ func (h *signalHandler) wakePoll() {
 		var b [1]byte
 		b[0] = 1
 		_, err := unix.Write(h.wakeFd, b[:])
-		errors.Add(err)
+		h.errs.Add(err)
 	}
 }
 

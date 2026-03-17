@@ -1293,13 +1293,13 @@ func TestOSC52_IncompleteAtFinalize(t *testing.T) {
 func TestOSC52_Overflow(t *testing.T) {
 	d := &InputDecoder{}
 	// Push ESC ] to enter OSC state
-	evs := pushAll(d, []byte("\x1b]52;c;"))
+	pushAll(d, []byte("\x1b]52;c;"))
 	// Push more than maxOSCBytes
 	big := make([]byte, maxOSCBytes+100)
 	for i := range big {
 		big[i] = 'A'
 	}
-	evs = pushAll(d, big)
+	evs := pushAll(d, big)
 	// Should have discarded and returned to ground
 	if d.state != stateGround {
 		t.Fatalf("state = %d, want stateGround after overflow", d.state)

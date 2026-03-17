@@ -21,11 +21,11 @@ func newMockNode(focusable bool) *mockNode {
 	return &mockNode{id: NewID(), focusable: focusable}
 }
 
-func (m *mockNode) ID() ID                     { return m.id }
-func (m *mockNode) MinSize() geom.Size         { return geom.Size{W: 1, H: 1} }
-func (m *mockNode) Layout(r geom.Rect)         { m.rect = r }
-func (m *mockNode) Rect() geom.Rect            { return m.rect }
-func (m *mockNode) Paint(p *Painter, ctx *Ctx) {}
+func (m *mockNode) ID() ID                        { return m.id }
+func (m *mockNode) MinSize() geom.Size            { return geom.Size{W: 1, H: 1} }
+func (m *mockNode) Layout(r geom.Rect)            { m.rect = r }
+func (m *mockNode) Rect() geom.Rect               { return m.rect }
+func (m *mockNode) Paint(p *Painter, ctx *Ctx)    {}
 func (m *mockNode) Handle(e Event, ctx *Ctx) bool { return false }
 func (m *mockNode) Focusable() bool               { return m.focusable }
 
@@ -40,11 +40,11 @@ func newMockContainer(children ...View) *mockContainer {
 	return &mockContainer{id: NewID(), children: children}
 }
 
-func (c *mockContainer) ID() ID                     { return c.id }
-func (c *mockContainer) MinSize() geom.Size         { return geom.Size{W: 1, H: 1} }
-func (c *mockContainer) Layout(r geom.Rect)         { c.rect = r }
-func (c *mockContainer) Rect() geom.Rect            { return c.rect }
-func (c *mockContainer) Paint(p *Painter, ctx *Ctx) {}
+func (c *mockContainer) ID() ID                        { return c.id }
+func (c *mockContainer) MinSize() geom.Size            { return geom.Size{W: 1, H: 1} }
+func (c *mockContainer) Layout(r geom.Rect)            { c.rect = r }
+func (c *mockContainer) Rect() geom.Rect               { return c.rect }
+func (c *mockContainer) Paint(p *Painter, ctx *Ctx)    {}
 func (c *mockContainer) Handle(e Event, ctx *Ctx) bool { return false }
 func (c *mockContainer) Children() []View              { return c.children }
 
@@ -328,11 +328,11 @@ func newDynamicContainer(initial View) *dynamicContainer {
 	return &dynamicContainer{id: NewID(), current: initial}
 }
 
-func (d *dynamicContainer) ID() ID                     { return d.id }
-func (d *dynamicContainer) MinSize() geom.Size         { return geom.Size{W: 1, H: 1} }
-func (d *dynamicContainer) Layout(r geom.Rect)         { d.rect = r }
-func (d *dynamicContainer) Rect() geom.Rect            { return d.rect }
-func (d *dynamicContainer) Paint(p *Painter, ctx *Ctx) {}
+func (d *dynamicContainer) ID() ID                        { return d.id }
+func (d *dynamicContainer) MinSize() geom.Size            { return geom.Size{W: 1, H: 1} }
+func (d *dynamicContainer) Layout(r geom.Rect)            { d.rect = r }
+func (d *dynamicContainer) Rect() geom.Rect               { return d.rect }
+func (d *dynamicContainer) Paint(p *Painter, ctx *Ctx)    {}
 func (d *dynamicContainer) Handle(e Event, ctx *Ctx) bool { return false }
 func (d *dynamicContainer) Children() []View              { return []View{d.current} }
 
@@ -364,4 +364,3 @@ func TestRebuildTree_DynamicChildren(t *testing.T) {
 		t.Error("tab1 should NOT be in nodes after switch")
 	}
 }
-

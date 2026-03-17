@@ -44,10 +44,10 @@ func NewProgressBarOpts(opts ProgressBarOpts) *ProgressBar {
 	}
 }
 
-func (b *ProgressBar) ID() tui.ID      { return b.id }
-func (b *ProgressBar) Rect() tui.Rect  { return b.rect }
+func (b *ProgressBar) ID() tui.ID        { return b.id }
+func (b *ProgressBar) Rect() tui.Rect    { return b.rect }
 func (b *ProgressBar) Layout(r tui.Rect) { b.rect = r }
-func (b *ProgressBar) Focusable() bool  { return false }
+func (b *ProgressBar) Focusable() bool   { return false }
 
 // Value returns the current progress (0.0 to 1.0).
 func (b *ProgressBar) Value() float64 { return b.value }

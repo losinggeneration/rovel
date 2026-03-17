@@ -31,8 +31,25 @@ func FuzzInputDecoder(f *testing.F) {
 		{0x1b, 'O', '[', 'A'},          // ESC O [ A
 		{0xf0, 0x9f, 0x8c, 0x8d},       // 4-byte UTF-8 emoji
 		{0x1b, 0xf0, 0x9f, 0x8c, 0x8d}, // Alt+emoji
-		{0x03},                          // Ctrl+C
-		{0x1b, 0x03},                    // ESC Ctrl+C
+		{0x03},                         // Ctrl+C
+		{0x1b, 0x03},                   // ESC Ctrl+C
+
+		// Clipboard response (OSC 52)
+		{0x1b, ']', '5', '2', ';', 'c', ';', 'a', 'G', 'V', 's', 'b', 'G', '8', '=', 0x1b, '\\'},
+		{0x1b, ']', '5', '2', ';', 'c', ';', 0x07},
+		{0x1b, ']', '5', '2', ';', 'c', ';', 'Y', 'W', 'J', 'j', 0x1b, '\\'},
+
+		// SGR mouse sequences
+		{0x1b, '[', '<', '0', ';', '1', ';', '1', 'M'},                // SGR press
+		{0x1b, '[', '<', '0', ';', '1', ';', '1', 'm'},                // SGR release
+		{0x1b, '[', '<', '3', '5', ';', '1', '0', ';', '2', '0', 'M'}, // SGR motion
+		{0x1b, '[', '<', '6', '4', ';', '5', ';', '5', 'M'},           // SGR wheel up
+		{0x1b, '[', '<', '6', '5', ';', '5', ';', '5', 'M'},           // SGR wheel down
+
+		// Paste bracket sequences
+		{0x1b, '[', '2', '0', '0', '~'}, // Paste start
+		{0x1b, '[', '2', '0', '0', '~', 'h', 'e', 'l', 'l', 'o', 0x1b, '[', '2', '0', '1', '~'}, // Full paste
+		{0x1b, '[', '2', '0', '1', '~'}, // Paste end
 	}
 
 	for _, s := range seeds {

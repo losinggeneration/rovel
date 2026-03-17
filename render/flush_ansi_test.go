@@ -30,7 +30,6 @@ func TestANSIFlusher_moveCursorTo_NoOp(t *testing.T) {
 	f.curY = 3
 
 	err := f.moveCursorTo(3, 5)
-
 	if err != nil {
 		t.Errorf("moveCursorTo() unexpected error: %v", err)
 	}
@@ -47,7 +46,6 @@ func TestANSIFlusher_moveCursorTo_Moves(t *testing.T) {
 	f := NewANSIFlusher(&buf)
 
 	err := f.moveCursorTo(2, 5)
-
 	if err != nil {
 		t.Errorf("moveCursorTo() unexpected error: %v", err)
 	}
@@ -68,7 +66,6 @@ func TestANSIFlusher_emitSGR_Default(t *testing.T) {
 	f := NewANSIFlusher(&buf)
 
 	err := f.emitSGR(style.Style{})
-
 	if err != nil {
 		t.Errorf("emitSGR() unexpected error: %v", err)
 	}
@@ -124,7 +121,6 @@ func TestANSIFlusher_emitSGR_BasicColors(t *testing.T) {
 			f := NewANSIFlusher(&buf)
 
 			err := f.emitSGR(style.Style{FG: tt.fg, BG: tt.bg})
-
 			if err != nil {
 				t.Errorf("emitSGR() unexpected error: %v", err)
 			}
@@ -174,7 +170,6 @@ func TestANSIFlusher_emitSGR_BrightColors(t *testing.T) {
 			f := NewANSIFlusher(&buf)
 
 			err := f.emitSGR(style.Style{FG: tt.fg, BG: tt.bg})
-
 			if err != nil {
 				t.Errorf("emitSGR() unexpected error: %v", err)
 			}
@@ -194,7 +189,6 @@ func TestANSIFlusher_emitSGR_IndexedColor(t *testing.T) {
 
 	// ColorIndex(232) (first grayscale in 256-color range)
 	err := f.emitSGR(style.Style{FG: style.ColorIndex(232)})
-
 	if err != nil {
 		t.Errorf("emitSGR() unexpected error: %v", err)
 	}
@@ -261,7 +255,6 @@ func TestANSIFlusher_emitSGR_Attributes(t *testing.T) {
 			f := NewANSIFlusher(&buf)
 
 			err := f.emitSGR(style.Style{Attr: tt.attr})
-
 			if err != nil {
 				t.Errorf("emitSGR() unexpected error: %v", err)
 			}
@@ -281,7 +274,6 @@ func TestANSIFlusher_emitSGR_TrueColor(t *testing.T) {
 
 	// RGB(1, 2, 3) - distinct RGB values
 	err := f.emitSGR(style.Style{FG: style.ColorRGB(1, 2, 3)})
-
 	if err != nil {
 		t.Errorf("emitSGR() unexpected error: %v", err)
 	}
@@ -304,7 +296,6 @@ func TestANSIFlusher_emitSGR_Complete(t *testing.T) {
 		Attr: style.AttrBold | style.AttrUnderline,
 	}
 	err := f.emitSGR(style)
-
 	if err != nil {
 		t.Errorf("emitSGR() unexpected error: %v", err)
 	}
@@ -323,7 +314,6 @@ func TestANSIFlusher_emitRune_UTF8(t *testing.T) {
 	f := NewANSIFlusher(&buf)
 
 	err := f.emitRune('A')
-
 	if err != nil {
 		t.Errorf("emitRune() unexpected error: %v", err)
 	}
@@ -340,7 +330,6 @@ func TestANSIFlusher_emitRune_WideChar(t *testing.T) {
 	f := NewANSIFlusher(&buf)
 
 	err := f.emitRune('日')
-
 	if err != nil {
 		t.Errorf("emitRune() unexpected error: %v", err)
 	}
@@ -357,7 +346,6 @@ func TestANSIFlusher_emitRune_Zero(t *testing.T) {
 	f := NewANSIFlusher(&buf)
 
 	err := f.emitRune(0)
-
 	if err != nil {
 		t.Errorf("emitRune(0) unexpected error: %v", err)
 	}
@@ -382,7 +370,6 @@ func TestANSIFlusher_FlushRuns_Simple(t *testing.T) {
 	runs := []Run{{Y: 1, X0: 2, X1: 3}}
 
 	err := f.FlushRuns(back, front, runs)
-
 	if err != nil {
 		t.Errorf("FlushRuns() unexpected error: %v", err)
 	}
@@ -408,7 +395,6 @@ func TestANSIFlusher_FlushRuns_StyleChanges(t *testing.T) {
 	runs := []Run{{Y: 1, X0: 2, X1: 4}}
 
 	err := f.FlushRuns(back, front, runs)
-
 	if err != nil {
 		t.Errorf("FlushRuns() unexpected error: %v", err)
 	}
@@ -435,7 +421,6 @@ func TestANSIFlusher_FlushRuns_WideChar(t *testing.T) {
 	runs := []Run{{Y: 1, X0: 2, X1: 4}}
 
 	err := f.FlushRuns(back, front, runs)
-
 	if err != nil {
 		t.Errorf("FlushRuns() unexpected error: %v", err)
 	}
@@ -459,7 +444,6 @@ func TestANSIFlusher_FlushRuns_UpdatesFront(t *testing.T) {
 	runs := []Run{{Y: 1, X0: 2, X1: 3}}
 
 	err := f.FlushRuns(back, front, runs)
-
 	if err != nil {
 		t.Errorf("FlushRuns() unexpected error: %v", err)
 	}

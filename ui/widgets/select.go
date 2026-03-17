@@ -59,10 +59,10 @@ func NewSelectOpts(opts SelectOpts) *Select {
 	}
 }
 
-func (s *Select) ID() tui.ID      { return s.id }
-func (s *Select) Rect() tui.Rect  { return s.rect }
+func (s *Select) ID() tui.ID        { return s.id }
+func (s *Select) Rect() tui.Rect    { return s.rect }
 func (s *Select) Layout(r tui.Rect) { s.rect = r }
-func (s *Select) Focusable() bool  { return true }
+func (s *Select) Focusable() bool   { return true }
 
 // Selected returns the current selection index, or -1.
 func (s *Select) Selected() int { return s.selected }
@@ -211,10 +211,10 @@ func newSelectList(items []string, initial int, onSelect func(int, *tui.Ctx)) *s
 	}
 }
 
-func (l *selectList) ID() tui.ID      { return l.id }
-func (l *selectList) Rect() tui.Rect  { return l.rect }
+func (l *selectList) ID() tui.ID        { return l.id }
+func (l *selectList) Rect() tui.Rect    { return l.rect }
 func (l *selectList) Layout(r tui.Rect) { l.rect = r }
-func (l *selectList) Focusable() bool  { return true }
+func (l *selectList) Focusable() bool   { return true }
 
 func (l *selectList) MinSize() geom.Size {
 	maxW := 0

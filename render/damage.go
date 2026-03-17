@@ -99,8 +99,10 @@ func (d *Damage) AddSpan(y, x0, x1 int) {
 		return
 	}
 
-	// General path: single-pass merge.
-	out := row[:0]
+	// General path: single-pass merge into a fresh slice.
+	// We must not use row[:0] as the output because appending to the
+	// shared backing array corrupts values that range is still reading.
+	out := make([]Span, 0, len(row)+1)
 	inserted := false
 
 	for _, s := range row {
@@ -133,8 +135,6 @@ func (d *Damage) AddSpan(y, x0, x1 int) {
 		out = append(out, newS)
 	}
 
-	// Ensure row is updated.
-	// NOTE: out shares underlying array with row; ok.
 	d.Rows[y] = out
 }
 

@@ -145,7 +145,7 @@ func TestThemeResolved_Palette(t *testing.T) {
 func TestThemePreservesBaseAndPaletteFocus(t *testing.T) {
 	// Verify that Theme.Resolved() preserves Base and Palette.Focus structure.
 	original := Theme{
-		Base:  style.Style{FG: style.ColorRed, BG: style.ColorBlue},
+		Base: style.Style{FG: style.ColorRed, BG: style.ColorBlue},
 		Palette: Palette{
 			Focus: style.Style{FG: style.ColorBlue, BG: style.ColorRed, Attr: style.AttrReverse},
 		},

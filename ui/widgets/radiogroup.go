@@ -54,10 +54,10 @@ func NewRadioGroupOpts(opts RadioGroupOpts) *RadioGroup {
 	}
 }
 
-func (r *RadioGroup) ID() tui.ID      { return r.id }
-func (r *RadioGroup) Rect() tui.Rect  { return r.rect }
+func (r *RadioGroup) ID() tui.ID         { return r.id }
+func (r *RadioGroup) Rect() tui.Rect     { return r.rect }
 func (r *RadioGroup) Layout(rr tui.Rect) { r.rect = rr }
-func (r *RadioGroup) Focusable() bool  { return !r.disabled && len(r.items) > 0 }
+func (r *RadioGroup) Focusable() bool    { return !r.disabled && len(r.items) > 0 }
 
 // Selected returns the index of the selected item, or -1.
 func (r *RadioGroup) Selected() int { return r.selected }

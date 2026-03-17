@@ -32,31 +32,3 @@ func forEachCluster(s string, fn func(start, end int) bool) {
 		}
 	}
 }
-
-func forEachClusterInRange(s string, startByte, endByte int, fn func(start, end int) bool) {
-	if startByte < 0 {
-		startByte = 0
-	}
-	if endByte > len(s) {
-		endByte = len(s)
-	}
-	if startByte >= endByte {
-		return
-	}
-
-	forEachCluster(s, func(start, end int) bool {
-		if end <= startByte {
-			return true
-		}
-		if start >= endByte {
-			return false
-		}
-		if start < startByte {
-			start = startByte
-		}
-		if end > endByte {
-			end = endByte
-		}
-		return fn(start, end)
-	})
-}

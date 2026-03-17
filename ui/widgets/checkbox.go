@@ -47,10 +47,10 @@ func NewCheckboxOpts(opts CheckboxOpts) *Checkbox {
 	}
 }
 
-func (c *Checkbox) ID() tui.ID      { return c.id }
-func (c *Checkbox) Rect() tui.Rect  { return c.rect }
+func (c *Checkbox) ID() tui.ID        { return c.id }
+func (c *Checkbox) Rect() tui.Rect    { return c.rect }
 func (c *Checkbox) Layout(r tui.Rect) { c.rect = r }
-func (c *Checkbox) Focusable() bool  { return !c.disabled }
+func (c *Checkbox) Focusable() bool   { return !c.disabled }
 
 // Checked returns the current state.
 func (c *Checkbox) Checked() bool { return c.checked }

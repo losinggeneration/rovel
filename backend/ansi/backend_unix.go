@@ -10,9 +10,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/losinggeneration/tui/errors"
 	"github.com/losinggeneration/tui/event"
 	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/tui/internal/errbuf"
 	"golang.org/x/sys/unix"
 )
 
@@ -25,6 +25,7 @@ type Backend struct {
 	inputFeats  inputFeatures
 	signals     *signalHandler
 	eventCh     chan event.Event
+	errs        *errbuf.ErrorBuffer
 
 	// Self-pipe for waking poll on resize/shutdown (raw fds, -1 = unset)
 	pipeR int // read end; owned/closed by readEvents()
@@ -41,8 +42,9 @@ type Backend struct {
 	size   geom.Size
 }
 
-// New creates a new ANSI backend.
-func New() (*Backend, error) {
+// New creates a new ANSI backend. The provided ErrorBuffer is used to record
+// non-fatal errors from signal handling and cleanup operations.
+func New(errs *errbuf.ErrorBuffer) (*Backend, error) {
 	w := bufio.NewWriterSize(os.Stdout, 64*1024)
 
 	size, err := getTerminalSize()
@@ -55,6 +57,7 @@ func New() (*Backend, error) {
 		w:       w,
 		size:    size,
 		eventCh: make(chan event.Event, 8),
+		errs:    errs,
 		pipeR:   -1,
 		pipeW:   -1,
 	}
@@ -73,7 +76,7 @@ func (b *Backend) Enable() (geom.Size, error) {
 	// Create self-pipe for waking poll using raw fds (no Go runtime involvement)
 	var pipeFds [2]int
 	if err := unix.Pipe2(pipeFds[:], unix.O_NONBLOCK|unix.O_CLOEXEC); err != nil {
-		errors.Add(restore(orig))
+		b.errs.Add(restore(orig))
 		return geom.Size{}, err
 	}
 
@@ -81,13 +84,13 @@ func (b *Backend) Enable() (geom.Size, error) {
 	b.pipeW = pipeFds[1]
 
 	// Setup signal handler for resize events
-	signals, err := setupResizeHandler(b.pipeW)
+	signals, err := setupResizeHandler(b.pipeW, b.errs)
 	if err != nil {
-		errors.Add(unix.Close(b.pipeR))
-		errors.Add(unix.Close(b.pipeW))
+		b.errs.Add(unix.Close(b.pipeR))
+		b.errs.Add(unix.Close(b.pipeW))
 		b.pipeR = -1
 		b.pipeW = -1
-		errors.Add(restore(orig))
+		b.errs.Add(restore(orig))
 
 		return geom.Size{}, err
 	}
@@ -99,12 +102,12 @@ func (b *Backend) Enable() (geom.Size, error) {
 		b.signals.Stop()
 		b.signals = nil
 
-		errors.Add(unix.Close(b.pipeR))
-		errors.Add(unix.Close(b.pipeW))
+		b.errs.Add(unix.Close(b.pipeR))
+		b.errs.Add(unix.Close(b.pipeW))
 		b.pipeR = -1
 		b.pipeW = -1
 
-		errors.Add(restore(orig))
+		b.errs.Add(restore(orig))
 		b.origTermios = nil
 		return geom.Size{}, err
 	}
@@ -237,7 +240,7 @@ func (b *Backend) readEvents() {
 		evs = b.decoder.Finalize(evs)
 		alive := b.emitEvents(evs)
 		if !alive {
-			errors.Add(fmt.Errorf("emitKeyEvents already shutdown"))
+			b.errs.Add(fmt.Errorf("emitKeyEvents already shutdown"))
 		}
 
 		// Stop resize handling if the read loop exits before Restore() runs.
@@ -249,7 +252,7 @@ func (b *Backend) readEvents() {
 		// readEvents owns pipeR: close it here after the poll/read loop exits,
 		// so Restore() never closes an fd that may still be in poll().
 		if b.pipeR >= 0 {
-			errors.Add(unix.Close(b.pipeR))
+			b.errs.Add(unix.Close(b.pipeR))
 			b.pipeR = -1
 		}
 

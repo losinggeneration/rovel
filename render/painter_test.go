@@ -204,7 +204,6 @@ func TestPainter_Text(t *testing.T) {
 			t.Errorf("Text() at x=%d R = %v, want %v", 2+i, cell.R, ch)
 		}
 	}
-
 }
 
 func TestPainter_Text_Clipped(t *testing.T) {

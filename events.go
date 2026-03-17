@@ -74,11 +74,11 @@ type MouseButton = event.MouseButton
 
 // MouseButton constants re-exported for convenience.
 const (
-	MouseButtonNone     = event.MouseButtonNone
-	MouseButtonLeft     = event.MouseButtonLeft
-	MouseButtonMiddle   = event.MouseButtonMiddle
-	MouseButtonRight    = event.MouseButtonRight
-	MouseButtonWheelUp  = event.MouseButtonWheelUp
+	MouseButtonNone      = event.MouseButtonNone
+	MouseButtonLeft      = event.MouseButtonLeft
+	MouseButtonMiddle    = event.MouseButtonMiddle
+	MouseButtonRight     = event.MouseButtonRight
+	MouseButtonWheelUp   = event.MouseButtonWheelUp
 	MouseButtonWheelDown = event.MouseButtonWheelDown
 )
 

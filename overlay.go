@@ -33,11 +33,11 @@ type OverlayOpts struct {
 	OnDismiss func()
 }
 
-func (o *Overlay) ID() ID           { return o.id }
-func (o *Overlay) Root() View       { return o.root }
-func (o *Overlay) Modal() bool      { return o.modal }
-func (o *Overlay) Rect() geom.Rect  { return o.rect }
-func (o *Overlay) SavedFocus() ID   { return o.savedFocus }
+func (o *Overlay) ID() ID            { return o.id }
+func (o *Overlay) Root() View        { return o.root }
+func (o *Overlay) Modal() bool       { return o.modal }
+func (o *Overlay) Rect() geom.Rect   { return o.rect }
+func (o *Overlay) SavedFocus() ID    { return o.savedFocus }
 func (o *Overlay) OnDismiss() func() { return o.onDismiss }
 
 // OverlayManager manages a stack of overlays.

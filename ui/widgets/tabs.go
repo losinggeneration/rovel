@@ -49,8 +49,8 @@ func NewTabsOpts(opts TabsOpts) *Tabs {
 	}
 }
 
-func (t *Tabs) ID() tui.ID     { return t.id }
-func (t *Tabs) Rect() tui.Rect { return t.rect }
+func (t *Tabs) ID() tui.ID      { return t.id }
+func (t *Tabs) Rect() tui.Rect  { return t.rect }
 func (t *Tabs) Focusable() bool { return len(t.tabs) > 0 }
 
 // Selected returns the index of the selected tab.

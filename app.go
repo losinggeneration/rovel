@@ -28,9 +28,9 @@ import (
 	"time"
 
 	"github.com/losinggeneration/tui/backend"
-	errbuf "github.com/losinggeneration/tui/errors"
 	"github.com/losinggeneration/tui/event"
 	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/tui/internal/errbuf"
 	"github.com/losinggeneration/tui/render"
 	"github.com/losinggeneration/tui/style"
 )
@@ -130,17 +130,17 @@ func New(opts AppOpts) (*App, error) {
 	size := geom.Size{W: 80, H: 24} // Default, will be updated on Enable
 
 	app := &App{
-		opts:      opts,
-		size:      size,
-		backBuf:   render.NewBuffer(size.W, size.H),
-		frontBuf:  render.NewBuffer(size.W, size.H),
-		damage:    render.NewDamage(size.W, size.H),
+		opts:        opts,
+		size:        size,
+		backBuf:     render.NewBuffer(size.W, size.H),
+		frontBuf:    render.NewBuffer(size.W, size.H),
+		damage:      render.NewDamage(size.W, size.H),
 		nodes:       make(map[ID]*nodeEntry),
 		scopeMemory: make(map[ID]*scopeState),
-		eventCh:   make(chan Event, 16),
-		postQueue: make([]func(*UpdateCtx), 0, 64),
-		wakeCh:    make(chan struct{}, 1),
-		errs:      errbuf.New(50),
+		eventCh:     make(chan Event, 16),
+		postQueue:   make([]func(*UpdateCtx), 0, 64),
+		wakeCh:      make(chan struct{}, 1),
+		errs:        errbuf.New(50),
 	}
 
 	// Create flusher - will be set to backend writer on Enable
@@ -160,7 +160,7 @@ func (a *App) SetRoot(v View) {
 func (a *App) Enable() error {
 	// Create backend if not provided
 	if a.opts.Backend == nil {
-		b, err := defaultBackend()
+		b, err := defaultBackend(a.errs)
 		if err != nil {
 			return err
 		}
