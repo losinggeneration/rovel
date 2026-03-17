@@ -121,7 +121,7 @@ func (s *Scrollbar) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 	thumbH, thumbY := s.thumbGeometry()
 
-	for y := 0; y < r.H; y++ {
+	for y := range r.H {
 		if y >= thumbY && y < thumbY+thumbH {
 			p.SetCell(r.X, r.Y+y, '█', thumbSt)
 		} else {

@@ -205,7 +205,7 @@ func TestBackend_PartialCSIFinalized(t *testing.T) {
 		t.Fatalf("got %d events, want 3: %#v", len(events), events)
 	}
 
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		ke, ok := events[i].(event.KeyEvent)
 		if !ok {
 			t.Fatalf("event %d: non-KeyEvent: %#v", i, events[i])
@@ -325,7 +325,7 @@ func TestBackend_EscEscDouble(t *testing.T) {
 		t.Fatalf("got %d events, want 2: %#v", len(events), events)
 	}
 
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		ke, ok := events[i].(event.KeyEvent)
 		if !ok {
 			t.Fatalf("event %d: non-KeyEvent: %#v", i, events[i])
@@ -521,7 +521,7 @@ func TestBackend_UnknownCSI(t *testing.T) {
 	expectedKeys := []event.Key{event.KeyEsc, event.KeyRune, event.KeyRune}
 	expectedRunes := []rune{'[', 'Q'}
 
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		ke, ok := events[i].(event.KeyEvent)
 		if !ok {
 			t.Fatalf("event %d: non-KeyEvent: %#v", i, events[i])
@@ -839,7 +839,7 @@ func TestBackend_EscEscPrompt(t *testing.T) {
 		t.Fatalf("got %d events, want 2: %#v", len(events), events)
 	}
 
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		ke, ok := events[i].(event.KeyEvent)
 		if !ok {
 			t.Fatalf("event %d: non-KeyEvent: %#v", i, events[i])

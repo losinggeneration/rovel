@@ -25,8 +25,8 @@ func TestDiffRuns_NoChanges(t *testing.T) {
 	dmg := NewDamage(10, 5)
 
 	// Set same content in both buffers
-	for y := 0; y < 5; y++ {
-		for x := 0; x < 10; x++ {
+	for y := range 5 {
+		for x := range 10 {
 			*back.At(x, y) = Cell{R: 'A', Style: style.Style{FG: style.ColorRed}}
 			*front.At(x, y) = Cell{R: 'A', Style: style.Style{FG: style.ColorRed}}
 		}

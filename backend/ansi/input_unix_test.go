@@ -444,7 +444,7 @@ func TestInputDecoder_CSI_Overflow(t *testing.T) {
 	evs = d.PushByte(evs, '[')  // CSI start
 
 	// Fill buffer to overflow (32 bytes now)
-	for i := 0; i < 34; i++ {
+	for i := range 34 {
 		evs = d.PushByte(evs, '0'+byte(i%10))
 	}
 

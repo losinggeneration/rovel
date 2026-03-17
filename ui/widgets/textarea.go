@@ -102,7 +102,7 @@ func (ta *TextArea) rebuildLineIndex() {
 	ta.lines = ta.lines[:0]
 	start := 0
 
-	for i := 0; i < len(ta.text); i++ {
+	for i := range len(ta.text) {
 		if ta.text[i] == '\n' {
 			ta.lines = append(ta.lines, lineEntry{startByte: start, endByte: i})
 			start = i + 1
@@ -194,7 +194,7 @@ func (ta *TextArea) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	focused := ctx.FocusedID == ta.id
 	curLine := ta.cursorLine()
 
-	for row := 0; row < ta.rect.H; row++ {
+	for row := range ta.rect.H {
 		lineIdx := ta.scrollY + row
 		y := ta.rect.Y + row
 		x := ta.rect.X

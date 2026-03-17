@@ -153,7 +153,7 @@ func TestDamage_AddRect(t *testing.T) {
 			d := NewDamage(tt.w, tt.h)
 			d.AddRect(tt.rect)
 
-			for y := 0; y < tt.h; y++ {
+			for y := range tt.h {
 				expected := tt.expected[y]
 				actual := d.Rows[y]
 

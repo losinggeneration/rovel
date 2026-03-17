@@ -517,8 +517,8 @@ func TestPainter_Box_EmptyRect(t *testing.T) {
 	p.Box(geom.Rect{X: 5, Y: 5, W: 5, H: 0}, style)
 
 	// Buffer should be empty
-	for y := 0; y < buf.H; y++ {
-		for x := 0; x < buf.W; x++ {
+	for y := range buf.H {
+		for x := range buf.W {
 			if buf.At(x, y).R != 0 {
 				t.Errorf("Box() with empty rect wrote at (%d,%d)", x, y)
 			}
@@ -612,8 +612,8 @@ func TestPainter_Fill_WithOffset(t *testing.T) {
 	p.Fill(geom.Rect{X: 2, Y: 1, W: 3, H: 2}, 'X', style.Style{})
 
 	// Should fill at (7,4), (8,4), (9,4), (7,5), (8,5), (9,5)
-	for dy := 0; dy < 2; dy++ {
-		for dx := 0; dx < 3; dx++ {
+	for dy := range 2 {
+		for dx := range 3 {
 			x := 5 + 2 + dx // 7, 8, 9
 
 			y := 3 + 1 + dy // 4, 5
@@ -633,7 +633,7 @@ func TestPainter_HLine_WithOffset(t *testing.T) {
 	p.HLine(2, 1, 4, '=', style.Style{})
 
 	// Should draw at (7,4), (8,4), (9,4), (10,4)
-	for dx := 0; dx < 4; dx++ {
+	for dx := range 4 {
 		x := 5 + 2 + dx
 		if buf.At(x, 4).R != '=' {
 			t.Errorf("HLine with offset: expected '=' at (%d,4)", x)
@@ -650,7 +650,7 @@ func TestPainter_VLine_WithOffset(t *testing.T) {
 	p.VLine(2, 1, 4, '|', style.Style{})
 
 	// Should draw at (7,4), (7,5), (7,6), (7,7)
-	for dy := 0; dy < 4; dy++ {
+	for dy := range 4 {
 		y := 3 + 1 + dy
 		if buf.At(7, y).R != '|' {
 			t.Errorf("VLine with offset: expected '|' at (7,%d)", y)

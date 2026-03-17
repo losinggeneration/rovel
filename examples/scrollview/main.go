@@ -67,7 +67,7 @@ func main() {
 
 func generateLines(n int) []string {
 	lines := make([]string, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		lines[i] = fmt.Sprintf("Line %d: This is some sample content that demonstrates scrolling.", i+1)
 	}
 

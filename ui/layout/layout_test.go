@@ -285,7 +285,7 @@ func TestVStackFocusNavigation(t *testing.T) {
 			// Create focusable children
 			var children []*trackInvalidationView
 
-			for i := 0; i < tt.childCount; i++ {
+			for range tt.childCount {
 				child := newTrackInvalidationView(10, 1, true)
 				children = append(children, child)
 				stack.Add(child)
@@ -390,7 +390,7 @@ func TestHStackFocusNavigation(t *testing.T) {
 			// Create focusable children
 			var children []*trackInvalidationView
 
-			for i := 0; i < tt.childCount; i++ {
+			for range tt.childCount {
 				child := newTrackInvalidationView(10, 1, true)
 				children = append(children, child)
 				stack.Add(child)

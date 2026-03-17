@@ -1027,7 +1027,7 @@ func (a *App) clearDamagedSpans() {
 		Wide:  false,
 	}
 
-	for y := 0; y < a.damage.H; y++ {
+	for y := range a.damage.H {
 		spans := a.damage.Rows[y]
 		for _, sp := range spans {
 			for x := sp.X0; x < sp.X1; x++ {

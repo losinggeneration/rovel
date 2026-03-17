@@ -273,7 +273,7 @@ func TestPost_BoundedBatch(t *testing.T) {
 
 	var executedCount int32
 
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		if err := app.Post(func(ctx *UpdateCtx) {
 			atomic.AddInt32(&executedCount, 1)
 		}); err != nil {

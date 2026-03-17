@@ -25,7 +25,7 @@ func DiffRuns(back, front *Buffer, dmg *Damage) []Run {
 
 	runs := make([]Run, 0, 64)
 
-	for y := 0; y < dmg.H; y++ {
+	for y := range dmg.H {
 		spans := dmg.Rows[y]
 		if len(spans) == 0 {
 			continue

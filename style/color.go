@@ -180,7 +180,7 @@ func (c Color) rgbToIndexed() Color {
 	bestIdx := 0
 	bestDist := uint32(0xFFFFFFFF)
 
-	for i := 0; i < 256; i++ {
+	for i := range 256 {
 		xr, xg, xb := xterm256RGB(i)
 		dr := uint32(r) - uint32(xr)
 		dg := uint32(g) - uint32(xg)

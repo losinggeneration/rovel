@@ -303,7 +303,7 @@ func (d *InputDecoder) emitLiteralCSI(
 	dst = append(dst, event.KeyEvent{Key: event.KeyRune, Rune: '['})
 	// CSI non-final bytes are in 0x20..0x3F (all printable ASCII including
 	// private markers like ?, >, =), so appendLiteralByte maps them correctly.
-	for i := 0; i < d.csiN; i++ {
+	for i := range d.csiN {
 		dst = appendLiteralByte(dst, d.csiBuf[i])
 	}
 

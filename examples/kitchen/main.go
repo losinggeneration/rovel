@@ -294,7 +294,7 @@ func (s *state) buildCanvasSection() tui.View {
 				accentSt = ctx.Theme.Base
 			}
 			// Draw a sine-wave bar chart
-			for x := 0; x < r.W; x++ {
+			for x := range r.W {
 				v := (math.Sin(float64(x)*0.5) + 1) / 2 // 0..1
 
 				barH := int(v * float64(r.H))

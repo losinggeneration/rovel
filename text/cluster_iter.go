@@ -17,7 +17,7 @@ func forEachCluster(s string, fn func(start, end int) bool) {
 	}
 
 	if !utf8.ValidString(s) {
-		for i := 0; i < len(s); i++ {
+		for i := range len(s) {
 			if !fn(i, i+1) {
 				return
 			}

@@ -67,8 +67,8 @@ func TestBuffer_Resize(t *testing.T) {
 	b := NewBuffer(10, 5)
 
 	// Write some data
-	for y := 0; y < 5; y++ {
-		for x := 0; x < 10; x++ {
+	for y := range 5 {
+		for x := range 10 {
 			cell := b.At(x, y)
 			cell.R = rune('A' + x%26)
 			cell.Style = style.Style{FG: style.Color(x % 16)}
@@ -87,8 +87,8 @@ func TestBuffer_Resize(t *testing.T) {
 	}
 
 	// Verify preserved content
-	for y := 0; y < 5; y++ {
-		for x := 0; x < 10; x++ {
+	for y := range 5 {
+		for x := range 10 {
 			cell := b.At(x, y)
 
 			expectedR := rune('A' + x%26)
@@ -110,8 +110,8 @@ func TestBuffer_Resize(t *testing.T) {
 	}
 
 	// Verify preserved content in overlap
-	for y := 0; y < 3; y++ {
-		for x := 0; x < 5; x++ {
+	for y := range 3 {
+		for x := range 5 {
 			cell := b.At(x, y)
 
 			expectedR := rune('A' + x%26)
@@ -137,8 +137,8 @@ func TestBuffer_Clear(t *testing.T) {
 	b := NewBuffer(10, 5)
 
 	// Write some data
-	for y := 0; y < 5; y++ {
-		for x := 0; x < 10; x++ {
+	for y := range 5 {
+		for x := range 10 {
 			cell := b.At(x, y)
 			cell.R = 'X'
 			cell.Style = style.Style{FG: style.ColorRed}
@@ -151,8 +151,8 @@ func TestBuffer_Clear(t *testing.T) {
 	b.Clear(clearCell)
 
 	// Verify all cells are cleared
-	for y := 0; y < 5; y++ {
-		for x := 0; x < 10; x++ {
+	for y := range 5 {
+		for x := range 10 {
 			cell := b.At(x, y)
 			if cell.R != ' ' {
 				t.Errorf("Clear() cell at (%d,%d) R = %v, want ' '", x, y, cell.R)

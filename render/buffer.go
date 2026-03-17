@@ -44,7 +44,7 @@ func (b *Buffer) Resize(w, h int) {
 		copyH = b.H
 	}
 
-	for y := 0; y < copyH; y++ {
+	for y := range copyH {
 		src := b.cells[y*b.W : y*b.W+copyW]
 		dst := newCells[y*w : y*w+copyW]
 		copy(dst, src)

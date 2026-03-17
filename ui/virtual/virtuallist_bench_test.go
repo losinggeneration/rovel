@@ -15,7 +15,7 @@ func BenchmarkPaintSmallList(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		v.Paint(p, ctx)
 	}
 }
@@ -29,7 +29,7 @@ func BenchmarkPaintMediumList(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		v.Paint(p, ctx)
 	}
 }
@@ -43,7 +43,7 @@ func BenchmarkPaintLargeList(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		v.Paint(p, ctx)
 	}
 }
@@ -67,7 +67,7 @@ func BenchmarkPaintVariousSizes(b *testing.B) {
 
 			b.ResetTimer()
 
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				v.Paint(p, ctx)
 			}
 		})
@@ -83,7 +83,7 @@ func BenchmarkScrollByOne(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		v.ScrollBy(ctx, 1)
 	}
 }
@@ -95,7 +95,7 @@ func BenchmarkScrollByPage(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		v.ScrollBy(ctx, 20)
 	}
 }
@@ -110,7 +110,7 @@ func BenchmarkScrollToTop(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		v.ScrollTop(ctx)
 	}
 }
@@ -122,7 +122,7 @@ func BenchmarkScrollToBottom(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		v.ScrollBottom(ctx)
 	}
 }
@@ -136,7 +136,7 @@ func BenchmarkSelectIndex(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		v.SelectIndex(ctx, i%1000)
 	}
 }
@@ -148,7 +148,7 @@ func BenchmarkSelectIndexWithScroll(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		// Select items far from viewport to force scrolling
 		idx := (i * 17) % 1000
 		v.SelectIndex(ctx, idx)
@@ -175,7 +175,7 @@ func BenchmarkPaint100kItems(b *testing.B) {
 
 			b.ResetTimer()
 
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				v.Paint(p, ctx)
 			}
 		})
@@ -192,7 +192,7 @@ func BenchmarkPaintThreshold(b *testing.B) {
 
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		v.Paint(p, ctx)
 	}
 }
@@ -205,7 +205,7 @@ func BenchmarkScrollThreshold(b *testing.B) {
 
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		v.ScrollBy(ctx, 1)
 	}
 }
