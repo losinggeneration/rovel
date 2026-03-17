@@ -393,6 +393,7 @@ func (a *App) Run() (err error) {
 
 			if len(a.postQueue) == 0 {
 				a.postMu.Unlock()
+
 				break
 			}
 
@@ -404,6 +405,7 @@ func (a *App) Run() (err error) {
 
 			if !a.running.Load() {
 				a.setClosed()
+
 				return nil
 			}
 		}
@@ -412,6 +414,7 @@ func (a *App) Run() (err error) {
 		case e, ok := <-a.eventCh:
 			if !ok {
 				a.setClosed()
+
 				return nil
 			}
 
@@ -430,6 +433,7 @@ func (a *App) Run() (err error) {
 
 			if !a.running.Load() {
 				a.setClosed()
+
 				return nil
 			}
 
@@ -438,6 +442,7 @@ func (a *App) Run() (err error) {
 
 				if !a.running.Load() {
 					a.setClosed()
+
 					return nil
 				}
 			}
@@ -508,6 +513,7 @@ func (a *App) drainMotionEvents(latest MouseEvent) (MouseEvent, []Event) {
 			if me, ok := e.(MouseEvent); ok &&
 				(me.Action == event.MouseMove || me.Action == event.MouseDrag) {
 				latest = me
+
 				continue
 			}
 
@@ -545,6 +551,7 @@ func (a *App) handleKeyEvent(e KeyEvent) {
 			// If overlays are present and ActionCancel, dismiss the topmost overlay
 			if a.overlays.HasOverlays() && action == actionCancel {
 				a.DismissOverlay()
+
 				return
 			}
 
@@ -555,9 +562,11 @@ func (a *App) handleKeyEvent(e KeyEvent) {
 			switch action {
 			case actionFocusNext:
 				a.focusNextInScope()
+
 				return
 			case actionFocusPrev:
 				a.focusPrevInScope()
+
 				return
 			}
 		}
@@ -691,6 +700,7 @@ func (a *App) handleMouseEvent(e MouseEvent) {
 	// Check overlays first
 	if target, blocked := a.overlays.overlayHitTest(e.X, e.Y); target != nil {
 		target.Handle(e, ctx)
+
 		return
 	} else if blocked {
 		return // modal overlay blocked
@@ -814,6 +824,7 @@ func (a *App) handlePasteEvent(e PasteEvent) {
 	focused := a.findFocusedView()
 	if focused != nil {
 		focused.Handle(e, ctx)
+
 		return
 	}
 
@@ -1104,6 +1115,7 @@ func (a *App) Post(fn func(ctx *UpdateCtx)) error {
 
 	if a.closed {
 		a.closeMu.RUnlock()
+
 		return ErrClosed
 	}
 
@@ -1202,6 +1214,7 @@ func (a *App) focusFirstIn(v View) {
 	walk = func(v View) bool {
 		if f, ok := v.(viewFocusable); ok && f.Focusable() {
 			a.setRequestFocus(v.ID())
+
 			return true
 		}
 

@@ -91,6 +91,7 @@ func (d *Damage) AddSpan(y, x0, x1 int) {
 	row := d.Rows[y]
 	if len(row) == 0 {
 		d.Rows[y] = append(row[:0], Span{X0: x0, X1: x1})
+
 		return
 	}
 
@@ -100,6 +101,7 @@ func (d *Damage) AddSpan(y, x0, x1 int) {
 	last := row[len(row)-1]
 	if last.X1 < newS.X0 {
 		d.Rows[y] = append(row, newS)
+
 		return
 	}
 
@@ -113,6 +115,7 @@ func (d *Damage) AddSpan(y, x0, x1 int) {
 		// If current span is completely before new span.
 		if s.X1 < newS.X0 {
 			out = append(out, s)
+
 			continue
 		}
 

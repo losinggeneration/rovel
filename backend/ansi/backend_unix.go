@@ -78,6 +78,7 @@ func (b *Backend) Enable() (geom.Size, error) {
 	var pipeFds [2]int
 	if err := unix.Pipe2(pipeFds[:], unix.O_NONBLOCK|unix.O_CLOEXEC); err != nil {
 		b.errs.Add(restore(orig))
+
 		return geom.Size{}, err
 	}
 

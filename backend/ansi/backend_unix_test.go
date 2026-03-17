@@ -75,6 +75,7 @@ func closer(t *testing.T, c io.Closer) {
 // writeInput writes bytes to the input pipe.
 func (tb *testBackend) writeInput(data []byte) error {
 	_, err := tb.w.Write(data)
+
 	return err
 }
 

@@ -77,6 +77,7 @@ func (m *OverlayManager) PopOverlayByID(id ID) *Overlay {
 	for i, o := range m.stack {
 		if o.id == id {
 			m.stack = append(m.stack[:i], m.stack[i+1:]...)
+
 			return o
 		}
 	}

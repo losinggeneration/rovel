@@ -345,6 +345,7 @@ func (s *HStack) findNextFocusable(focusables []tui.View, currentFocusID tui.ID)
 	for i, v := range focusables {
 		if v.ID() == currentFocusID {
 			currentIdx = i
+
 			break
 		}
 	}
@@ -374,6 +375,7 @@ func (s *HStack) findPrevFocusable(focusables []tui.View, currentFocusID tui.ID)
 	for i, v := range focusables {
 		if v.ID() == currentFocusID {
 			currentIdx = i
+
 			break
 		}
 	}

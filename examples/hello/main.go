@@ -59,6 +59,7 @@ func (w *quitWrapper) Handle(e tui.Event, ctx *tui.Ctx) bool {
 
 	if _, ok := e.(tui.KeyEvent); ok {
 		ctx.Quit()
+
 		return true
 	}
 

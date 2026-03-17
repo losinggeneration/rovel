@@ -114,6 +114,7 @@ func (a *App) ensureValidFocusScoped() {
 	if ss, ok := a.scopeMemory[scope]; ok && ss.lastFocused != a.focusedID {
 		if entry, eOk := a.nodes[ss.lastFocused]; eOk && entry.focusable {
 			a.setRequestFocus(ss.lastFocused)
+
 			return
 		}
 	}
@@ -122,6 +123,7 @@ func (a *App) ensureValidFocusScoped() {
 	targets := a.collectFocusableInScope(scope)
 	if len(targets) > 0 {
 		a.setRequestFocus(targets[0])
+
 		return
 	}
 
@@ -133,6 +135,7 @@ func (a *App) ensureValidFocusScoped() {
 			parentTargets := a.collectFocusableInScope(parentScope)
 			if len(parentTargets) > 0 {
 				a.setRequestFocus(parentTargets[0])
+
 				return
 			}
 		}

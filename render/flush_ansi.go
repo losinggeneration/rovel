@@ -168,9 +168,11 @@ func appendFGColor(params []int, c style.Color) []int {
 		return append(params, 90+int(idx-8))
 	case style.ColorKindIndexed:
 		idx, _ := c.Index()
+
 		return append(params, 38, 5, int(idx))
 	case style.ColorKindRGB:
 		r, g, b, _ := c.RGB()
+
 		return append(params, 38, 2, int(r), int(g), int(b))
 	}
 
@@ -189,9 +191,11 @@ func appendBGColor(params []int, c style.Color) []int {
 		return append(params, 100+int(idx-8))
 	case style.ColorKindIndexed:
 		idx, _ := c.Index()
+
 		return append(params, 48, 5, int(idx))
 	case style.ColorKindRGB:
 		r, g, b, _ := c.RGB()
+
 		return append(params, 48, 2, int(r), int(g), int(b))
 	}
 
@@ -251,12 +255,14 @@ func (f *ANSIFlusher) ClearScreen() error {
 // HideCursor hides the cursor.
 func (f *ANSIFlusher) HideCursor() error {
 	_, err := f.w.WriteString("\x1b[?25l")
+
 	return err
 }
 
 // ShowCursor shows the cursor.
 func (f *ANSIFlusher) ShowCursor() error {
 	_, err := f.w.WriteString("\x1b[?25h")
+
 	return err
 }
 

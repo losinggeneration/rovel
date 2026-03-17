@@ -230,6 +230,7 @@ func TestWrap(t *testing.T) {
 		got := Wrap(tt.input, tt.width)
 		if len(got) != len(tt.expect) {
 			t.Errorf("Wrap(%q, %d) returned %d lines, want %d", tt.input, tt.width, len(got), len(tt.expect))
+
 			continue
 		}
 

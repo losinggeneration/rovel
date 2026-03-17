@@ -617,6 +617,7 @@ func (r *rootView) Handle(e tui.Event, ctx *tui.Ctx) bool {
 func (r *rootView) HandleAction(act int, ctx *tui.Ctx) bool {
 	if ui.Action(act) == ActionQuit {
 		r.app.Quit()
+
 		return true
 	}
 

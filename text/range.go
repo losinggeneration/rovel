@@ -58,6 +58,7 @@ func ReplaceRange(s string, r Range, insert string) (out string, inserted Range)
 	r = ClampRange(s, r)
 	if insert == "" {
 		out, _ := DeleteRange(s, r)
+
 		return out, Range{Start: r.Start, End: r.Start}
 	}
 

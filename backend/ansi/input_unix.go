@@ -91,6 +91,7 @@ func (d *InputDecoder) FlushPending(
 ) []event.Event {
 	if d.state == stateEsc {
 		d.state = stateGround
+
 		return append(dst, event.KeyEvent{Key: event.KeyEsc})
 	}
 
@@ -323,6 +324,7 @@ func (d *InputDecoder) handleGround(
 ) []event.Event {
 	if b == 0x1b {
 		d.state = stateEsc
+
 		return dst
 	}
 
@@ -348,6 +350,7 @@ func (d *InputDecoder) handleEsc(
 
 	case 'O':
 		d.state = stateSS3
+
 		return dst
 
 	case 0x1b:
@@ -807,9 +810,11 @@ func (d *InputDecoder) pushOSC(dst []event.Event, b byte) []event.Event {
 	switch b {
 	case 0x07: // BEL — immediate terminator
 		dst = d.finishOSC(dst)
+
 		return dst
 	case 0x1b: // Possible start of ESC \ (ST)
 		d.state = stateOSCEsc
+
 		return dst
 	}
 
@@ -830,6 +835,7 @@ func (d *InputDecoder) pushOSCEsc(dst []event.Event, b byte) []event.Event {
 	if b == '\\' {
 		// ESC \ = ST — terminate OSC
 		dst = d.finishOSC(dst)
+
 		return dst
 	}
 	// Not ST — the ESC was part of the payload (unusual but possible).
@@ -947,6 +953,7 @@ func (d *InputDecoder) handleSS3(
 ) []event.Event {
 	if key := dispatchSS3(b); key != event.KeyNone {
 		d.state = stateGround
+
 		return append(dst, event.KeyEvent{Key: key})
 	}
 

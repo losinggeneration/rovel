@@ -137,6 +137,7 @@ func (t *TextInput) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 			if availableW < rw {
 				availableW = 0
+
 				break
 			}
 
@@ -446,6 +447,7 @@ func (t *TextInput) Focusable() bool {
 func (t *TextInput) updateScroll() {
 	if t.rect.W <= 0 {
 		t.scrollX = 0
+
 		return
 	}
 

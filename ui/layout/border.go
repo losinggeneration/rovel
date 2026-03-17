@@ -48,6 +48,7 @@ func (b *Border) Layout(r tui.Rect) {
 // MinSize returns the minimum size needed for the border.
 func (b *Border) MinSize() tui.Size {
 	childMin := b.child.MinSize()
+
 	return tui.Size{W: childMin.W + 2, H: childMin.H + 2}
 }
 

@@ -160,21 +160,27 @@ func (s *ScrollView) HandleAction(act int, ctx *tui.Ctx) bool {
 	switch ui.Action(act) {
 	case ui.ActionMoveUp:
 		s.ScrollBy(ctx, -1)
+
 		return true
 	case ui.ActionMoveDown:
 		s.ScrollBy(ctx, 1)
+
 		return true
 	case ui.ActionPageUp:
 		s.ScrollBy(ctx, -(s.rect.H - 1))
+
 		return true
 	case ui.ActionPageDown:
 		s.ScrollBy(ctx, s.rect.H-1)
+
 		return true
 	case ui.ActionHome:
 		s.ScrollTo(ctx, 0)
+
 		return true
 	case ui.ActionEnd:
 		s.ScrollTo(ctx, s.maxScrollY())
+
 		return true
 	}
 
@@ -193,9 +199,11 @@ func (s *ScrollView) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		switch me.Button {
 		case tui.MouseButtonWheelUp:
 			s.ScrollBy(ctx, -3)
+
 			return true
 		case tui.MouseButtonWheelDown:
 			s.ScrollBy(ctx, 3)
+
 			return true
 		default:
 			// Delegate to scrollbar if the click is in the scrollbar column
@@ -239,21 +247,27 @@ func (s *ScrollView) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	switch ke.Key {
 	case event.KeyUp:
 		s.ScrollBy(ctx, -1)
+
 		return true
 	case event.KeyDown:
 		s.ScrollBy(ctx, 1)
+
 		return true
 	case event.KeyPageUp:
 		s.ScrollBy(ctx, -(s.rect.H - 1))
+
 		return true
 	case event.KeyPageDown:
 		s.ScrollBy(ctx, s.rect.H-1)
+
 		return true
 	case event.KeyHome:
 		s.ScrollTo(ctx, 0)
+
 		return true
 	case event.KeyEnd:
 		s.ScrollTo(ctx, s.maxScrollY())
+
 		return true
 	}
 

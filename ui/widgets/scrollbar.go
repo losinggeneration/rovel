@@ -198,6 +198,7 @@ func (s *Scrollbar) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	case tui.MouseRelease:
 		if s.dragging {
 			s.dragging = false
+
 			return true
 		}
 

@@ -261,6 +261,7 @@ func xterm256RGB(i int) (r, g, b uint8) {
 	// Grayscale 232-255
 	if i >= 232 {
 		gray := 8 + (i-232)*10
+
 		return uint8(gray), uint8(gray), uint8(gray)
 	}
 
@@ -288,6 +289,7 @@ func xterm256RGB(i int) (r, g, b uint8) {
 
 	if i >= 0 && i < 16 {
 		c := basic[i]
+
 		return c.r, c.g, c.b
 	}
 

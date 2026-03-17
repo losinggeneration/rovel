@@ -195,6 +195,7 @@ func (t *Tabs) Handle(e tui.Event, ctx *tui.Ctx) bool {
 					w := 2 + text.Width(tab.Title) // " title "
 					if me.X >= x && me.X < x+w {
 						t.switchTab(ctx, i)
+
 						return true
 					}
 
@@ -255,6 +256,7 @@ func (t *Tabs) HandleAction(act int, ctx *tui.Ctx) bool {
 		return true
 	case ui.ActionActivate:
 		t.focusContent(ctx)
+
 		return true
 	}
 
@@ -317,6 +319,7 @@ func (t *Tabs) focusContent(ctx *tui.Ctx) {
 	walk = func(v tui.View) bool {
 		if f, ok := v.(focusable); ok && f.Focusable() {
 			ctx.RequestFocus(v.ID())
+
 			return true
 		}
 

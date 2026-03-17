@@ -31,24 +31,28 @@ type Style struct {
 // WithFG returns a new style with the foreground color set.
 func (s Style) WithFG(c Color) Style {
 	s.FG = c
+
 	return s
 }
 
 // WithBG returns a new style with the background color set.
 func (s Style) WithBG(c Color) Style {
 	s.BG = c
+
 	return s
 }
 
 // WithAttr returns a new style with the attribute added.
 func (s Style) WithAttr(a AttrMask) Style {
 	s.Attr |= a
+
 	return s
 }
 
 // WithoutAttr returns a new style with the attribute removed.
 func (s Style) WithoutAttr(a AttrMask) Style {
 	s.Attr &^= a
+
 	return s
 }
 

@@ -36,6 +36,7 @@ func DiffRuns(back, front *Buffer, dmg *Damage) []Run {
 			for x < sp.X1 {
 				if !cellsDiffer(*back.At(x, y), *front.At(x, y)) {
 					x++
+
 					continue
 				}
 

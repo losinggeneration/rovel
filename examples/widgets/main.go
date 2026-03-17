@@ -14,6 +14,7 @@ func main() {
 	app, err := tui.New(tui.DefaultAppOpts())
 	if err != nil {
 		fmt.Printf("Failed to create app: %v\n", err)
+
 		return
 	}
 
@@ -57,6 +58,7 @@ func main() {
 
 	if err := app.Enable(); err != nil {
 		fmt.Printf("Failed to enable app: %v\n", err)
+
 		return
 	}
 
@@ -104,6 +106,7 @@ func (q *QuitHandler) Layout(r tui.Rect) {
 
 func (q *QuitHandler) MinSize() tui.Size {
 	mainMin := q.mainView.MinSize()
+
 	return tui.Size{W: mainMin.W, H: mainMin.H + 1}
 }
 
@@ -132,6 +135,7 @@ func (q *QuitHandler) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	// Check for 'q' to quit
 	if ke.Key == event.KeyRune && ke.Rune == 'q' {
 		q.app.Quit()
+
 		return true
 	}
 

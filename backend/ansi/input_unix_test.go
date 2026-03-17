@@ -125,6 +125,7 @@ func TestInputDecoder_CSIArrowKeys(t *testing.T) {
 
 		if len(evs) != 1 {
 			t.Errorf("CSI %c: got %d events, want 1", tt.final, len(evs))
+
 			continue
 		}
 
@@ -339,6 +340,7 @@ func TestInputDecoder_SS3_Keys(t *testing.T) {
 
 		if len(evs) != 1 {
 			t.Errorf("SS3 %c: got %d events, want 1", tt.final, len(evs))
+
 			continue
 		}
 

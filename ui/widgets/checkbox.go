@@ -141,6 +141,7 @@ func (c *Checkbox) Handle(e tui.Event, ctx *tui.Ctx) bool {
 
 	if ke.Key == tui.KeyEnter || (ke.Key == tui.KeyRune && ke.Rune == ' ') {
 		c.toggle(ctx)
+
 		return true
 	}
 
@@ -155,6 +156,7 @@ func (c *Checkbox) HandleAction(act int, ctx *tui.Ctx) bool {
 
 	if ui.Action(act) == ui.ActionActivate {
 		c.toggle(ctx)
+
 		return true
 	}
 

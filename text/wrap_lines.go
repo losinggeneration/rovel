@@ -92,6 +92,7 @@ func wrapSegmentClusters(
 ) {
 	if startByte == endByte {
 		emit(WrappedLine{StartByte: startByte, EndByte: endByte, Cols: 0, HardBreak: false})
+
 		return
 	}
 
@@ -157,6 +158,7 @@ func wrapSegmentWords(
 ) {
 	if startByte == endByte {
 		emit(WrappedLine{StartByte: startByte, EndByte: endByte, Cols: 0, HardBreak: false})
+
 		return
 	}
 

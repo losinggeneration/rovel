@@ -153,10 +153,12 @@ func (s *Select) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	switch ke.Key {
 	case tui.KeyEnter:
 		s.openDropdown(ctx)
+
 		return true
 	case tui.KeyRune:
 		if ke.Rune == ' ' {
 			s.openDropdown(ctx)
+
 			return true
 		}
 	}
@@ -168,6 +170,7 @@ func (s *Select) Handle(e tui.Event, ctx *tui.Ctx) bool {
 func (s *Select) HandleAction(act int, ctx *tui.Ctx) bool {
 	if ui.Action(act) == ui.ActionActivate {
 		s.openDropdown(ctx)
+
 		return true
 	}
 

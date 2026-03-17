@@ -171,10 +171,12 @@ func (r *RadioGroup) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		return true
 	case tui.KeyEnter:
 		r.selectFocused(ctx)
+
 		return true
 	case tui.KeyRune:
 		if ke.Rune == ' ' {
 			r.selectFocused(ctx)
+
 			return true
 		}
 	}
@@ -191,6 +193,7 @@ func (r *RadioGroup) HandleAction(act int, ctx *tui.Ctx) bool {
 	switch ui.Action(act) {
 	case ui.ActionActivate:
 		r.selectFocused(ctx)
+
 		return true
 	case ui.ActionMoveUp:
 		if r.focused > 0 {

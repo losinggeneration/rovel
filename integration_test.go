@@ -40,6 +40,7 @@ func (v *integrationView) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 func (v *integrationView) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	v.handleCount.Add(1)
+
 	return false
 }
 

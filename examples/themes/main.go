@@ -112,6 +112,7 @@ func main() {
 	})
 	if err != nil {
 		fmt.Printf("Failed to create app: %v\n", err)
+
 		return
 	}
 
@@ -238,11 +239,13 @@ func main() {
 		}
 	}); err != nil {
 		fmt.Printf("Failed to schedule focus request: %v\n", err)
+
 		return
 	}
 
 	if err := app.Enable(); err != nil {
 		fmt.Printf("Failed to enable app: %v\n", err)
+
 		return
 	}
 
@@ -584,12 +587,15 @@ func (h *eventHandler) HandleAction(act int, ctx *tui.Ctx) bool {
 	switch ui.Action(act) {
 	case ActionTheme1:
 		h.state.switchTheme(ctx, 0)
+
 		return true
 	case ActionTheme2:
 		h.state.switchTheme(ctx, 1)
+
 		return true
 	case ActionTheme3:
 		h.state.switchTheme(ctx, 2)
+
 		return true
 	case ActionQuit:
 		if ctx != nil && ctx.Quit != nil {
@@ -622,12 +628,15 @@ func (h *eventHandler) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			switch ke.Rune {
 			case '1':
 				h.state.switchTheme(ctx, 0)
+
 				return true
 			case '2':
 				h.state.switchTheme(ctx, 1)
+
 				return true
 			case '3':
 				h.state.switchTheme(ctx, 2)
+
 				return true
 			}
 		}
@@ -724,6 +733,7 @@ type semanticButton struct {
 func (b *semanticButton) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	if ctx == nil {
 		b.Button.Paint(p, ctx)
+
 		return
 	}
 

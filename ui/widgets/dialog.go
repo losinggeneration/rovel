@@ -239,10 +239,12 @@ func (d *Dialog) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		return true
 	case tui.KeyEnter:
 		d.pressButton(ctx)
+
 		return true
 	case tui.KeyRune:
 		if ke.Rune == ' ' {
 			d.pressButton(ctx)
+
 			return true
 		}
 	}
@@ -259,6 +261,7 @@ func (d *Dialog) HandleAction(act int, ctx *tui.Ctx) bool {
 	switch ui.Action(act) {
 	case ui.ActionActivate:
 		d.pressButton(ctx)
+
 		return true
 	case ui.ActionMoveLeft:
 		if d.focused > 0 {

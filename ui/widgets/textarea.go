@@ -255,6 +255,7 @@ func (ta *TextArea) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 				if availW < rw {
 					availW = 0
+
 					break
 				}
 

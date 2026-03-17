@@ -79,6 +79,7 @@ func PrevCluster(s string, i int) int {
 
 		if start == i {
 			found = true
+
 			return false
 		}
 
@@ -110,6 +111,7 @@ func PrevCluster(s string, i int) int {
 
 func ColumnOf(s string, byteOff int) int {
 	byteOff = ClampCluster(s, byteOff)
+
 	return WidthBetween(s, 0, byteOff)
 }
 
@@ -256,6 +258,7 @@ func IsClusterBoundary(s string, byteOff int) bool {
 
 		if start == byteOff {
 			isBoundary = true
+
 			return false
 		}
 

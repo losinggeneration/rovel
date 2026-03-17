@@ -315,6 +315,7 @@ func (s *Split) findNextFocusable(currentFocusID tui.ID) (tui.View, bool) {
 	for i, v := range focusableViews {
 		if v.ID() == currentFocusID {
 			currentIdx = i
+
 			break
 		}
 	}

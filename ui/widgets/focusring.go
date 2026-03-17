@@ -44,6 +44,7 @@ func (f *FocusRing) Layout(r tui.Rect) {
 // MinSize returns the minimum size needed for the focus ring.
 func (f *FocusRing) MinSize() tui.Size {
 	childMin := f.child.MinSize()
+
 	return tui.Size{W: childMin.W + 2, H: childMin.H + 2}
 }
 
@@ -98,6 +99,7 @@ func (f *FocusRing) isFocused(focusedID tui.ID) bool {
 	// Check if focus is in child's subtree
 	if composite, ok := f.child.(ui.Composite); ok {
 		visited := make(map[tui.ID]struct{})
+
 		return f.hasFocusInSubtree(composite, focusedID, visited)
 	}
 

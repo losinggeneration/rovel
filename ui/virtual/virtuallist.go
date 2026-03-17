@@ -110,6 +110,7 @@ func (v *VirtualList) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 	if n == 0 {
 		v.paintEmpty(p, ctx)
+
 		return
 	}
 
@@ -170,9 +171,11 @@ func (v *VirtualList) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		switch me.Button {
 		case tui.MouseButtonWheelUp:
 			v.ScrollBy(ctx, -3)
+
 			return true
 		case tui.MouseButtonWheelDown:
 			v.ScrollBy(ctx, 3)
+
 			return true
 		}
 
@@ -223,6 +226,7 @@ func (v *VirtualList) HandleAction(act int, ctx *tui.Ctx) bool {
 	case ui.ActionActivate:
 		if v.selectedIndex >= 0 && v.selectedIndex < n && v.onActivate != nil {
 			v.onActivate(v.selectedIndex, ctx)
+
 			return true
 		}
 
@@ -245,9 +249,11 @@ func (v *VirtualList) HandleAction(act int, ctx *tui.Ctx) bool {
 		return true
 	case ui.ActionHome:
 		v.SelectIndex(ctx, 0)
+
 		return true
 	case ui.ActionEnd:
 		v.SelectIndex(ctx, n-1)
+
 		return true
 	}
 
@@ -362,6 +368,7 @@ func (v *VirtualList) handleKey(e tui.KeyEvent, ctx *tui.Ctx) bool {
 	case tui.KeyEnter:
 		if v.selectedIndex >= 0 && v.selectedIndex < n && v.onActivate != nil {
 			v.onActivate(v.selectedIndex, ctx)
+
 			return true
 		}
 
@@ -405,6 +412,7 @@ func (v *VirtualList) clampSelection() {
 	n := v.safeCount()
 	if n == 0 {
 		v.selectedIndex = -1
+
 		return
 	}
 
@@ -428,6 +436,7 @@ func (v *VirtualList) scrollSelectionIntoView() {
 
 	if v.selectedIndex < v.scrollItem {
 		v.scrollItem = v.selectedIndex
+
 		return
 	}
 
@@ -459,6 +468,7 @@ func (v *VirtualList) invalidate(ctx *tui.Ctx) {
 // isZeroID returns true if the ID is the zero value.
 func isZeroID(id tui.ID) bool {
 	var zero tui.ID
+
 	return id == zero
 }
 

@@ -305,6 +305,7 @@ func invalidateCursorMove(
 ) {
 	if oldRow == newRow {
 		c.InvalidateRow(ctx, oldRow)
+
 		return
 	}
 
@@ -340,6 +341,7 @@ func moveLeft(st *appState) {
 
 	if st.cursorX > 0 {
 		st.cursorX--
+
 		return
 	}
 
@@ -356,6 +358,7 @@ func moveRight(st *appState) {
 	lineLen := len([]rune(st.lines[st.cursorY]))
 	if st.cursorX < lineLen {
 		st.cursorX++
+
 		return
 	}
 
@@ -661,6 +664,7 @@ func (w *quitWrapper) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		// Quit keys
 		if ke.Key == tui.KeyEsc || ke.Key == tui.KeyCtrlC {
 			w.app.Quit()
+
 			return true
 		}
 	}

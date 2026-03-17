@@ -336,6 +336,7 @@ func (w *quitWrapper) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	if ke, ok := e.(tui.KeyEvent); ok {
 		if ke.Key == tui.KeyEsc || ke.Key == tui.KeyCtrlC {
 			ctx.Quit()
+
 			return true
 		}
 	}

@@ -232,6 +232,7 @@ func intersectRect(a, b geom.Rect) geom.Rect {
 // isZeroID returns true if the ID is the zero value.
 func isZeroID(id tui.ID) bool {
 	var zero tui.ID
+
 	return id == zero
 }
 

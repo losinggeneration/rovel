@@ -326,6 +326,7 @@ func (b *Button) renderText(maxW int, chrome ButtonChrome) string {
 		// Prefer a little padding when there is room.
 		if maxW >= 3 {
 			lbl := truncateRunes(b.label, maxW-2)
+
 			return " " + lbl + " "
 		}
 

@@ -159,6 +159,7 @@ func TestDamage_AddRect(t *testing.T) {
 
 				if len(expected) != len(actual) {
 					t.Errorf("Row %d: got %d spans, want %d", y, len(actual), len(expected))
+
 					continue
 				}
 
