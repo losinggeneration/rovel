@@ -17,9 +17,11 @@ func TestNewPainter(t *testing.T) {
 	if p.buf != buf {
 		t.Error("NewPainter() buf not set correctly")
 	}
+
 	if p.clip != clip {
 		t.Error("NewPainter() clip not set correctly")
 	}
+
 	if p.baseStyle != base {
 		t.Error("NewPainter() baseStyle not set correctly")
 	}
@@ -37,12 +39,15 @@ func TestPainter_SetCell(t *testing.T) {
 	if cell.R != 'A' {
 		t.Errorf("SetCell() R = %v, want 'A'", cell.R)
 	}
+
 	if cell.Style != style {
 		t.Errorf("SetCell() Style = %+v, want %+v", cell.Style, style)
 	}
+
 	if cell.Wide {
 		t.Error("SetCell() Wide should be false for narrow rune")
 	}
+
 	if cell.WideCont {
 		t.Error("SetCell() WideCont should be false for narrow rune")
 	}
@@ -57,18 +62,21 @@ func TestPainter_SetCell_Clipped(t *testing.T) {
 
 	// Should be clipped (outside clip region)
 	p.SetCell(0, 0, 'A', style)
+
 	if buf.At(0, 0).R != 0 {
 		t.Error("SetCell() should not write outside clip region")
 	}
 
 	// Should be clipped (outside clip region)
 	p.SetCell(8, 3, 'B', style)
+
 	if buf.At(8, 3).R != 0 {
 		t.Error("SetCell() should not write outside clip region")
 	}
 
 	// Should work (inside clip region)
 	p.SetCell(5, 3, 'C', style)
+
 	if buf.At(5, 3).R != 'C' {
 		t.Error("SetCell() should write inside clip region")
 	}
@@ -90,9 +98,11 @@ func TestPainter_SetCell_Wide(t *testing.T) {
 	if leadCell.R != '中' {
 		t.Errorf("SetCell() wide lead R = %v, want '中'", leadCell.R)
 	}
+
 	if !leadCell.Wide {
 		t.Error("SetCell() wide lead Wide should be true")
 	}
+
 	if leadCell.WideCont {
 		t.Error("SetCell() wide lead WideCont should be false")
 	}
@@ -100,9 +110,11 @@ func TestPainter_SetCell_Wide(t *testing.T) {
 	if contCell.R != 0 {
 		t.Errorf("SetCell() wide cont R = %v, want 0", contCell.R)
 	}
+
 	if contCell.Wide {
 		t.Error("SetCell() wide cont Wide should be false")
 	}
+
 	if !contCell.WideCont {
 		t.Error("SetCell() wide cont WideCont should be true")
 	}
@@ -122,6 +134,7 @@ func TestPainter_SetCell_WideAtEdge(t *testing.T) {
 	if cell.R != '?' {
 		t.Errorf("SetCell() wide at edge R = %v, want '?'", cell.R)
 	}
+
 	if cell.Wide {
 		t.Error("SetCell() wide at edge Wide should be false (placeholder)")
 	}
@@ -146,6 +159,7 @@ func TestPainter_SetCell_OverwriteWideLead(t *testing.T) {
 	if leadCell.R != 'A' {
 		t.Errorf("SetCell() overwritten lead R = %v, want 'A'", leadCell.R)
 	}
+
 	if leadCell.Wide {
 		t.Error("SetCell() overwritten lead Wide should be false")
 	}
@@ -154,6 +168,7 @@ func TestPainter_SetCell_OverwriteWideLead(t *testing.T) {
 	if contCell.R != 0 && contCell.R != ' ' {
 		t.Errorf("SetCell() continuation should be cleared, got R = %v", contCell.R)
 	}
+
 	if contCell.WideCont {
 		t.Error("SetCell() continuation WideCont should be false after lead overwrite")
 	}
@@ -179,6 +194,7 @@ func TestPainter_SetCell_OverwriteWideCont(t *testing.T) {
 	if leadCell.R != 0 && leadCell.R != ' ' {
 		t.Errorf("SetCell() lead should be cleared when continuation overwritten, got R = %v", leadCell.R)
 	}
+
 	if leadCell.Wide {
 		t.Error("SetCell() lead Wide should be false when continuation overwritten")
 	}
@@ -221,6 +237,7 @@ func TestPainter_Text_Clipped(t *testing.T) {
 	if buf.At(5, 3).R != 'H' {
 		t.Errorf("Text() clipped at x=5 R = %v, want 'H'", buf.At(5, 3).R)
 	}
+
 	if buf.At(6, 3).R != 'e' {
 		t.Errorf("Text() clipped at x=6 R = %v, want 'e'", buf.At(6, 3).R)
 	}
@@ -302,6 +319,7 @@ func TestPainter_HLine(t *testing.T) {
 	if buf.At(1, 3).R != 0 {
 		t.Error("HLine() should not write before start")
 	}
+
 	if buf.At(7, 3).R != 0 {
 		t.Error("HLine() should not write after end")
 	}
@@ -326,6 +344,7 @@ func TestPainter_VLine(t *testing.T) {
 	if buf.At(5, 1).R != 0 {
 		t.Error("VLine() should not write before start")
 	}
+
 	if buf.At(5, 6).R != 0 {
 		t.Error("VLine() should not write after end")
 	}
@@ -415,6 +434,7 @@ func TestPainter_BoxStyled_ASCII(t *testing.T) {
 		if cell.R != c.ch {
 			t.Errorf("BoxStyled(ASCII) corner at (%d,%d) R = %v, want %v", c.x, c.y, cell.R, c.ch)
 		}
+
 		if cell.Style != st {
 			t.Errorf("BoxStyled(ASCII) corner at (%d,%d) Style = %+v, want %+v", c.x, c.y, cell.Style, st)
 		}
@@ -425,6 +445,7 @@ func TestPainter_BoxStyled_ASCII(t *testing.T) {
 		if buf.At(x, 3).R != '-' {
 			t.Errorf("BoxStyled(ASCII) top edge at x=%d R = %v, want '-'", x, buf.At(x, 3).R)
 		}
+
 		if buf.At(x, 6).R != '-' {
 			t.Errorf("BoxStyled(ASCII) bottom edge at x=%d R = %v, want '-'", x, buf.At(x, 6).R)
 		}
@@ -435,6 +456,7 @@ func TestPainter_BoxStyled_ASCII(t *testing.T) {
 		if buf.At(2, y).R != '|' {
 			t.Errorf("BoxStyled(ASCII) left edge at y=%d R = %v, want '|'", y, buf.At(2, y).R)
 		}
+
 		if buf.At(7, y).R != '|' {
 			t.Errorf("BoxStyled(ASCII) right edge at y=%d R = %v, want '|'", y, buf.At(7, y).R)
 		}
@@ -456,9 +478,11 @@ func TestPainter_BoxStyled_EdgesOnly(t *testing.T) {
 	if buf.At(2, 3).R != '|' {
 		t.Errorf("BoxStyled(edges) left bar R = %v, want '|'", buf.At(2, 3).R)
 	}
+
 	if buf.At(7, 3).R != '|' {
 		t.Errorf("BoxStyled(edges) right bar R = %v, want '|'", buf.At(7, 3).R)
 	}
+
 	if buf.At(3, 3).R != 0 {
 		t.Errorf("BoxStyled(edges) interior wrote R = %v, want empty", buf.At(3, 3).R)
 	}
@@ -515,6 +539,7 @@ func TestPainter_Offset(t *testing.T) {
 
 	// Set offset
 	p.SetOffset(5, 3)
+
 	x, y = p.Offset()
 	if x != 5 || y != 3 {
 		t.Errorf("after SetOffset(5,3) = (%d,%d), want (5,3)", x, y)
@@ -546,9 +571,11 @@ func TestPainter_Text_WithOffset(t *testing.T) {
 	if buf.At(7, 4).R != 'A' {
 		t.Errorf("Text with offset: 'A' at (7,4), got %c", buf.At(7, 4).R)
 	}
+
 	if buf.At(8, 4).R != 'B' {
 		t.Errorf("Text with offset: 'B' at (8,4), got %c", buf.At(8, 4).R)
 	}
+
 	if buf.At(9, 4).R != 'C' {
 		t.Errorf("Text with offset: 'C' at (9,4), got %c", buf.At(9, 4).R)
 	}
@@ -588,6 +615,7 @@ func TestPainter_Fill_WithOffset(t *testing.T) {
 	for dy := 0; dy < 2; dy++ {
 		for dx := 0; dx < 3; dx++ {
 			x := 5 + 2 + dx // 7, 8, 9
+
 			y := 3 + 1 + dy // 4, 5
 			if buf.At(x, y).R != 'X' {
 				t.Errorf("Fill with offset: expected 'X' at (%d,%d)", x, y)
@@ -660,12 +688,14 @@ func TestPainter_Offset_Clipping(t *testing.T) {
 	// Should write at (3, 3) which is inside clip
 	p.SetOffset(3, 3)
 	p.SetCell(0, 0, 'A', st)
+
 	if buf.At(3, 3).R != 'A' {
 		t.Error("offset cell not written inside clip")
 	}
 
 	// Set cell at (3, 3) -> position (6, 6) which is outside clip
 	p.SetCell(3, 3, 'B', st)
+
 	if buf.At(6, 6).R != 0 {
 		t.Error("offset cell should be clipped")
 	}

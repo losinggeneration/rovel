@@ -28,11 +28,13 @@ func (b *Backend) SetInputFeatures(f backend.InputFeatures) error {
 		if _, err := b.w.WriteString("\x1b[?1000h\x1b[?1002h\x1b[?1006h"); err != nil {
 			return err
 		}
+
 		b.inputFeats.mouse = true
 	} else if !f.Mouse && b.inputFeats.mouse {
 		if _, err := b.w.WriteString("\x1b[?1006l\x1b[?1002l\x1b[?1000l"); err != nil {
 			return err
 		}
+
 		b.inputFeats.mouse = false
 	}
 
@@ -41,11 +43,13 @@ func (b *Backend) SetInputFeatures(f backend.InputFeatures) error {
 		if _, err := b.w.WriteString("\x1b[?2004h"); err != nil {
 			return err
 		}
+
 		b.inputFeats.bracketedPaste = true
 	} else if !f.BracketedPaste && b.inputFeats.bracketedPaste {
 		if _, err := b.w.WriteString("\x1b[?2004l"); err != nil {
 			return err
 		}
+
 		b.inputFeats.bracketedPaste = false
 	}
 

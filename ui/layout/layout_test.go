@@ -50,6 +50,7 @@ func TestPadding(t *testing.T) {
 	if paddingMin.W != childMin.W+1+3 {
 		t.Errorf("Expected padding MinSize.W to be %d, got %d", childMin.W+4, paddingMin.W)
 	}
+
 	if paddingMin.H != childMin.H+2+4 {
 		t.Errorf("Expected padding MinSize.H to be %d, got %d", childMin.H+6, paddingMin.H)
 	}
@@ -74,11 +75,13 @@ func TestBorder(t *testing.T) {
 	if borderMin.W != childMin.W+2 {
 		t.Errorf("Expected border MinSize.W to be %d, got %d", childMin.W+2, borderMin.W)
 	}
+
 	if borderMin.H != childMin.H+2 {
 		t.Errorf("Expected border MinSize.H to be %d, got %d", childMin.H+2, borderMin.H)
 	}
 
 	border.SetTitle("Title")
+
 	if border.title != "Title" {
 		t.Error("Title not set")
 	}
@@ -106,6 +109,7 @@ func TestVStack(t *testing.T) {
 	if minSize.W != 15 { // max(10, 15)
 		t.Errorf("Expected MinSize.W to be 15, got %d", minSize.W)
 	}
+
 	if minSize.H != 2 { // 1 + 1
 		t.Errorf("Expected MinSize.H to be 2, got %d", minSize.H)
 	}
@@ -133,6 +137,7 @@ func TestHStack(t *testing.T) {
 	if minSize.W != 15 { // 5 + 10
 		t.Errorf("Expected MinSize.W to be 15, got %d", minSize.W)
 	}
+
 	if minSize.H != 1 { // max(1, 1)
 		t.Errorf("Expected MinSize.H to be 1, got %d", minSize.H)
 	}
@@ -160,12 +165,14 @@ func TestSplit(t *testing.T) {
 	if minSize.W != 9 { // 4 + 5
 		t.Errorf("Expected MinSize.W to be 9, got %d", minSize.W)
 	}
+
 	if minSize.H != 1 {
 		t.Errorf("Expected MinSize.H to be 1, got %d", minSize.H)
 	}
 
 	// Test ratio
 	split.SetRatio(0.7)
+
 	if split.ratio != 0.7 {
 		t.Errorf("Expected ratio to be 0.7, got %f", split.ratio)
 	}
@@ -277,6 +284,7 @@ func TestVStackFocusNavigation(t *testing.T) {
 
 			// Create focusable children
 			var children []*trackInvalidationView
+
 			for i := 0; i < tt.childCount; i++ {
 				child := newTrackInvalidationView(10, 1, true)
 				children = append(children, child)
@@ -288,6 +296,7 @@ func TestVStackFocusNavigation(t *testing.T) {
 
 			// Set up context
 			var focusedID tui.ID
+
 			ctx := &tui.Ctx{
 				RequestFocus: func(id tui.ID) { focusedID = id },
 				Invalidate:   func(r geom.Rect) {},
@@ -308,14 +317,17 @@ func TestVStackFocusNavigation(t *testing.T) {
 				focusedID = children[0].ID()
 				ctx.FocusedID = focusedID
 			}
+
 			if tt.name == "Shift+Tab moves to previous child" {
 				focusedID = children[2].ID()
 				ctx.FocusedID = focusedID
 			}
+
 			if tt.name == "Tab at last item bubbles to parent" {
 				focusedID = children[1].ID()
 				ctx.FocusedID = focusedID
 			}
+
 			if tt.name == "Shift+Tab at first item bubbles to parent" {
 				focusedID = children[0].ID()
 				ctx.FocusedID = focusedID
@@ -377,6 +389,7 @@ func TestHStackFocusNavigation(t *testing.T) {
 
 			// Create focusable children
 			var children []*trackInvalidationView
+
 			for i := 0; i < tt.childCount; i++ {
 				child := newTrackInvalidationView(10, 1, true)
 				children = append(children, child)
@@ -388,6 +401,7 @@ func TestHStackFocusNavigation(t *testing.T) {
 
 			// Set up context
 			var focusedID tui.ID
+
 			ctx := &tui.Ctx{
 				RequestFocus: func(id tui.ID) { focusedID = id },
 				Invalidate:   func(r geom.Rect) {},
@@ -422,12 +436,14 @@ func TestVStackFocusNavigationNested(t *testing.T) {
 	inner1 := NewHStack()
 	child1 := newSimpleView(10, 1, true)
 	child2 := newSimpleView(10, 1, true)
+
 	inner1.Add(child1)
 	inner1.Add(child2)
 
 	inner2 := NewHStack()
 	child3 := newSimpleView(10, 1, true)
 	child4 := newSimpleView(10, 1, true)
+
 	inner2.Add(child3)
 	inner2.Add(child4)
 
@@ -439,6 +455,7 @@ func TestVStackFocusNavigationNested(t *testing.T) {
 
 	// Set up context
 	var focusedID tui.ID
+
 	ctx := &tui.Ctx{
 		RequestFocus: func(id tui.ID) { focusedID = id },
 		Invalidate:   func(r geom.Rect) {},
@@ -446,20 +463,24 @@ func TestVStackFocusNavigationNested(t *testing.T) {
 
 	// Tab should focus first child (child1)
 	ke := event.KeyEvent{Key: event.KeyTab}
+
 	handled := outerStack.Handle(ke, ctx)
 	if !handled {
 		t.Error("Tab should be handled when no focus exists")
 	}
+
 	if focusedID != child1.ID() {
 		t.Errorf("Expected focus on child1, got %v", focusedID)
 	}
 
 	// Another Tab should move to child2
 	ctx.FocusedID = focusedID
+
 	handled = outerStack.Handle(ke, ctx)
 	if !handled {
 		t.Error("Tab should be handled moving to next sibling")
 	}
+
 	if focusedID != child2.ID() {
 		t.Errorf("Expected focus on child2, got %v", focusedID)
 	}
@@ -470,11 +491,13 @@ func TestFocusTraversalBoundaryBehavior(t *testing.T) {
 		stack := NewVStack()
 		child1 := newSimpleView(10, 1, true)
 		child2 := newSimpleView(10, 1, true)
+
 		stack.Add(child1)
 		stack.Add(child2)
 		stack.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
 
 		var focusedID tui.ID
+
 		ctx := &tui.Ctx{
 			FocusedID:    child2.ID(),
 			RequestFocus: func(id tui.ID) { focusedID = id },
@@ -487,6 +510,7 @@ func TestFocusTraversalBoundaryBehavior(t *testing.T) {
 		if handled != false {
 			t.Error("Tab at last item should return false to bubble")
 		}
+
 		if focusedID == child1.ID() {
 			t.Error("Tab at last item should NOT wrap locally")
 		}
@@ -496,11 +520,13 @@ func TestFocusTraversalBoundaryBehavior(t *testing.T) {
 		stack := NewVStack()
 		child1 := newSimpleView(10, 1, true)
 		child2 := newSimpleView(10, 1, true)
+
 		stack.Add(child1)
 		stack.Add(child2)
 		stack.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
 
 		var focusedID tui.ID
+
 		ctx := &tui.Ctx{
 			FocusedID:    child1.ID(),
 			RequestFocus: func(id tui.ID) { focusedID = id },
@@ -513,6 +539,7 @@ func TestFocusTraversalBoundaryBehavior(t *testing.T) {
 		if handled != false {
 			t.Error("Shift+Tab at first item should return false to bubble")
 		}
+
 		if focusedID == child2.ID() {
 			t.Error("Shift+Tab at first item should NOT wrap locally")
 		}
@@ -522,6 +549,7 @@ func TestFocusTraversalBoundaryBehavior(t *testing.T) {
 		stack := NewHStack()
 		child1 := newSimpleView(10, 1, true)
 		child2 := newSimpleView(10, 1, true)
+
 		stack.Add(child1)
 		stack.Add(child2)
 		stack.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
@@ -544,6 +572,7 @@ func TestFocusTraversalBoundaryBehavior(t *testing.T) {
 		stack := NewHStack()
 		child1 := newSimpleView(10, 1, true)
 		child2 := newSimpleView(10, 1, true)
+
 		stack.Add(child1)
 		stack.Add(child2)
 		stack.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
@@ -575,6 +604,7 @@ func TestFocusTraversalBoundaryBehavior(t *testing.T) {
 		}
 
 		ke := event.KeyEvent{Key: event.KeyTab}
+
 		handled := stack.Handle(ke, ctx)
 		if handled != false {
 			t.Error("Tab in single-focusable container should bubble")
@@ -582,6 +612,7 @@ func TestFocusTraversalBoundaryBehavior(t *testing.T) {
 
 		ctx.FocusedID = child.ID()
 		ke = event.KeyEvent{Key: event.KeyShiftTab}
+
 		handled = stack.Handle(ke, ctx)
 		if handled != false {
 			t.Error("Shift+Tab in single-focusable container should bubble")
@@ -604,6 +635,7 @@ func TestFocusTraversalBoundaryBehavior(t *testing.T) {
 		outer.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
 
 		var focusedID tui.ID
+
 		ctx := &tui.Ctx{
 			FocusedID:    child1.ID(),
 			RequestFocus: func(id tui.ID) { focusedID = id },
@@ -616,6 +648,7 @@ func TestFocusTraversalBoundaryBehavior(t *testing.T) {
 		if handled != true {
 			t.Error("Outer should handle Tab traversal")
 		}
+
 		if focusedID != child2.ID() {
 			t.Errorf("Expected focus on child2, got %v", focusedID)
 		}
@@ -637,6 +670,7 @@ func TestFocusTraversalBoundaryBehavior(t *testing.T) {
 		outer.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
 
 		var focusedID tui.ID
+
 		ctx := &tui.Ctx{
 			FocusedID:    child2.ID(),
 			RequestFocus: func(id tui.ID) { focusedID = id },
@@ -649,6 +683,7 @@ func TestFocusTraversalBoundaryBehavior(t *testing.T) {
 		if handled != true {
 			t.Error("Outer should handle Shift+Tab traversal")
 		}
+
 		if focusedID != child1.ID() {
 			t.Errorf("Expected focus on child1, got %v", focusedID)
 		}

@@ -64,6 +64,7 @@ func (b *Border) Paint(p *tui.Painter, ctx *tui.Ctx) {
 			if borderStyle == (style.Style{}) {
 				borderStyle = ctx.Theme.Base
 			}
+
 			chrome := ctx.Theme.Chrome.Border.Effective(ctx.Theme)
 			p.BoxStyled(r, chrome.BoxStyle(borderStyle))
 

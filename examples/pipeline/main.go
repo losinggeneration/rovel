@@ -40,14 +40,17 @@ func main() {
 	if err := flusher.ClearScreen(); err != nil {
 		fmt.Fprintf(os.Stderr, "ClearScreen error: %v\n", err)
 	}
+
 	if err := flusher.HideCursor(); err != nil {
 		fmt.Fprintf(os.Stderr, "HideCursor error: %v\n", err)
 	}
+
 	defer func() {
 		if err := flusher.ShowCursor(); err != nil {
 			fmt.Fprintf(os.Stderr, "ShowCursor error: %v\n", err)
 		}
 	}()
+
 	if err := flusher.Flush(); err != nil {
 		fmt.Fprintf(os.Stderr, "Flush error: %v\n", err)
 	}
@@ -109,6 +112,7 @@ func main() {
 	// Update frames 1 & 4: Update header to DONE, add text to filled box
 	damage.Clear()
 	damage.AddRect(clip)
+
 	clearText := tui.Rect{X: 4, Y: 3, W: 14, H: 1}
 	painter.Fill(clearText, ' ', whiteBlack)
 	drawHeaderBox(painter, "DONE!")

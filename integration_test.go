@@ -69,6 +69,7 @@ func (r *integrationRoot) Layout(gr geom.Rect) {
 
 func (r *integrationRoot) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	r.paintCount.Add(1)
+
 	for _, c := range r.children {
 		c.Paint(p, ctx)
 	}
@@ -80,6 +81,7 @@ func (r *integrationRoot) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -110,16 +112,20 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 
 	// Run the app in a goroutine.
 	done := make(chan error, 1)
+
 	go func() { done <- app.Run() }()
 
 	// Helper to wait for an atomic condition with timeout.
 	waitFor := func(name string, check func() bool) {
 		t.Helper()
+
 		deadline := time.After(2 * time.Second)
+
 		for {
 			if check() {
 				return
 			}
+
 			select {
 			case <-deadline:
 				t.Fatalf("timeout waiting for %s", name)
@@ -140,6 +146,7 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 
 	// 3. Send a resize event.
 	paintsBefore := root.paintCount.Load()
+
 	be.SendResize(100, 30)
 	waitFor("resize repaint", func() bool { return root.paintCount.Load() > paintsBefore })
 
@@ -148,6 +155,7 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 	_ = app.Post(func(ctx *tui.UpdateCtx) {
 		sizeCh <- app.Size()
 	})
+
 	select {
 	case sz := <-sizeCh:
 		if sz.W != 100 || sz.H != 30 {
@@ -159,6 +167,7 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 
 	// 4. Test Post from background goroutine.
 	var postRan atomic.Bool
+
 	err = app.Post(func(ctx *tui.UpdateCtx) {
 		postRan.Store(true)
 		ctx.InvalidateAll()
@@ -166,6 +175,7 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Post: %v", err)
 	}
+
 	waitFor("post callback", func() bool { return postRan.Load() })
 
 	// 5. Shut down.
@@ -185,6 +195,7 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 	if err := app.Restore(); err != nil {
 		t.Fatalf("Restore: %v", err)
 	}
+
 	if !be.Restored() {
 		t.Error("backend Restore was not called")
 	}

@@ -23,6 +23,7 @@ func New(capacity int) *ErrorBuffer {
 	if capacity <= 0 {
 		capacity = 50
 	}
+
 	return &ErrorBuffer{
 		capacity: capacity,
 	}
@@ -52,6 +53,7 @@ func (e *ErrorBuffer) Get() []error {
 
 	result := make([]error, len(e.errors))
 	copy(result, e.errors)
+
 	return result
 }
 
@@ -76,6 +78,7 @@ func (e *ErrorBuffer) Resize(s int) {
 func (e *ErrorBuffer) Clear() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+
 	e.errors = nil
 }
 
@@ -83,6 +86,7 @@ func (e *ErrorBuffer) Clear() {
 func (e *ErrorBuffer) Len() int {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+
 	return len(e.errors)
 }
 

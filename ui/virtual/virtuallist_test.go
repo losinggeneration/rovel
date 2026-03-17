@@ -118,6 +118,7 @@ func TestNotifyCountChanged(t *testing.T) {
 			if tt.initialSelection >= 0 {
 				v.SelectIndex(nil, tt.initialSelection)
 			}
+
 			v.SetScrollItem(nil, tt.initialScroll)
 
 			// Track invalidation
@@ -130,6 +131,7 @@ func TestNotifyCountChanged(t *testing.T) {
 
 			// Change count
 			count = tt.newCount
+
 			v.NotifyCountChanged(ctx)
 
 			// Check invalidation
@@ -164,6 +166,7 @@ func TestNotifyCountChangedWithNilContext(t *testing.T) {
 
 	// Should not panic with nil context
 	count = 50
+
 	v.NotifyCountChanged(nil)
 
 	// State should still be updated correctly
@@ -188,6 +191,7 @@ func TestNotifyCountChangedWithNilInvalidate(t *testing.T) {
 	ctx := &tui.Ctx{}
 
 	count = 50
+
 	v.NotifyCountChanged(ctx)
 
 	// State should still be updated correctly
@@ -223,6 +227,7 @@ func TestNotifyCountChangedScrollSelectionIntoView(t *testing.T) {
 
 	// Reduce count so selection needs to be clamped
 	count = 50
+
 	v.NotifyCountChanged(ctx)
 
 	// Selection should be clamped to 49 (max index for count=50)

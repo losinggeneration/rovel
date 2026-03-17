@@ -51,6 +51,7 @@ func (p *Padding) Layout(r tui.Rect) {
 // MinSize returns the minimum size needed for the padding.
 func (p *Padding) MinSize() tui.Size {
 	childMin := p.child.MinSize()
+
 	return tui.Size{
 		W: childMin.W + p.Left + p.Right,
 		H: childMin.H + p.Top + p.Bottom,

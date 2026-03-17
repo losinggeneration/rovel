@@ -34,6 +34,7 @@ func NewScrollbar(opts ScrollbarOpts) *Scrollbar {
 	if isZeroID(id) {
 		id = tui.NewID()
 	}
+
 	return &Scrollbar{
 		id:          id,
 		contentSize: opts.ContentSize,
@@ -78,6 +79,7 @@ func (s *Scrollbar) maxScroll() int {
 	if m < 0 {
 		return 0
 	}
+
 	return m
 }
 
@@ -100,6 +102,7 @@ func (s *Scrollbar) thumbGeometry() (thumbH, thumbY int) {
 	if thumbY+thumbH > h {
 		thumbY = h - thumbH
 	}
+
 	if thumbY < 0 {
 		thumbY = 0
 	}
@@ -159,30 +162,37 @@ func (s *Scrollbar) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			maxS := s.maxScroll()
 			newPos := clickY * maxS / (s.rect.H - 1)
 			newPos = max(0, min(newPos, maxS))
+
 			s.position = newPos
 			if s.onScroll != nil {
 				s.onScroll(newPos, ctx)
 			}
 		}
+
 		return true
 
 	case tui.MouseDrag:
 		if !s.dragging {
 			return false
 		}
+
 		deltaY := me.Y - s.dragStartY
 		thumbH, _ := s.thumbGeometry()
+
 		trackSpace := s.rect.H - thumbH
 		if trackSpace <= 0 {
 			return true
 		}
+
 		maxS := s.maxScroll()
 		newPos := s.dragStartPos + deltaY*maxS/trackSpace
 		newPos = max(0, min(newPos, maxS))
+
 		s.position = newPos
 		if s.onScroll != nil {
 			s.onScroll(newPos, ctx)
 		}
+
 		return true
 
 	case tui.MouseRelease:
@@ -190,6 +200,7 @@ func (s *Scrollbar) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			s.dragging = false
 			return true
 		}
+
 		return false
 	}
 

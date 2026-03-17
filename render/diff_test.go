@@ -31,6 +31,7 @@ func TestDiffRuns_NoChanges(t *testing.T) {
 			*front.At(x, y) = Cell{R: 'A', Style: style.Style{FG: style.ColorRed}}
 		}
 	}
+
 	dmg.AddRect(geom.Rect{X: 0, Y: 0, W: 10, H: 5})
 
 	runs := DiffRuns(back, front, dmg)
@@ -47,6 +48,7 @@ func TestDiffRuns_NilBuffers(t *testing.T) {
 	if runs := DiffRuns(nil, NewBuffer(10, 5), dmg); runs != nil {
 		t.Errorf("DiffRuns() with nil back = %v, want nil", runs)
 	}
+
 	if runs := DiffRuns(NewBuffer(10, 5), nil, dmg); runs != nil {
 		t.Errorf("DiffRuns() with nil front = %v, want nil", runs)
 	}
@@ -72,6 +74,7 @@ func TestDiffRuns_SingleCellChange(t *testing.T) {
 
 	*back.At(5, 2) = Cell{R: 'X', Style: style.Style{FG: style.ColorBlue}}
 	*front.At(5, 2) = Cell{R: 'A', Style: style.Style{FG: style.ColorRed}}
+
 	dmg.AddSpan(2, 5, 6)
 
 	runs := DiffRuns(back, front, dmg)
@@ -79,6 +82,7 @@ func TestDiffRuns_SingleCellChange(t *testing.T) {
 	if len(runs) != 1 {
 		t.Fatalf("DiffRuns() returned %d runs, want 1", len(runs))
 	}
+
 	if runs[0].Y != 2 || runs[0].X0 != 5 || runs[0].X1 != 6 {
 		t.Errorf("DiffRuns() = %+v, want {Y:2, X0:5, X1:6}", runs[0])
 	}
@@ -94,6 +98,7 @@ func TestDiffRuns_ContiguousChangesMerged(t *testing.T) {
 		*back.At(x, 2) = Cell{R: 'X', Style: style.Style{FG: style.ColorBlue}}
 		*front.At(x, 2) = Cell{R: 'A', Style: style.Style{FG: style.ColorRed}}
 	}
+
 	dmg.AddSpan(2, 3, 6)
 
 	runs := DiffRuns(back, front, dmg)
@@ -101,6 +106,7 @@ func TestDiffRuns_ContiguousChangesMerged(t *testing.T) {
 	if len(runs) != 1 {
 		t.Fatalf("DiffRuns() returned %d runs, want 1", len(runs))
 	}
+
 	if runs[0].Y != 2 || runs[0].X0 != 3 || runs[0].X1 != 6 {
 		t.Errorf("DiffRuns() = %+v, want {Y:2, X0:3, X1:6}", runs[0])
 	}
@@ -116,6 +122,7 @@ func TestDiffRuns_NonContiguousChanges(t *testing.T) {
 	*front.At(2, 3) = Cell{R: 'A'}
 	*back.At(7, 3) = Cell{R: 'Y'}
 	*front.At(7, 3) = Cell{R: 'B'}
+
 	dmg.AddSpan(3, 0, 10)
 
 	runs := DiffRuns(back, front, dmg)
@@ -136,6 +143,7 @@ func TestDiffRuns_MultipleRows(t *testing.T) {
 	// Change cell in row 3
 	*back.At(5, 3) = Cell{R: 'Y'}
 	*front.At(5, 3) = Cell{R: 'B'}
+
 	dmg.AddRect(geom.Rect{X: 0, Y: 0, W: 10, H: 5})
 
 	runs := DiffRuns(back, front, dmg)
@@ -155,6 +163,7 @@ func TestDiffRuns_WideCharExpansion(t *testing.T) {
 	*back.At(4, 2) = Cell{R: 0, WideCont: true}
 	*front.At(3, 2) = Cell{R: 'A'}
 	*front.At(4, 2) = Cell{R: ' '}
+
 	dmg.AddSpan(2, 3, 5)
 
 	runs := DiffRuns(back, front, dmg)
@@ -187,6 +196,7 @@ func TestDiffRuns_WideCharBoundary(t *testing.T) {
 	if len(runs) != 1 {
 		t.Fatalf("DiffRuns() returned %d runs, want 1", len(runs))
 	}
+
 	if runs[0].X0 != 2 || runs[0].X1 != 4 {
 		t.Errorf("DiffRuns() = %+v, want {X0:2, X1:4}", runs[0])
 	}
@@ -202,6 +212,7 @@ func TestDiffRuns_NonOverlappingSpans(t *testing.T) {
 	*front.At(2, 2) = Cell{R: 'A'}
 	*back.At(7, 2) = Cell{R: 'Y'}
 	*front.At(7, 2) = Cell{R: 'B'}
+
 	dmg.AddSpan(2, 0, 4)
 	dmg.AddSpan(2, 6, 9)
 
@@ -223,6 +234,7 @@ func TestCoalesceRuns_Adjacent(t *testing.T) {
 	if len(result) != 1 {
 		t.Errorf("coalesceRuns() adjacent = %d runs, want 1", len(result))
 	}
+
 	if len(result) == 1 && (result[0].X0 != 3 || result[0].X1 != 7) {
 		t.Errorf("coalesceRuns() adjacent = %+v, want {X0:3, X1:7}", result[0])
 	}
@@ -239,6 +251,7 @@ func TestCoalesceRuns_Overlapping(t *testing.T) {
 	if len(result) != 1 {
 		t.Errorf("coalesceRuns() overlapping = %d runs, want 1", len(result))
 	}
+
 	if len(result) == 1 && (result[0].X0 != 3 || result[0].X1 != 8) {
 		t.Errorf("coalesceRuns() overlapping = %+v, want {X0:3, X1:8}", result[0])
 	}

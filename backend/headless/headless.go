@@ -47,8 +47,10 @@ func New(size geom.Size) *Backend {
 func (b *Backend) Enable() (geom.Size, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
 	b.enabled = true
 	b.restored = false
+
 	return b.size, nil
 }
 
@@ -56,7 +58,9 @@ func (b *Backend) Enable() (geom.Size, error) {
 func (b *Backend) Restore() error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
 	b.restored = true
+
 	return nil
 }
 
@@ -64,7 +68,9 @@ func (b *Backend) Restore() error {
 func (b *Backend) Write(p []byte) (int, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
 	b.output = append(b.output, p...)
+
 	return len(p), nil
 }
 
@@ -80,6 +86,7 @@ func (b *Backend) ReadEvent() event.Event {
 	if !ok {
 		return nil
 	}
+
 	return ev
 }
 
@@ -87,6 +94,7 @@ func (b *Backend) ReadEvent() event.Event {
 func (b *Backend) Size() geom.Size {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
 	return b.size
 }
 
@@ -94,6 +102,7 @@ func (b *Backend) Size() geom.Size {
 func (b *Backend) InputCapabilities() backend.InputCapabilities {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
 	return b.caps
 }
 
@@ -101,7 +110,9 @@ func (b *Backend) InputCapabilities() backend.InputCapabilities {
 func (b *Backend) SetInputFeatures(f backend.InputFeatures) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
 	b.features = f
+
 	return nil
 }
 
@@ -117,6 +128,7 @@ func (b *Backend) SendResize(w, h int) {
 	b.mu.Lock()
 	b.size = geom.Size{W: w, H: h}
 	b.mu.Unlock()
+
 	b.eventCh <- event.ResizeEvent{W: w, H: h}
 }
 
@@ -130,8 +142,10 @@ func (b *Backend) Close() {
 func (b *Backend) Output() []byte {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
 	out := make([]byte, len(b.output))
 	copy(out, b.output)
+
 	return out
 }
 
@@ -139,6 +153,7 @@ func (b *Backend) Output() []byte {
 func (b *Backend) ClearOutput() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
 	b.output = b.output[:0]
 }
 
@@ -146,6 +161,7 @@ func (b *Backend) ClearOutput() {
 func (b *Backend) Restored() bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
 	return b.restored
 }
 
@@ -153,6 +169,7 @@ func (b *Backend) Restored() bool {
 func (b *Backend) Enabled() bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
 	return b.enabled
 }
 
@@ -160,5 +177,6 @@ func (b *Backend) Enabled() bool {
 func (b *Backend) Features() backend.InputFeatures {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
 	return b.features
 }

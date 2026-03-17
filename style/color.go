@@ -32,6 +32,7 @@ func ColorBasic(index uint8) Color {
 	if index > 15 {
 		index = 0
 	}
+
 	return Color(uint32(ColorKindBasic)<<kindShift | uint32(index))
 }
 
@@ -57,6 +58,7 @@ func (c Color) BasicIndex() (uint8, bool) {
 	if c.Kind() != ColorKindBasic {
 		return 0, false
 	}
+
 	return uint8(c & valueMask), true
 }
 
@@ -65,6 +67,7 @@ func (c Color) Index() (uint8, bool) {
 	if c.Kind() != ColorKindIndexed {
 		return 0, false
 	}
+
 	return uint8(c & valueMask), true
 }
 
@@ -73,7 +76,9 @@ func (c Color) RGB() (r, g, b uint8, ok bool) {
 	if c.Kind() != ColorKindRGB {
 		return 0, 0, 0, false
 	}
+
 	v := uint32(c & valueMask)
+
 	return uint8(v >> 16), uint8(v >> 8), uint8(v), true
 }
 
@@ -122,6 +127,7 @@ func DetectCapabilityFromEnv() Capability {
 	if colorterm := os.Getenv("COLORTERM"); colorterm == "truecolor" || colorterm == "24bit" {
 		cap.HasTrueColor = true
 		cap.Has256Color = true
+
 		return cap
 	}
 
@@ -142,9 +148,11 @@ func (c Color) Resolve(cap Capability) Color {
 	if kind == ColorKindDefault || kind == ColorKindBasic {
 		return c
 	}
+
 	if kind == ColorKindIndexed && cap.Has256Color {
 		return c
 	}
+
 	if kind == ColorKindRGB && cap.HasTrueColor {
 		return c
 	}
@@ -154,6 +162,7 @@ func (c Color) Resolve(cap Capability) Color {
 		if cap.Has256Color {
 			return c.rgbToIndexed()
 		}
+
 		return c.toBasic()
 	}
 
@@ -205,6 +214,7 @@ func (c Color) toBasic() Color {
 		if r > 200 && g > 200 && b > 200 {
 			return ColorBrightWhite
 		}
+
 		return ColorWhite
 	}
 
@@ -212,9 +222,11 @@ func (c Color) toBasic() Color {
 		if g > 128 {
 			return ColorYellow
 		}
+
 		if b > 128 {
 			return ColorMagenta
 		}
+
 		return ColorRed
 	}
 
@@ -222,6 +234,7 @@ func (c Color) toBasic() Color {
 		if b > 128 {
 			return ColorCyan
 		}
+
 		return ColorGreen
 	}
 
@@ -241,6 +254,7 @@ func xterm256RGB(i int) (r, g, b uint8) {
 		r = uint8((idx/36)*40 + 55)
 		g = uint8(((idx/6)%6)*40 + 55)
 		b = uint8((idx%6)*40 + 55)
+
 		return r, g, b
 	}
 

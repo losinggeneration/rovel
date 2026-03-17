@@ -24,6 +24,7 @@ func TestTextArea_LineIndex_Empty(t *testing.T) {
 	if len(ta.lines) != 1 {
 		t.Fatalf("empty text: want 1 line, got %d", len(ta.lines))
 	}
+
 	ln := ta.lines[0]
 	if ln.startByte != 0 || ln.endByte != 0 {
 		t.Errorf("empty line: got start=%d end=%d, want 0,0", ln.startByte, ln.endByte)
@@ -34,9 +35,11 @@ func TestTextArea_LineIndex_SingleLine(t *testing.T) {
 	ta := NewTextArea()
 	ctx := mkTextAreaCtx(ta)
 	ta.SetText(ctx, "hello")
+
 	if len(ta.lines) != 1 {
 		t.Fatalf("single line: want 1, got %d", len(ta.lines))
 	}
+
 	if ta.lines[0].startByte != 0 || ta.lines[0].endByte != 5 {
 		t.Errorf("got start=%d end=%d", ta.lines[0].startByte, ta.lines[0].endByte)
 	}
@@ -46,9 +49,11 @@ func TestTextArea_LineIndex_MultiLine(t *testing.T) {
 	ta := NewTextArea()
 	ctx := mkTextAreaCtx(ta)
 	ta.SetText(ctx, "abc\ndef\nghi")
+
 	if len(ta.lines) != 3 {
 		t.Fatalf("want 3 lines, got %d", len(ta.lines))
 	}
+
 	want := []lineEntry{
 		{0, 3},
 		{4, 7},
@@ -66,9 +71,11 @@ func TestTextArea_LineIndex_TrailingNewline(t *testing.T) {
 	ta := NewTextArea()
 	ctx := mkTextAreaCtx(ta)
 	ta.SetText(ctx, "abc\n")
+
 	if len(ta.lines) != 2 {
 		t.Fatalf("want 2 lines, got %d", len(ta.lines))
 	}
+
 	if ta.lines[1].startByte != 4 || ta.lines[1].endByte != 4 {
 		t.Errorf("trailing empty line: got {%d,%d}", ta.lines[1].startByte, ta.lines[1].endByte)
 	}
@@ -78,6 +85,7 @@ func TestTextArea_LineIndex_ConsecutiveNewlines(t *testing.T) {
 	ta := NewTextArea()
 	ctx := mkTextAreaCtx(ta)
 	ta.SetText(ctx, "a\n\nb")
+
 	if len(ta.lines) != 3 {
 		t.Fatalf("want 3 lines, got %d", len(ta.lines))
 	}
@@ -99,21 +107,25 @@ func TestTextArea_UpDown_Basic(t *testing.T) {
 
 	// Move down to line 1
 	ta.HandleAction(int(ui.ActionMoveDown), ctx)
+
 	if ta.cursorLine() != 1 {
 		t.Errorf("after down: want line 1, got %d", ta.cursorLine())
 	}
+
 	if ta.cursor != 5 { // 'e' on line 1
 		t.Errorf("after down: want cursor 5, got %d", ta.cursor)
 	}
 
 	// Move down to line 2
 	ta.HandleAction(int(ui.ActionMoveDown), ctx)
+
 	if ta.cursorLine() != 2 {
 		t.Errorf("after 2nd down: want line 2, got %d", ta.cursorLine())
 	}
 
 	// Move up back to line 1
 	ta.HandleAction(int(ui.ActionMoveUp), ctx)
+
 	if ta.cursorLine() != 1 {
 		t.Errorf("after up: want line 1, got %d", ta.cursorLine())
 	}
@@ -130,6 +142,7 @@ func TestTextArea_DesiredCol_Stickiness(t *testing.T) {
 
 	// Move down to short line — should clamp to end (col 2)
 	ta.HandleAction(int(ui.ActionMoveDown), ctx)
+
 	if ta.cursorLine() != 1 {
 		t.Fatalf("want line 1, got %d", ta.cursorLine())
 	}
@@ -140,10 +153,13 @@ func TestTextArea_DesiredCol_Stickiness(t *testing.T) {
 
 	// Move down again to long line — should restore col 4
 	ta.HandleAction(int(ui.ActionMoveDown), ctx)
+
 	if ta.cursorLine() != 2 {
 		t.Fatalf("want line 2, got %d", ta.cursorLine())
 	}
+
 	wantCol := 4
+
 	gotCol := ta.cursorCol()
 	if gotCol != wantCol {
 		t.Errorf("desiredCol stickiness: want col %d, got %d (cursor=%d)", wantCol, gotCol, ta.cursor)
@@ -161,9 +177,11 @@ func TestTextArea_Insert_And_LineIndex(t *testing.T) {
 	if ta.text != "aXb" {
 		t.Errorf("after insert: got %q, want %q", ta.text, "aXb")
 	}
+
 	if ta.cursor != 2 {
 		t.Errorf("cursor after insert: got %d, want 2", ta.cursor)
 	}
+
 	if len(ta.lines) != 1 {
 		t.Errorf("still 1 line, got %d", len(ta.lines))
 	}
@@ -181,6 +199,7 @@ func TestTextArea_Delete_And_LineIndex(t *testing.T) {
 	if ta.text != "abcdef" {
 		t.Errorf("after delete: got %q, want %q", ta.text, "abcdef")
 	}
+
 	if len(ta.lines) != 1 {
 		t.Errorf("after joining: want 1 line, got %d", len(ta.lines))
 	}
@@ -195,11 +214,13 @@ func TestTextArea_Home_End(t *testing.T) {
 	ta.cursor = 5 // 'e'
 
 	ta.HandleAction(int(ui.ActionHome), ctx)
+
 	if ta.cursor != 4 { // start of "def"
 		t.Errorf("Home: want cursor 4, got %d", ta.cursor)
 	}
 
 	ta.HandleAction(int(ui.ActionEnd), ctx)
+
 	if ta.cursor != 7 { // end of "def"
 		t.Errorf("End: want cursor 7, got %d", ta.cursor)
 	}
@@ -233,9 +254,11 @@ func TestTextArea_Enter_SplitsLine(t *testing.T) {
 	if ta.text != "ab\ncd" {
 		t.Errorf("after Enter: got %q, want %q", ta.text, "ab\ncd")
 	}
+
 	if len(ta.lines) != 2 {
 		t.Errorf("after Enter: want 2 lines, got %d", len(ta.lines))
 	}
+
 	if ta.cursor != 3 { // after the \n
 		t.Errorf("cursor after Enter: want 3, got %d", ta.cursor)
 	}
@@ -257,9 +280,11 @@ func TestTextArea_ShiftRight_CreatesSelection(t *testing.T) {
 	if !ta.hasSelection() {
 		t.Fatal("expected selection after shift+right")
 	}
+
 	if ta.anchor != 0 {
 		t.Errorf("anchor: want 0, got %d", ta.anchor)
 	}
+
 	if ta.cursor <= 0 {
 		t.Error("cursor should have advanced")
 	}
@@ -312,6 +337,7 @@ func TestTextArea_CrossLineSelection(t *testing.T) {
 	ta.cursor = 5 // 'e'
 
 	sel := ta.selectedText()
+
 	want := "bc\nd"
 	if sel != want {
 		t.Errorf("cross-line selection: got %q, want %q", sel, want)
@@ -329,6 +355,7 @@ func TestTextArea_SelectAll(t *testing.T) {
 	if ta.anchor != 0 || ta.cursor != len(ta.text) {
 		t.Errorf("select all: anchor=%d cursor=%d, want 0 and %d", ta.anchor, ta.cursor, len(ta.text))
 	}
+
 	if ta.selectedText() != "abc\ndef" {
 		t.Errorf("select all text: got %q", ta.selectedText())
 	}
@@ -347,6 +374,7 @@ func TestTextArea_Backspace_JoinsLines(t *testing.T) {
 	if ta.text != "abcd" {
 		t.Errorf("after backspace: got %q, want %q", ta.text, "abcd")
 	}
+
 	if len(ta.lines) != 1 {
 		t.Errorf("after backspace: want 1 line, got %d", len(ta.lines))
 	}

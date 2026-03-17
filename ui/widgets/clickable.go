@@ -18,16 +18,21 @@ func (c *Clickable) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			if ctx != nil && ctx.RequestFocus != nil {
 				ctx.RequestFocus(c.ID())
 			}
+
 			if c.OnClick != nil {
 				c.OnClick(ctx)
 			}
+
 			if ctx != nil {
 				ctx.Invalidate(c.Rect())
 			}
+
 			return true
 		}
+
 		return false
 	}
+
 	return c.View.Handle(e, ctx)
 }
 
@@ -41,5 +46,6 @@ func (c *Clickable) Children() []tui.View {
 	if vc, ok := c.View.(interface{ Children() []tui.View }); ok {
 		return vc.Children()
 	}
+
 	return nil
 }

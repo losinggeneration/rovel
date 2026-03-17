@@ -14,6 +14,7 @@ func BenchmarkPaintSmallList(b *testing.B) {
 
 	b.ResetTimer()
 	b.ReportAllocs()
+
 	for i := 0; i < b.N; i++ {
 		v.Paint(p, ctx)
 	}
@@ -27,6 +28,7 @@ func BenchmarkPaintMediumList(b *testing.B) {
 
 	b.ResetTimer()
 	b.ReportAllocs()
+
 	for i := 0; i < b.N; i++ {
 		v.Paint(p, ctx)
 	}
@@ -40,6 +42,7 @@ func BenchmarkPaintLargeList(b *testing.B) {
 
 	b.ResetTimer()
 	b.ReportAllocs()
+
 	for i := 0; i < b.N; i++ {
 		v.Paint(p, ctx)
 	}
@@ -63,6 +66,7 @@ func BenchmarkPaintVariousSizes(b *testing.B) {
 			ctx := benchCtx()
 
 			b.ResetTimer()
+
 			for i := 0; i < b.N; i++ {
 				v.Paint(p, ctx)
 			}
@@ -78,6 +82,7 @@ func BenchmarkScrollByOne(b *testing.B) {
 
 	b.ResetTimer()
 	b.ReportAllocs()
+
 	for i := 0; i < b.N; i++ {
 		v.ScrollBy(ctx, 1)
 	}
@@ -89,6 +94,7 @@ func BenchmarkScrollByPage(b *testing.B) {
 
 	b.ResetTimer()
 	b.ReportAllocs()
+
 	for i := 0; i < b.N; i++ {
 		v.ScrollBy(ctx, 20)
 	}
@@ -103,6 +109,7 @@ func BenchmarkScrollToTop(b *testing.B) {
 
 	b.ResetTimer()
 	b.ReportAllocs()
+
 	for i := 0; i < b.N; i++ {
 		v.ScrollTop(ctx)
 	}
@@ -114,6 +121,7 @@ func BenchmarkScrollToBottom(b *testing.B) {
 
 	b.ResetTimer()
 	b.ReportAllocs()
+
 	for i := 0; i < b.N; i++ {
 		v.ScrollBottom(ctx)
 	}
@@ -127,6 +135,7 @@ func BenchmarkSelectIndex(b *testing.B) {
 
 	b.ResetTimer()
 	b.ReportAllocs()
+
 	for i := 0; i < b.N; i++ {
 		v.SelectIndex(ctx, i%1000)
 	}
@@ -138,6 +147,7 @@ func BenchmarkSelectIndexWithScroll(b *testing.B) {
 
 	b.ResetTimer()
 	b.ReportAllocs()
+
 	for i := 0; i < b.N; i++ {
 		// Select items far from viewport to force scrolling
 		idx := (i * 17) % 1000
@@ -164,6 +174,7 @@ func BenchmarkPaint100kItems(b *testing.B) {
 			ctx := benchCtx()
 
 			b.ResetTimer()
+
 			for i := 0; i < b.N; i++ {
 				v.Paint(p, ctx)
 			}
@@ -180,6 +191,7 @@ func BenchmarkPaintThreshold(b *testing.B) {
 	ctx := benchCtx()
 
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		v.Paint(p, ctx)
 	}
@@ -192,6 +204,7 @@ func BenchmarkScrollThreshold(b *testing.B) {
 	ctx := benchCtx()
 
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		v.ScrollBy(ctx, 1)
 	}

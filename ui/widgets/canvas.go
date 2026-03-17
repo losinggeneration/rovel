@@ -50,6 +50,7 @@ func NewCanvasOpts(opts CanvasOpts) *Canvas {
 	if min.W <= 0 {
 		min.W = 10
 	}
+
 	if min.H <= 0 {
 		min.H = 10
 	}
@@ -105,6 +106,7 @@ func (c *Canvas) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	if c.handle == nil {
 		return false
 	}
+
 	return c.handle(e, ctx)
 }
 
@@ -123,9 +125,11 @@ func (c *Canvas) SetMinSize(ctx *tui.Ctx, sz geom.Size) {
 	if sz.W <= 0 {
 		sz.W = 1
 	}
+
 	if sz.H <= 0 {
 		sz.H = 1
 	}
+
 	if c.minSize == sz {
 		return
 	}
@@ -147,9 +151,11 @@ func (c *Canvas) Invalidate(ctx *tui.Ctx) {
 	if ctx == nil || ctx.Invalidate == nil {
 		return
 	}
+
 	if c.rect.W <= 0 || c.rect.H <= 0 {
 		return
 	}
+
 	ctx.Invalidate(c.rect)
 }
 
@@ -160,9 +166,11 @@ func (c *Canvas) InvalidateRect(ctx *tui.Ctx, r geom.Rect) {
 	if ctx == nil || ctx.Invalidate == nil {
 		return
 	}
+
 	if c.rect.W <= 0 || c.rect.H <= 0 {
 		return
 	}
+
 	if r.W <= 0 || r.H <= 0 {
 		return
 	}
@@ -173,10 +181,12 @@ func (c *Canvas) InvalidateRect(ctx *tui.Ctx, r geom.Rect) {
 		W: r.W,
 		H: r.H,
 	}
+
 	abs = intersectRect(abs, c.rect)
 	if abs.W <= 0 || abs.H <= 0 {
 		return
 	}
+
 	ctx.Invalidate(abs)
 }
 
@@ -229,6 +239,7 @@ func minInt(a, b int) int {
 	if a < b {
 		return a
 	}
+
 	return b
 }
 
@@ -236,5 +247,6 @@ func maxInt(a, b int) int {
 	if a > b {
 		return a
 	}
+
 	return b
 }

@@ -40,6 +40,7 @@ func Sanitize(s string) string {
 		if r >= 0xE0100 && r <= 0xE01EF {
 			continue
 		}
+
 		b.WriteRune(r)
 	}
 

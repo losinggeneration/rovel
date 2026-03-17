@@ -111,6 +111,7 @@ func (f *FocusRing) hasFocusInSubtree(c ui.Composite, focusedID tui.ID, visited 
 		if _, ok := visited[id]; ok {
 			continue
 		}
+
 		visited[id] = struct{}{}
 
 		if id == focusedID {
@@ -123,5 +124,6 @@ func (f *FocusRing) hasFocusInSubtree(c ui.Composite, focusedID tui.ID, visited 
 			}
 		}
 	}
+
 	return false
 }

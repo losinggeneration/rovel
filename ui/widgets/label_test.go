@@ -17,12 +17,14 @@ func TestLabel(t *testing.T) {
 	if minSize.W != 4 { // "test" is 4 characters
 		t.Errorf("Expected MinSize.W to be 4, got %d", minSize.W)
 	}
+
 	if minSize.H != 1 {
 		t.Errorf("Expected MinSize.H to be 1, got %d", minSize.H)
 	}
 
 	rect := tui.Rect{X: 0, Y: 0, W: 10, H: 5}
 	label.Layout(rect)
+
 	if label.Rect() != rect {
 		t.Errorf("Rect not set correctly")
 	}
@@ -60,10 +62,12 @@ func TestButton(t *testing.T) {
 
 	// Test callback - now takes ctx parameter
 	pressed := false
+
 	button.SetOnPress(func(ctx *tui.Ctx) {
 		pressed = true
 	})
 	button.onPress(nil)
+
 	if !pressed {
 		t.Error("Callback was not called")
 	}
@@ -87,6 +91,7 @@ func TestTextInput(t *testing.T) {
 
 	// Test text setting - now takes ctx parameter
 	input.SetText(nil, "hello")
+
 	if input.Text() != "hello" {
 		t.Errorf("Expected text to be 'hello', got '%s'", input.Text())
 	}
@@ -112,6 +117,7 @@ func TestFocusRing(t *testing.T) {
 	if ringMin.W != childMin.W+2 {
 		t.Errorf("Expected ring MinSize.W to be %d, got %d", childMin.W+2, ringMin.W)
 	}
+
 	if ringMin.H != childMin.H+2 {
 		t.Errorf("Expected ring MinSize.H to be %d, got %d", childMin.H+2, ringMin.H)
 	}

@@ -44,9 +44,11 @@ func NewVirtualList(opts VirtualListOpts) *VirtualList {
 	if opts.Count == nil {
 		panic("virtual.NewVirtualList: Count is required")
 	}
+
 	if opts.RenderRow == nil {
 		panic("virtual.NewVirtualList: RenderRow is required")
 	}
+
 	if opts.RowHeight <= 0 {
 		panic("virtual.NewVirtualList: RowHeight must be >= 1")
 	}
@@ -105,6 +107,7 @@ func (v *VirtualList) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	n := v.safeCount()
 	v.clampScroll()
 	v.clampSelection()
+
 	if n == 0 {
 		v.paintEmpty(p, ctx)
 		return
@@ -122,6 +125,7 @@ func (v *VirtualList) Paint(p *tui.Painter, ctx *tui.Ctx) {
 		for i := v.scrollItem; i < end; i++ {
 			rowOffset := (i - v.scrollItem) * v.rowHeight
 			rowY := v.rect.Y + rowOffset
+
 			rowH := minInt(v.rowHeight, v.rect.Y+v.rect.H-rowY)
 			if rowH <= 0 {
 				break
@@ -152,11 +156,14 @@ func (v *VirtualList) Handle(e tui.Event, ctx *tui.Ctx) bool {
 					ctx.RequestFocus(v.id)
 				}
 			}
+
 			rowOffset := me.Y - v.rect.Y
+
 			idx := v.scrollItem + rowOffset/v.rowHeight
 			if idx >= 0 && idx < v.safeCount() {
 				v.SelectIndex(ctx, idx)
 			}
+
 			return true
 		}
 		// Mouse wheel scrolling
@@ -168,6 +175,7 @@ func (v *VirtualList) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			v.ScrollBy(ctx, 3)
 			return true
 		}
+
 		return false
 	}
 
@@ -179,6 +187,7 @@ func (v *VirtualList) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		if ev == nil {
 			return false
 		}
+
 		return v.handleKey(*ev, ctx)
 	default:
 		return false
@@ -201,6 +210,7 @@ func (v *VirtualList) HandleAction(act int, ctx *tui.Ctx) bool {
 		} else {
 			v.SelectIndex(ctx, v.selectedIndex-1)
 		}
+
 		return true
 	case ui.ActionMoveDown:
 		if v.selectedIndex == -1 {
@@ -208,12 +218,14 @@ func (v *VirtualList) HandleAction(act int, ctx *tui.Ctx) bool {
 		} else {
 			v.SelectIndex(ctx, v.selectedIndex+1)
 		}
+
 		return true
 	case ui.ActionActivate:
 		if v.selectedIndex >= 0 && v.selectedIndex < n && v.onActivate != nil {
 			v.onActivate(v.selectedIndex, ctx)
 			return true
 		}
+
 		return false
 	case ui.ActionPageUp:
 		if v.selectedIndex == -1 {
@@ -221,6 +233,7 @@ func (v *VirtualList) HandleAction(act int, ctx *tui.Ctx) bool {
 		} else {
 			v.SelectIndex(ctx, v.selectedIndex-visible)
 		}
+
 		return true
 	case ui.ActionPageDown:
 		if v.selectedIndex == -1 {
@@ -228,6 +241,7 @@ func (v *VirtualList) HandleAction(act int, ctx *tui.Ctx) bool {
 		} else {
 			v.SelectIndex(ctx, v.selectedIndex+visible)
 		}
+
 		return true
 	case ui.ActionHome:
 		v.SelectIndex(ctx, 0)
@@ -236,6 +250,7 @@ func (v *VirtualList) HandleAction(act int, ctx *tui.Ctx) bool {
 		v.SelectIndex(ctx, n-1)
 		return true
 	}
+
 	return false
 }
 
@@ -244,6 +259,7 @@ func (v *VirtualList) ScrollTo(ctx *tui.Ctx, item int) {
 	old := v.scrollItem
 	v.scrollItem = item
 	v.clampScroll()
+
 	if v.scrollItem != old {
 		v.invalidate(ctx)
 	}
@@ -303,6 +319,7 @@ func (v *VirtualList) ClearSelection(ctx *tui.Ctx) {
 	if v.selectedIndex == -1 {
 		return
 	}
+
 	v.selectedIndex = -1
 	v.invalidate(ctx)
 }
@@ -330,6 +347,7 @@ func (v *VirtualList) handleKey(e tui.KeyEvent, ctx *tui.Ctx) bool {
 		} else {
 			v.SelectIndex(ctx, v.selectedIndex-1)
 		}
+
 		return true
 
 	case tui.KeyDown:
@@ -338,6 +356,7 @@ func (v *VirtualList) handleKey(e tui.KeyEvent, ctx *tui.Ctx) bool {
 		} else {
 			v.SelectIndex(ctx, v.selectedIndex+1)
 		}
+
 		return true
 
 	case tui.KeyEnter:
@@ -345,6 +364,7 @@ func (v *VirtualList) handleKey(e tui.KeyEvent, ctx *tui.Ctx) bool {
 			v.onActivate(v.selectedIndex, ctx)
 			return true
 		}
+
 		return false
 
 	default:
@@ -358,6 +378,7 @@ func (v *VirtualList) safeCount() int {
 	if n < 0 {
 		return 0
 	}
+
 	return n
 }
 
@@ -366,6 +387,7 @@ func (v *VirtualList) visibleItems() int {
 	if v.rowHeight <= 0 || v.rect.H <= 0 {
 		return 0
 	}
+
 	return ceilDiv(v.rect.H, v.rowHeight)
 }
 
@@ -385,9 +407,11 @@ func (v *VirtualList) clampSelection() {
 		v.selectedIndex = -1
 		return
 	}
+
 	if v.selectedIndex == -1 {
 		return
 	}
+
 	v.selectedIndex = clamp(v.selectedIndex, 0, n-1)
 }
 
@@ -424,9 +448,11 @@ func (v *VirtualList) invalidate(ctx *tui.Ctx) {
 	if ctx == nil || ctx.Invalidate == nil {
 		return
 	}
+
 	if v.rect.W <= 0 || v.rect.H <= 0 {
 		return
 	}
+
 	ctx.Invalidate(v.rect)
 }
 
@@ -441,12 +467,15 @@ func clamp(v, lo, hi int) int {
 	if hi < lo {
 		return lo
 	}
+
 	if v < lo {
 		return lo
 	}
+
 	if v > hi {
 		return hi
 	}
+
 	return v
 }
 
@@ -455,6 +484,7 @@ func ceilDiv(a, b int) int {
 	if b <= 0 {
 		return 0
 	}
+
 	return (a + b - 1) / b
 }
 
@@ -462,6 +492,7 @@ func minInt(a, b int) int {
 	if a < b {
 		return a
 	}
+
 	return b
 }
 
@@ -469,5 +500,6 @@ func maxInt(a, b int) int {
 	if a > b {
 		return a
 	}
+
 	return b
 }

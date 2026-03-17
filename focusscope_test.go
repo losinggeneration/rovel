@@ -70,6 +70,7 @@ func TestFocusRepair_FallsThroughScopeChain(t *testing.T) {
 	// Focus a1, then make it unfocusable to trigger repair.
 	app.focusedID = a1.ID()
 	a1.focusable = false
+
 	app.rebuildTree()
 
 	app.ensureValidFocus()
@@ -168,12 +169,14 @@ func TestNestedScopes(t *testing.T) {
 	// Tab from inner1 should stay within inner scope.
 	app.focusedID = inner1.ID()
 	app.focusNextInScope()
+
 	if app.focusedID != inner2.ID() {
 		t.Errorf("tab from inner1: got %v, want inner2 (%v)", app.focusedID, inner2.ID())
 	}
 
 	// Tab again should wrap to inner1.
 	app.focusNextInScope()
+
 	if app.focusedID != inner1.ID() {
 		t.Errorf("tab from inner2: got %v, want inner1 (%v)", app.focusedID, inner1.ID())
 	}

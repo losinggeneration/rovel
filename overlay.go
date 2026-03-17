@@ -56,6 +56,7 @@ func (m *OverlayManager) PushOverlay(opts OverlayOpts, currentFocus ID) *Overlay
 		savedFocus: currentFocus,
 	}
 	m.stack = append(m.stack, o)
+
 	return o
 }
 
@@ -64,8 +65,10 @@ func (m *OverlayManager) PopOverlay() *Overlay {
 	if len(m.stack) == 0 {
 		return nil
 	}
+
 	last := m.stack[len(m.stack)-1]
 	m.stack = m.stack[:len(m.stack)-1]
+
 	return last
 }
 
@@ -77,6 +80,7 @@ func (m *OverlayManager) PopOverlayByID(id ID) *Overlay {
 			return o
 		}
 	}
+
 	return nil
 }
 
@@ -85,6 +89,7 @@ func (m *OverlayManager) TopOverlay() *Overlay {
 	if len(m.stack) == 0 {
 		return nil
 	}
+
 	return m.stack[len(m.stack)-1]
 }
 
@@ -95,6 +100,7 @@ func (m *OverlayManager) TopModal() *Overlay {
 			return m.stack[i]
 		}
 	}
+
 	return nil
 }
 
@@ -108,6 +114,7 @@ func (m *OverlayManager) HasOverlays() bool { return len(m.stack) > 0 }
 func (m *OverlayManager) OverlayStack() []*Overlay {
 	out := make([]*Overlay, len(m.stack))
 	copy(out, m.stack)
+
 	return out
 }
 
@@ -134,16 +141,19 @@ func (m *OverlayManager) paintOverlays(p *Painter, ctx *Ctx) {
 func (m *OverlayManager) overlayHitTest(x, y int) (target View, blocked bool) {
 	for i := len(m.stack) - 1; i >= 0; i-- {
 		o := m.stack[i]
+
 		r := o.rect
 		if x >= r.X && x < r.X+r.W && y >= r.Y && y < r.Y+r.H {
 			if hit := hitTestView(o.root, x, y); hit != nil {
 				return hit, true
 			}
 		}
+
 		if o.modal {
 			return nil, true // modal blocks even if miss
 		}
 	}
+
 	return nil, false
 }
 
@@ -156,6 +166,7 @@ func hitTestView(v View, x, y int) View {
 	if _, ok := v.(mouseOpaque); ok {
 		return v
 	}
+
 	if c, ok := v.(viewChildren); ok {
 		children := c.Children()
 		for i := len(children) - 1; i >= 0; i-- {
@@ -164,5 +175,6 @@ func hitTestView(v View, x, y int) View {
 			}
 		}
 	}
+
 	return v
 }

@@ -42,6 +42,7 @@ func NewTabsOpts(opts TabsOpts) *Tabs {
 	if isZeroID(id) {
 		id = tui.NewID()
 	}
+
 	return &Tabs{
 		id:    id,
 		tabs:  opts.Tabs,
@@ -61,8 +62,10 @@ func (t *Tabs) SetSelected(ctx *tui.Ctx, idx int) {
 	if idx < 0 || idx >= len(t.tabs) || idx == t.selected {
 		return
 	}
+
 	t.selected = idx
 	t.layoutContent()
+
 	if ctx != nil {
 		ctx.Invalidate(t.rect)
 	}
@@ -91,6 +94,7 @@ func (t *Tabs) contentRect() geom.Rect {
 	if r.H <= 1 {
 		return geom.Rect{}
 	}
+
 	return geom.Rect{X: r.X, Y: r.Y + 1, W: r.W, H: r.H - 1}
 }
 
@@ -99,6 +103,7 @@ func (t *Tabs) MinSize() geom.Size {
 	for _, tab := range t.tabs {
 		barW += 2 + text.Width(tab.Title) + 1 // " title "
 	}
+
 	minH := 1 // at least the tab bar
 	// Add content min height
 	for _, tab := range t.tabs {
@@ -107,11 +112,13 @@ func (t *Tabs) MinSize() geom.Size {
 			if ms.H+1 > minH {
 				minH = ms.H + 1
 			}
+
 			if ms.W > barW {
 				barW = ms.W
 			}
 		}
 	}
+
 	return geom.Size{W: barW, H: minH}
 }
 
@@ -137,6 +144,7 @@ func (t *Tabs) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 func (t *Tabs) paintTabBar(p *tui.Painter, ctx *tui.Ctx, focused bool) {
 	r := t.rect
+
 	barSt := ctx.Theme.Palette.Surface
 	if barSt == (style.Style{}) {
 		barSt = ctx.Theme.Base
@@ -150,10 +158,12 @@ func (t *Tabs) paintTabBar(p *tui.Painter, ctx *tui.Ctx, focused bool) {
 		if x >= r.X+r.W {
 			break
 		}
+
 		label := " " + tab.Title + " "
 		w := text.Width(label)
 
 		var st style.Style
+
 		if i == t.selected {
 			if focused {
 				st = ctx.Theme.Palette.Focus
@@ -186,10 +196,12 @@ func (t *Tabs) Handle(e tui.Event, ctx *tui.Ctx) bool {
 						t.switchTab(ctx, i)
 						return true
 					}
+
 					x += w
 				}
 			}
 		}
+
 		return false
 	}
 
@@ -203,13 +215,16 @@ func (t *Tabs) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		if t.selected > 0 {
 			t.switchTab(ctx, t.selected-1)
 		}
+
 		return true
 	case tui.KeyRight:
 		if t.selected < len(t.tabs)-1 {
 			t.switchTab(ctx, t.selected+1)
 		}
+
 		return true
 	}
+
 	return false
 }
 
@@ -219,24 +234,29 @@ func (t *Tabs) HandleAction(act int, ctx *tui.Ctx) bool {
 	if len(t.tabs) == 0 {
 		return false
 	}
+
 	if ctx == nil || ctx.FocusedID != t.id {
 		return false
 	}
+
 	switch ui.Action(act) {
 	case ui.ActionMoveLeft:
 		if t.selected > 0 {
 			t.switchTab(ctx, t.selected-1)
 		}
+
 		return true
 	case ui.ActionMoveRight:
 		if t.selected < len(t.tabs)-1 {
 			t.switchTab(ctx, t.selected+1)
 		}
+
 		return true
 	case ui.ActionActivate:
 		t.focusContent(ctx)
 		return true
 	}
+
 	return false
 }
 
@@ -247,6 +267,7 @@ func (t *Tabs) Children() []tui.View {
 			return []tui.View{c}
 		}
 	}
+
 	return nil
 }
 
@@ -254,14 +275,17 @@ func (t *Tabs) switchTab(ctx *tui.Ctx, idx int) {
 	if idx < 0 || idx >= len(t.tabs) || idx == t.selected {
 		return
 	}
+
 	t.selected = idx
 	t.layoutContent()
+
 	if ctx != nil {
 		ctx.InvalidateLayout(t.id)
 		ctx.Invalidate(t.rect)
 		// Focus the new tab's content if it's focusable
 		t.focusContent(ctx)
 	}
+
 	if t.onTab != nil {
 		t.onTab(idx, ctx)
 	}
@@ -273,23 +297,28 @@ func (t *Tabs) focusContent(ctx *tui.Ctx) {
 	if ctx == nil || ctx.RequestFocus == nil {
 		return
 	}
+
 	if t.selected < 0 || t.selected >= len(t.tabs) {
 		return
 	}
+
 	content := t.tabs[t.selected].Content
 	if content == nil {
 		return
 	}
 
 	type focusable interface{ Focusable() bool }
+
 	type composite interface{ Children() []tui.View }
 
 	var walk func(v tui.View) bool
+
 	walk = func(v tui.View) bool {
 		if f, ok := v.(focusable); ok && f.Focusable() {
 			ctx.RequestFocus(v.ID())
 			return true
 		}
+
 		if c, ok := v.(composite); ok {
 			for _, child := range c.Children() {
 				if walk(child) {
@@ -297,6 +326,7 @@ func (t *Tabs) focusContent(ctx *tui.Ctx) {
 				}
 			}
 		}
+
 		return false
 	}
 	walk(content)

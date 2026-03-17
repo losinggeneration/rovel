@@ -49,6 +49,7 @@ func setupResizeHandler(wakeFd int, errs *errbuf.ErrorBuffer) (*signalHandler, e
 						select {
 						case <-h.resizeCh:
 							h.resizeCh <- newSize
+
 							h.wakePoll()
 						default:
 						}
@@ -57,6 +58,7 @@ func setupResizeHandler(wakeFd int, errs *errbuf.ErrorBuffer) (*signalHandler, e
 			case <-h.stopCh:
 				signal.Stop(sigCh)
 				close(sigCh)
+
 				return
 			}
 		}
@@ -75,6 +77,7 @@ func (h *signalHandler) ResizeChan() <-chan geom.Size {
 func (h *signalHandler) wakePoll() {
 	if h.wakeFd >= 0 {
 		var b [1]byte
+
 		b[0] = 1
 		_, err := unix.Write(h.wakeFd, b[:])
 		h.errs.Add(err)

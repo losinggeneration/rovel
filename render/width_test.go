@@ -68,6 +68,7 @@ func TestRuneWidth_RegionalIndicator(t *testing.T) {
 	if got := RuneWidth('🇺'); got != 1 {
 		t.Errorf("RuneWidth(🇺) = %d, want 1", got)
 	}
+
 	if got := RuneWidth('🇸'); got != 1 {
 		t.Errorf("RuneWidth(🇸) = %d, want 1", got)
 	}

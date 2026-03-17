@@ -31,6 +31,7 @@ func (l *Label) SetText(ctx *tui.Ctx, text string) {
 	if l.text == text {
 		return
 	}
+
 	l.text = text
 	if ctx != nil {
 		ctx.Invalidate(l.rect)
@@ -42,6 +43,7 @@ func (l *Label) SetStyle(ctx *tui.Ctx, st style.Style) {
 	if l.st == st {
 		return
 	}
+
 	l.st = st
 	if ctx != nil {
 		ctx.Invalidate(l.rect)
@@ -66,6 +68,7 @@ func (l *Label) Layout(r tui.Rect) {
 // MinSize returns the minimum size needed for the label.
 func (l *Label) MinSize() geom.Size {
 	maxW := 0
+
 	lines := strings.Split(l.text, "\n")
 	for _, line := range lines {
 		w := text.Width(line)
@@ -73,6 +76,7 @@ func (l *Label) MinSize() geom.Size {
 			maxW = w
 		}
 	}
+
 	return geom.Size{W: maxW, H: len(lines)}
 }
 
@@ -94,8 +98,10 @@ func (l *Label) Paint(p *tui.Painter, ctx *tui.Ctx) {
 		if r == '\n' {
 			x = l.rect.X
 			y++
+
 			continue
 		}
+
 		p.Text(x, y, string(r), st)
 		x += tui.RuneWidth(r)
 	}

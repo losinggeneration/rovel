@@ -36,6 +36,7 @@ func TestScrollView_New(t *testing.T) {
 	if sv.ID() == 0 {
 		t.Error("expected non-zero ID")
 	}
+
 	if !sv.Focusable() {
 		t.Error("expected Focusable to be true")
 	}
@@ -68,6 +69,7 @@ func TestScrollView_Layout(t *testing.T) {
 	if sv.Rect() != rect {
 		t.Errorf("expected rect %v, got %v", rect, sv.Rect())
 	}
+
 	if child.Rect() != rect {
 		t.Errorf("expected child rect %v, got %v", rect, child.Rect())
 	}
@@ -91,6 +93,7 @@ func TestScrollView_clampScroll(t *testing.T) {
 	// Scroll past bounds should be clamped
 	sv.scrollY = 100
 	sv.clampScroll()
+
 	if sv.scrollY != 40 {
 		t.Errorf("expected scrollY clamped to 40, got %d", sv.scrollY)
 	}
@@ -98,6 +101,7 @@ func TestScrollView_clampScroll(t *testing.T) {
 	// Negative should clamp to 0
 	sv.scrollY = -5
 	sv.clampScroll()
+
 	if sv.scrollY != 0 {
 		t.Errorf("expected scrollY clamped to 0, got %d", sv.scrollY)
 	}
@@ -114,6 +118,7 @@ func TestScrollView_ScrollTo(t *testing.T) {
 
 	// Track invalidation
 	var invalidated bool
+
 	ctx := &tui.Ctx{
 		Invalidate: func(r geom.Rect) {
 			if r == sv.Rect() {
@@ -124,23 +129,29 @@ func TestScrollView_ScrollTo(t *testing.T) {
 
 	// Scroll to middle
 	invalidated = false
+
 	sv.ScrollTo(ctx, 20)
+
 	if sv.scrollY != 20 {
 		t.Errorf("expected scrollY 20, got %d", sv.scrollY)
 	}
+
 	if !invalidated {
 		t.Error("expected invalidation on scroll change")
 	}
 
 	// Scroll to same position should not invalidate
 	invalidated = false
+
 	sv.ScrollTo(ctx, 20)
+
 	if invalidated {
 		t.Error("should not invalidate when scroll position unchanged")
 	}
 
 	// Scroll past bounds should clamp
 	sv.ScrollTo(ctx, 100)
+
 	if sv.scrollY != 40 {
 		t.Errorf("expected scrollY clamped to 40, got %d", sv.scrollY)
 	}
@@ -161,11 +172,13 @@ func TestScrollView_ScrollBy(t *testing.T) {
 
 	sv.scrollY = 10
 	sv.ScrollBy(ctx, 5)
+
 	if sv.scrollY != 15 {
 		t.Errorf("expected scrollY 15, got %d", sv.scrollY)
 	}
 
 	sv.ScrollBy(ctx, -20)
+
 	if sv.scrollY != 0 {
 		t.Errorf("expected scrollY 0 after negative scroll, got %d", sv.scrollY)
 	}
@@ -187,6 +200,7 @@ func TestScrollView_Handle(t *testing.T) {
 	// Test KeyUp
 	sv.scrollY = 10
 	sv.Handle(event.KeyEvent{Key: event.KeyUp}, ctx)
+
 	if sv.scrollY != 9 {
 		t.Errorf("expected scrollY 9 after KeyUp, got %d", sv.scrollY)
 	}
@@ -194,6 +208,7 @@ func TestScrollView_Handle(t *testing.T) {
 	// Test KeyDown
 	sv.scrollY = 10
 	sv.Handle(event.KeyEvent{Key: event.KeyDown}, ctx)
+
 	if sv.scrollY != 11 {
 		t.Errorf("expected scrollY 11 after KeyDown, got %d", sv.scrollY)
 	}
@@ -217,6 +232,7 @@ func TestScrollView_Handle(t *testing.T) {
 	// Test KeyHome
 	sv.scrollY = 20
 	sv.Handle(event.KeyEvent{Key: event.KeyHome}, ctx)
+
 	if sv.scrollY != 0 {
 		t.Errorf("expected scrollY 0 after KeyHome, got %d", sv.scrollY)
 	}
@@ -224,16 +240,19 @@ func TestScrollView_Handle(t *testing.T) {
 	// Test KeyEnd
 	sv.scrollY = 20
 	sv.Handle(event.KeyEvent{Key: event.KeyEnd}, ctx)
+
 	if sv.scrollY != 40 {
 		t.Errorf("expected scrollY 40 after KeyEnd, got %d", sv.scrollY)
 	}
 
 	// Test non-scroll key
 	sv.scrollY = 10
+
 	handled := sv.Handle(event.KeyEvent{Key: event.KeyTab}, ctx)
 	if handled {
 		t.Error("expected KeyTab to not be handled")
 	}
+
 	if sv.scrollY != 10 {
 		t.Error("expected scrollY unchanged for unhandled key")
 	}
@@ -254,11 +273,13 @@ func TestScrollView_ScrollTopBottom(t *testing.T) {
 
 	sv.scrollY = 30
 	sv.ScrollTop(ctx)
+
 	if sv.scrollY != 0 {
 		t.Errorf("expected scrollY 0, got %d", sv.scrollY)
 	}
 
 	sv.ScrollBottom(ctx)
+
 	if sv.scrollY != 40 {
 		t.Errorf("expected scrollY 40, got %d", sv.scrollY)
 	}

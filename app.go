@@ -164,8 +164,10 @@ func (a *App) Enable() error {
 		if err != nil {
 			return err
 		}
+
 		a.opts.Backend = b
 	}
+
 	a.backend = a.opts.Backend
 
 	// Enable the backend
@@ -173,6 +175,7 @@ func (a *App) Enable() error {
 	if err != nil {
 		return err
 	}
+
 	a.size = size
 
 	// Detect or use provided capability
@@ -181,6 +184,7 @@ func (a *App) Enable() error {
 		detected := style.DetectCapabilityFromEnv()
 		cap = &detected
 	}
+
 	a.capability = *cap
 
 	// Query backend capabilities
@@ -213,9 +217,11 @@ func (a *App) Enable() error {
 	if err := a.flusher.ClearScreen(); err != nil {
 		return err
 	}
+
 	if err := a.flusher.HideCursor(); err != nil {
 		return err
 	}
+
 	if err := a.flusher.Flush(); err != nil {
 		return err
 	}
@@ -235,6 +241,7 @@ func (a *App) Restore() error {
 	if err := a.flusher.ShowCursor(); err != nil {
 		return err
 	}
+
 	if err := a.flusher.Flush(); err != nil {
 		return err
 	}
@@ -242,6 +249,7 @@ func (a *App) Restore() error {
 	if a.backend != nil {
 		return a.backend.Restore()
 	}
+
 	return nil
 }
 
@@ -299,12 +307,15 @@ func (a *App) invalidateLayoutDiff(oldNodes map[ID]*nodeEntry) {
 			if !newEntry.rect.Empty() {
 				a.Invalidate(newEntry.rect)
 			}
+
 			continue
 		}
+
 		if oldEntry.rect != newEntry.rect {
 			if !oldEntry.rect.Empty() {
 				a.Invalidate(oldEntry.rect)
 			}
+
 			if !newEntry.rect.Empty() {
 				a.Invalidate(newEntry.rect)
 			}
@@ -358,6 +369,7 @@ func (a *App) Run() (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			_ = a.Restore()
+
 			panic(r)
 		}
 	}()
@@ -372,14 +384,17 @@ func (a *App) Run() (err error) {
 
 	for a.running.Load() {
 		const maxPostsPerIteration = 64
+
 		ctx := a.mkUpdateCtx()
 
 		for range maxPostsPerIteration {
 			a.postMu.Lock()
+
 			if len(a.postQueue) == 0 {
 				a.postMu.Unlock()
 				break
 			}
+
 			fn := a.postQueue[0]
 			a.postQueue = a.postQueue[1:]
 			a.postMu.Unlock()
@@ -401,9 +416,11 @@ func (a *App) Run() (err error) {
 
 			// Coalesce consecutive motion events — keep only latest position.
 			var extra []Event
+
 			if me, ok := e.(MouseEvent); ok &&
 				(me.Action == event.MouseMove || me.Action == event.MouseDrag) {
 				var coalesced MouseEvent
+
 				coalesced, extra = a.drainMotionEvents(me)
 				e = coalesced
 			}
@@ -417,6 +434,7 @@ func (a *App) Run() (err error) {
 
 			for _, qe := range extra {
 				a.handleEvent(qe)
+
 				if !a.running.Load() {
 					a.setClosed()
 					return nil
@@ -431,6 +449,7 @@ func (a *App) Run() (err error) {
 	}
 
 	a.setClosed()
+
 	return nil
 }
 
@@ -451,6 +470,7 @@ func (a *App) readEvents() {
 			// Contract: Backend.ReadEvent() returns nil only on shutdown/EOF.
 			return
 		}
+
 		a.eventCh <- e
 	}
 }
@@ -476,18 +496,22 @@ func (a *App) handleEvent(e Event) {
 // (queued for ordered processing) or the channel is empty.
 func (a *App) drainMotionEvents(latest MouseEvent) (MouseEvent, []Event) {
 	var queued []Event
+
 	for {
 		select {
 		case e, ok := <-a.eventCh:
 			if !ok {
 				return latest, queued
 			}
+
 			if me, ok := e.(MouseEvent); ok &&
 				(me.Action == event.MouseMove || me.Action == event.MouseDrag) {
 				latest = me
 				continue
 			}
+
 			queued = append(queued, e)
+
 			return latest, queued
 		default:
 			return latest, queued
@@ -522,6 +546,7 @@ func (a *App) handleKeyEvent(e KeyEvent) {
 				a.DismissOverlay()
 				return
 			}
+
 			if a.dispatchAction(action, ctx) {
 				return
 			}
@@ -557,6 +582,7 @@ func (a *App) findFocusedView() View {
 	if a.focusedID == 0 || a.root == nil {
 		return nil
 	}
+
 	if entry, ok := a.nodes[a.focusedID]; ok {
 		return entry.view
 	}
@@ -571,6 +597,7 @@ func (a *App) findViewInTree(v View, id ID) View {
 	if v.ID() == id {
 		return v
 	}
+
 	if c, ok := v.(viewChildren); ok {
 		for _, child := range c.Children() {
 			if found := a.findViewInTree(child, id); found != nil {
@@ -578,6 +605,7 @@ func (a *App) findViewInTree(v View, id ID) View {
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -606,24 +634,28 @@ func (a *App) dispatchAction(action int, ctx *Ctx) bool {
 			if !ok {
 				continue
 			}
+
 			if ah, ok := entry.view.(actionHandler); ok {
 				if ah.HandleAction(action, ctx) {
 					return true
 				}
 			}
 		}
+
 		return false
 	}
 
 	// No focused view: fall back to full-tree DFS so global handlers (e.g.
 	// quit) still fire before anything has focus.
 	var walk func(v View) bool
+
 	walk = func(v View) bool {
 		if ah, ok := v.(actionHandler); ok {
 			if ah.HandleAction(action, ctx) {
 				return true
 			}
 		}
+
 		if c, ok := v.(viewChildren); ok {
 			for _, child := range c.Children() {
 				if walk(child) {
@@ -631,12 +663,14 @@ func (a *App) dispatchAction(action int, ctx *Ctx) bool {
 				}
 			}
 		}
+
 		return false
 	}
 
 	if a.root != nil {
 		return walk(a.root)
 	}
+
 	return false
 }
 
@@ -688,6 +722,7 @@ func (a *App) enrichMouseEvent(e *MouseEvent) {
 		} else {
 			a.mouse.clickCount = 1
 		}
+
 		e.ClickCount = a.mouse.clickCount
 
 	case event.MouseMove:
@@ -706,6 +741,7 @@ func (a *App) enrichMouseEvent(e *MouseEvent) {
 			a.mouse.lastClickY = e.Y
 			a.mouse.lastClickButton = e.Button
 		}
+
 		a.mouse.pressButton = event.MouseButtonNone
 		a.mouse.dragging = false
 	}
@@ -715,6 +751,7 @@ func abs(x int) int {
 	if x < 0 {
 		return -x
 	}
+
 	return x
 }
 
@@ -760,10 +797,12 @@ func (a *App) handlePasteEvent(e PasteEvent) {
 	if a.root == nil {
 		return
 	}
+
 	ctx := a.mkCtx(a.root)
 
 	if top := a.overlays.TopOverlay(); top != nil {
 		top.root.Handle(e, ctx)
+
 		if top.modal {
 			return
 		}
@@ -785,10 +824,12 @@ func (a *App) handleClipboardResponseEvent(e ClipboardResponseEvent) {
 	if a.root == nil {
 		return
 	}
+
 	ctx := a.mkCtx(a.root)
 
 	if top := a.overlays.TopOverlay(); top != nil {
 		top.root.Handle(e, ctx)
+
 		if top.modal {
 			return
 		}
@@ -855,9 +896,11 @@ func (a *App) mkCtx(v View) *Ctx {
 	if cb, ok := a.backend.(backend.ClipboardBackend); ok {
 		ctx.ClipboardWrite = func(s string) { _ = cb.ClipboardWrite(s) }
 	}
+
 	if ar, ok := a.backend.(backend.ClipboardAsyncReader); ok && a.inputCaps.ClipboardRead {
 		ctx.ClipboardRead = func() { _ = ar.ClipboardReadRequest() }
 	}
+
 	return ctx
 }
 
@@ -889,6 +932,7 @@ func (a *App) setRequestFocus(id ID) {
 			if a.scopeMemory[scope] == nil {
 				a.scopeMemory[scope] = &scopeState{}
 			}
+
 			a.scopeMemory[scope].lastFocused = id
 		}
 	}
@@ -898,6 +942,7 @@ func (a *App) setRequestFocus(id ID) {
 		if entry, ok := a.nodes[nodeID]; ok {
 			return entry.rect, true
 		}
+
 		return geom.Rect{}, false
 	}
 
@@ -909,6 +954,7 @@ func (a *App) setRequestFocus(id ID) {
 		} else {
 			a.InvalidateAll()
 		}
+
 		return
 	}
 
@@ -922,6 +968,7 @@ func (a *App) setRequestFocus(id ID) {
 	if !unknownOld {
 		a.Invalidate(oldRect)
 	}
+
 	if !unknownNew {
 		a.Invalidate(newRect)
 	}
@@ -949,9 +996,11 @@ func (a *App) render() {
 
 	// Coalesce invalidations into damage
 	a.damage.Clear()
+
 	for _, r := range a.invalidRects {
 		a.damage.AddRect(r)
 	}
+
 	a.invalidRects = a.invalidRects[:0]
 
 	// If still no damage, nothing to do
@@ -1017,6 +1066,7 @@ func (a *App) flush() {
 	if len(runs) > 0 {
 		a.errs.Add(a.flusher.FlushRuns(a.backBuf, a.frontBuf, runs))
 	}
+
 	a.errs.Add(a.backend.Flush())
 }
 
@@ -1050,10 +1100,12 @@ func (a *App) Post(fn func(ctx *UpdateCtx)) error {
 	}
 
 	a.closeMu.RLock()
+
 	if a.closed {
 		a.closeMu.RUnlock()
 		return ErrClosed
 	}
+
 	a.closeMu.RUnlock()
 
 	a.postMu.Lock()
@@ -1061,6 +1113,7 @@ func (a *App) Post(fn func(ctx *UpdateCtx)) error {
 	a.postMu.Unlock()
 
 	a.wake()
+
 	return nil
 }
 
@@ -1092,6 +1145,7 @@ func (a *App) ShowOverlay(opts OverlayOpts) *Overlay {
 
 	// Focus first focusable in overlay
 	a.focusFirstIn(o.root)
+
 	return o
 }
 
@@ -1102,6 +1156,7 @@ func (a *App) DismissOverlay() *Overlay {
 	if o == nil {
 		return nil
 	}
+
 	if o.onDismiss != nil {
 		o.onDismiss()
 	}
@@ -1112,6 +1167,7 @@ func (a *App) DismissOverlay() *Overlay {
 	// Restore focus
 	a.setRequestFocus(o.savedFocus)
 	a.Invalidate(o.rect)
+
 	return o
 }
 
@@ -1121,13 +1177,16 @@ func (a *App) DismissOverlayByID(id ID) *Overlay {
 	if o == nil {
 		return nil
 	}
+
 	if o.onDismiss != nil {
 		o.onDismiss()
 	}
+
 	a.rebuildTree()
 	a.updateBounds()
 	a.setRequestFocus(o.savedFocus)
 	a.Invalidate(o.rect)
+
 	return o
 }
 
@@ -1136,12 +1195,15 @@ func (a *App) focusFirstIn(v View) {
 	type composite interface {
 		Children() []View
 	}
+
 	var walk func(View) bool
+
 	walk = func(v View) bool {
 		if f, ok := v.(viewFocusable); ok && f.Focusable() {
 			a.setRequestFocus(v.ID())
 			return true
 		}
+
 		if c, ok := v.(composite); ok {
 			for _, child := range c.Children() {
 				if walk(child) {
@@ -1149,6 +1211,7 @@ func (a *App) focusFirstIn(v View) {
 				}
 			}
 		}
+
 		return false
 	}
 	walk(v)

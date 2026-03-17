@@ -26,6 +26,7 @@ func FindFirstFocusable(root tui.View) tui.View {
 
 	visited := make(map[tui.ID]struct{})
 	visited[root.ID()] = struct{}{}
+
 	return findFirstFocusable(composite, visited)
 }
 
@@ -35,6 +36,7 @@ func findFirstFocusable(c ui.Composite, visited map[tui.ID]struct{}) tui.View {
 		if _, ok := visited[id]; ok {
 			continue
 		}
+
 		visited[id] = struct{}{}
 
 		if f, ok := child.(ui.Focusable); ok && f.Focusable() {
@@ -51,6 +53,7 @@ func findFirstFocusable(c ui.Composite, visited map[tui.ID]struct{}) tui.View {
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -65,6 +68,7 @@ func FindByID(root tui.View, id tui.ID) tui.View {
 
 	visited := make(map[tui.ID]struct{})
 	visited[root.ID()] = struct{}{}
+
 	return findByID(composite, id, visited)
 }
 
@@ -80,6 +84,7 @@ func findByID(c ui.Composite, id tui.ID, visited map[tui.ID]struct{}) tui.View {
 		if _, ok := visited[cid]; ok {
 			continue
 		}
+
 		visited[cid] = struct{}{}
 
 		if nested, ok := child.(ui.Composite); ok {
@@ -88,6 +93,7 @@ func findByID(c ui.Composite, id tui.ID, visited map[tui.ID]struct{}) tui.View {
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -102,8 +108,10 @@ func CollectFocusable(root tui.View) []tui.View {
 
 	visited := make(map[tui.ID]struct{})
 	visited[root.ID()] = struct{}{}
+
 	var out []tui.View
 	collectFocusable(composite, visited, &out)
+
 	return out
 }
 
@@ -113,6 +121,7 @@ func collectFocusable(c ui.Composite, visited map[tui.ID]struct{}, out *[]tui.Vi
 		if _, ok := visited[id]; ok {
 			continue
 		}
+
 		visited[id] = struct{}{}
 
 		if f, ok := child.(ui.Focusable); ok && f.Focusable() {

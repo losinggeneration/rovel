@@ -42,14 +42,17 @@ func NewSelectOpts(opts SelectOpts) *Select {
 	if isZeroID(id) {
 		id = tui.NewID()
 	}
+
 	sel := opts.Selected
 	if sel < -1 || sel >= len(opts.Items) {
 		sel = -1
 	}
+
 	ph := opts.Placeholder
 	if ph == "" {
 		ph = "-- select --"
 	}
+
 	return &Select{
 		id:          id,
 		items:       opts.Items,
@@ -72,6 +75,7 @@ func (s *Select) SetSelected(ctx *tui.Ctx, idx int) {
 	if idx < -1 || idx >= len(s.items) || idx == s.selected {
 		return
 	}
+
 	s.selected = idx
 	if ctx != nil {
 		ctx.Invalidate(s.rect)
@@ -89,6 +93,7 @@ func (s *Select) MinSize() geom.Size {
 			maxW = w
 		}
 	}
+
 	return geom.Size{W: maxW + 4, H: 1} // "v " prefix + padding
 }
 
@@ -99,6 +104,7 @@ func (s *Select) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	}
 
 	focused := ctx != nil && ctx.FocusedID == s.id
+
 	st := ctx.Theme.Base
 	if focused {
 		st = ctx.Theme.Palette.Focus
@@ -119,6 +125,7 @@ func (s *Select) displayText() string {
 	if s.selected >= 0 && s.selected < len(s.items) {
 		return s.items[s.selected]
 	}
+
 	return s.placeholder
 }
 
@@ -128,9 +135,12 @@ func (s *Select) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			if ctx != nil && ctx.RequestFocus != nil {
 				ctx.RequestFocus(s.id)
 			}
+
 			s.openDropdown(ctx)
+
 			return true
 		}
+
 		return false
 	}
 
@@ -149,6 +159,7 @@ func (s *Select) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -158,6 +169,7 @@ func (s *Select) HandleAction(act int, ctx *tui.Ctx) bool {
 		s.openDropdown(ctx)
 		return true
 	}
+
 	return false
 }
 
@@ -169,13 +181,16 @@ func (s *Select) openDropdown(ctx *tui.Ctx) {
 	list := newSelectList(s.items, s.selected, func(idx int, lctx *tui.Ctx) {
 		old := s.selected
 		s.selected = idx
+
 		if lctx != nil {
 			// Dismiss overlay
 			if lctx.DismissOverlay != nil {
 				lctx.DismissOverlay()
 			}
+
 			lctx.Invalidate(s.rect)
 		}
+
 		if s.selected != old && s.onChange != nil {
 			s.onChange(s.selected, lctx)
 		}
@@ -203,6 +218,7 @@ func newSelectList(items []string, initial int, onSelect func(int, *tui.Ctx)) *s
 	if focused < 0 {
 		focused = 0
 	}
+
 	return &selectList{
 		id:       tui.NewID(),
 		items:    items,
@@ -218,12 +234,14 @@ func (l *selectList) Focusable() bool   { return true }
 
 func (l *selectList) MinSize() geom.Size {
 	maxW := 0
+
 	for _, item := range l.items {
 		w := text.Width(item) + 2
 		if w > maxW {
 			maxW = w
 		}
 	}
+
 	return geom.Size{W: maxW, H: len(l.items)}
 }
 
@@ -246,6 +264,7 @@ func (l *selectList) Paint(p *tui.Painter, ctx *tui.Ctx) {
 		if i >= r.H {
 			break
 		}
+
 		y := r.Y + i
 
 		var st style.Style
@@ -271,8 +290,10 @@ func (l *selectList) Handle(e tui.Event, ctx *tui.Ctx) bool {
 					l.onSelect(idx, ctx)
 				}
 			}
+
 			return true
 		}
+
 		return false
 	}
 
@@ -287,26 +308,31 @@ func (l *selectList) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			l.focused--
 			ctx.Invalidate(l.rect)
 		}
+
 		return true
 	case tui.KeyDown:
 		if l.focused < len(l.items)-1 {
 			l.focused++
 			ctx.Invalidate(l.rect)
 		}
+
 		return true
 	case tui.KeyEnter:
 		if l.onSelect != nil {
 			l.onSelect(l.focused, ctx)
 		}
+
 		return true
 	case tui.KeyRune:
 		if ke.Rune == ' ' {
 			if l.onSelect != nil {
 				l.onSelect(l.focused, ctx)
 			}
+
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -317,19 +343,23 @@ func (l *selectList) HandleAction(act int, ctx *tui.Ctx) bool {
 		if l.onSelect != nil {
 			l.onSelect(l.focused, ctx)
 		}
+
 		return true
 	case ui.ActionMoveUp:
 		if l.focused > 0 {
 			l.focused--
 			ctx.Invalidate(l.rect)
 		}
+
 		return true
 	case ui.ActionMoveDown:
 		if l.focused < len(l.items)-1 {
 			l.focused++
 			ctx.Invalidate(l.rect)
 		}
+
 		return true
 	}
+
 	return false
 }

@@ -48,12 +48,14 @@ func (appKeymap) Resolve(ctx ui.KeyContext, k ui.Keystroke) (ui.Action, bool) {
 	if ctx == ui.KeyCtxTextInput && k.Key == event.KeyCtrlC {
 		return ui.ActionNone, false
 	}
+
 	switch k.Key {
 	case event.KeyCtrlC:
 		return ActionQuit, true
 	case event.KeyEsc:
 		return ActionQuit, true
 	}
+
 	return ui.ActionNone, false
 }
 
@@ -102,6 +104,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
+
 	s.app = app
 
 	root := s.buildUI()
@@ -111,6 +114,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
+
 	defer func() { _ = app.Restore() }()
 
 	if err := app.Run(); err != nil {
@@ -187,6 +191,7 @@ func (s *state) buildButtonSection() tui.View {
 
 	b := layout.NewBorder(row)
 	b.SetTitle("Buttons")
+
 	return b
 }
 
@@ -196,6 +201,7 @@ func (s *state) buildTextInputSection() tui.View {
 
 	b := layout.NewBorder(s.textInput)
 	b.SetTitle("Text Input (paste-aware)")
+
 	return b
 }
 
@@ -229,6 +235,7 @@ func (s *state) buildCheckboxSection() tui.View {
 
 	b := layout.NewBorder(col)
 	b.SetTitle("Checkboxes")
+
 	return b
 }
 
@@ -244,6 +251,7 @@ func (s *state) buildRadioSection() tui.View {
 
 	b := layout.NewBorder(s.radio)
 	b.SetTitle("Radio Group")
+
 	return b
 }
 
@@ -268,6 +276,7 @@ func (s *state) buildOverlaySection() tui.View {
 
 	b := layout.NewBorder(row)
 	b.SetTitle("Overlays / Clipboard")
+
 	return b
 }
 
@@ -279,6 +288,7 @@ func (s *state) buildCanvasSection() tui.View {
 			if r.W <= 0 || r.H <= 0 {
 				return
 			}
+
 			accentSt := ctx.Theme.Palette.Accent
 			if accentSt == (style.Style{}) {
 				accentSt = ctx.Theme.Base
@@ -286,10 +296,12 @@ func (s *state) buildCanvasSection() tui.View {
 			// Draw a sine-wave bar chart
 			for x := 0; x < r.W; x++ {
 				v := (math.Sin(float64(x)*0.5) + 1) / 2 // 0..1
+
 				barH := int(v * float64(r.H))
 				if barH < 1 {
 					barH = 1
 				}
+
 				for y := r.H - barH; y < r.H; y++ {
 					p.SetCell(r.X+x, r.Y+y, '▮', accentSt)
 				}
@@ -299,6 +311,7 @@ func (s *state) buildCanvasSection() tui.View {
 
 	b := layout.NewBorder(canvas)
 	b.SetTitle("Canvas (custom paint)")
+
 	return b
 }
 
@@ -327,6 +340,7 @@ func (s *state) buildSelectSection() tui.View {
 
 	b := layout.NewBorder(s.selectW)
 	b.SetTitle("Select / Dropdown (overlay)")
+
 	return b
 }
 
@@ -341,6 +355,7 @@ func (s *state) buildProgressSection() tui.View {
 		if v < 0 {
 			v = 0
 		}
+
 		s.progress.SetValue(ctx, v)
 		s.setStatus(ctx, fmt.Sprintf("Progress: %.0f%%", s.progress.Value()*100))
 	})
@@ -351,6 +366,7 @@ func (s *state) buildProgressSection() tui.View {
 		if v > 1 {
 			v = 1
 		}
+
 		s.progress.SetValue(ctx, v)
 		s.setStatus(ctx, fmt.Sprintf("Progress: %.0f%%", s.progress.Value()*100))
 	})
@@ -370,6 +386,7 @@ func (s *state) buildProgressSection() tui.View {
 
 	b := layout.NewBorder(col)
 	b.SetTitle("Progress Bar")
+
 	return b
 }
 
@@ -394,6 +411,7 @@ func (s *state) buildTabsSection() tui.View {
 
 	b := layout.NewBorder(s.tabs)
 	b.SetTitle("Tabs (Left/Right to switch)")
+
 	return b
 }
 
@@ -428,6 +446,7 @@ func (s *state) buildScrollTab() tui.View {
 	for i := 1; i <= 200; i++ {
 		lines += fmt.Sprintf("Line %3d  — scroll with arrow keys, PgUp/PgDn, or mouse wheel\n", i)
 	}
+
 	label := widgets.NewLabel(lines)
 
 	sv := widgets.NewScrollView(widgets.ScrollViewOpts{
@@ -514,6 +533,7 @@ func (s *state) openDialog(ctx *tui.Ctx) {
 				Label: "OK",
 				OnPress: func(ctx *tui.Ctx) {
 					s.setStatus(ctx, "Dialog: OK")
+
 					if ctx.DismissOverlay != nil {
 						ctx.DismissOverlay()
 					}
@@ -523,6 +543,7 @@ func (s *state) openDialog(ctx *tui.Ctx) {
 				Label: "Cancel",
 				OnPress: func(ctx *tui.Ctx) {
 					s.setStatus(ctx, "Dialog: Cancelled")
+
 					if ctx.DismissOverlay != nil {
 						ctx.DismissOverlay()
 					}
@@ -570,6 +591,7 @@ func (r *rootView) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	if barSt == (style.Style{}) {
 		barSt = ctx.Theme.Base
 	}
+
 	p.Fill(geom.Rect{X: r.rect.X, Y: r.rect.Y, W: r.rect.W, H: 1}, ' ', barSt)
 	r.state.status.Layout(geom.Rect{X: r.rect.X + 1, Y: r.rect.Y, W: r.rect.W - 2, H: 1})
 	r.state.status.Paint(p, ctx)
@@ -583,9 +605,12 @@ func (r *rootView) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		if len(txt) > 60 {
 			txt = txt[:60] + "..."
 		}
+
 		r.state.setStatus(ctx, fmt.Sprintf("Clipboard: %s", txt))
+
 		return true
 	}
+
 	return r.child.Handle(e, ctx)
 }
 
@@ -594,6 +619,7 @@ func (r *rootView) HandleAction(act int, ctx *tui.Ctx) bool {
 		r.app.Quit()
 		return true
 	}
+
 	return false
 }
 
@@ -646,6 +672,7 @@ func (sp *scrollPanel) MouseOpaque() {}
 func (sp *scrollPanel) MinSize() geom.Size {
 	ms := sp.content.MinSize()
 	ms.W++
+
 	return ms
 }
 
@@ -680,6 +707,7 @@ func (sp *scrollPanel) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		if sp.scrollbar.Dragging() {
 			sp.scrollbar.Handle(me, ctx)
 			ctx.Invalidate(sp.scrollbar.Rect())
+
 			return true
 		}
 
@@ -688,6 +716,7 @@ func (sp *scrollPanel) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		if me.X >= sbRect.X && me.X < sbRect.X+sbRect.W {
 			sp.scrollbar.Handle(me, ctx)
 			ctx.Invalidate(sp.scrollbar.Rect())
+
 			return true
 		}
 
@@ -695,11 +724,13 @@ func (sp *scrollPanel) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		if me.Button == tui.MouseButtonWheelUp || me.Button == tui.MouseButtonWheelDown {
 			handled := sp.content.Handle(me, ctx)
 			ctx.Invalidate(sp.scrollbar.Rect())
+
 			return handled
 		}
 
 		// Other mouse events: forward to content
 		return sp.content.Handle(me, ctx)
 	}
+
 	return sp.content.Handle(e, ctx)
 }

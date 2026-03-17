@@ -15,6 +15,7 @@ func (DefaultKeymap) Resolve(ctx KeyContext, k Keystroke) (Action, bool) {
 	if ctx == KeyCtxTextInput {
 		return defaultTextInputBinding(k)
 	}
+
 	return defaultGlobalBinding(k)
 }
 
@@ -55,6 +56,7 @@ func defaultGlobalBinding(k Keystroke) (Action, bool) {
 			return ActionActivate, true
 		}
 	}
+
 	return ActionNone, false
 }
 
@@ -109,6 +111,7 @@ func defaultTextInputBinding(k Keystroke) (Action, bool) {
 	case event.KeyEnd:
 		return ActionEnd, true
 	}
+
 	return ActionNone, false
 }
 
@@ -123,5 +126,6 @@ func (c CompositeKeymap) Resolve(ctx KeyContext, k Keystroke) (Action, bool) {
 			return a, true
 		}
 	}
+
 	return ActionNone, false
 }

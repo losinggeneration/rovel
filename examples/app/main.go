@@ -29,6 +29,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Failed to enable app: %v\n", err)
 		os.Exit(1)
 	}
+
 	defer func() {
 		if err := app.Restore(); err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to restore terminal: %v\n", err)
@@ -148,6 +149,7 @@ func (v *DemoView) Handle(e tui.Event, ctx *tui.Ctx) bool {
 				if v.quit != nil {
 					v.quit()
 				}
+
 				return true
 
 			case ' ':
@@ -174,6 +176,7 @@ func (v *DemoView) Handle(e tui.Event, ctx *tui.Ctx) bool {
 				}
 				ctx.Invalidate(headerRect)
 			}
+
 			return true
 		}
 	}

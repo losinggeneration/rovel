@@ -14,11 +14,14 @@ func NewResolver(keymap Keymap) func(event.KeyEvent, tui.View) (int, bool) {
 		if tim, ok := focused.(TextInputMode); ok && tim.IsTextInputMode() {
 			ctx = KeyCtxTextInput
 		}
+
 		ks := KeystrokeOf(e)
+
 		action, ok := keymap.Resolve(ctx, ks)
 		if !ok {
 			return 0, false
 		}
+
 		return int(action), true
 	}
 }

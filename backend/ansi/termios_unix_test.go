@@ -19,6 +19,7 @@ func TestRawModeIntegration(t *testing.T) {
 
 	// Get original state
 	fd := int(os.Stdin.Fd())
+
 	var orig unix.Termios
 	if err := unix.IoctlSetTermios(fd, unix.TCGETS, &orig); err != nil {
 		t.Fatalf("failed to get terminal state: %v", err)
@@ -39,6 +40,7 @@ func TestRawModeIntegration(t *testing.T) {
 	if current.Lflag&unix.ICANON != 0 {
 		t.Error("ICANON not cleared in raw mode")
 	}
+
 	if current.Lflag&unix.ECHO != 0 {
 		t.Error("ECHO not cleared in raw mode")
 	}

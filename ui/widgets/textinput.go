@@ -36,6 +36,7 @@ func (t *TextInput) SetText(ctx *tui.Ctx, s string) {
 	t.cursor = len(t.text)
 	t.cursor = text.ClampCluster(t.text, t.cursor)
 	t.updateScroll()
+
 	if ctx != nil {
 		ctx.Invalidate(t.rect)
 	}
@@ -71,6 +72,7 @@ func (t *TextInput) PreferredSize() geom.Size {
 	if w < 10 {
 		w = 10
 	}
+
 	return geom.Size{W: w, H: 1}
 }
 
@@ -90,6 +92,7 @@ func (t *TextInput) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 	startLeft := text.OffsetAtColumnBias(t.text, t.scrollX, text.BiasLeft)
 	startRight := text.OffsetAtColumnBias(t.text, t.scrollX, text.BiasRight)
+
 	startByte := startLeft
 	if startRight != startLeft {
 		// We're in the middle of a wide cluster; leave a blank cell.
@@ -129,10 +132,12 @@ func (t *TextInput) Paint(p *tui.Painter, ctx *tui.Ctx) {
 			if rw <= 0 {
 				continue
 			}
+
 			if availableW < rw {
 				availableW = 0
 				break
 			}
+
 			p.SetCell(x, y, r, st)
 			x += rw
 			availableW -= rw
@@ -170,8 +175,10 @@ func (t *TextInput) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			t.cursor = text.ClampCluster(t.text, t.cursor)
 			t.updateScroll()
 			ctx.Invalidate(t.rect)
+
 			return true
 		}
+
 		return false
 	}
 
@@ -196,9 +203,11 @@ func (t *TextInput) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		if insert == "" {
 			return true
 		}
+
 		if t.hasSelection() {
 			t.deleteSelection()
 		}
+
 		t.cursor = text.ClampCluster(t.text, t.cursor)
 		t.text = t.text[:t.cursor] + insert + t.text[t.cursor:]
 		t.cursor += len(insert)
@@ -206,30 +215,35 @@ func (t *TextInput) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		t.anchor = -1
 		t.updateScroll()
 		ctx.Invalidate(t.rect)
+
 		return true
 
 	case tui.KeyLeft:
 		t.cursor = text.PrevCluster(t.text, t.cursor)
 		t.updateScroll()
 		ctx.Invalidate(t.rect)
+
 		return true
 
 	case tui.KeyRight:
 		t.cursor = text.NextCluster(t.text, t.cursor)
 		t.updateScroll()
 		ctx.Invalidate(t.rect)
+
 		return true
 
 	case tui.KeyBackspace:
 		t.text, t.cursor = text.DeletePrevCluster(t.text, t.cursor)
 		t.updateScroll()
 		ctx.Invalidate(t.rect)
+
 		return true
 
 	case tui.KeyDelete:
 		t.text, t.cursor = text.DeleteNextCluster(t.text, t.cursor)
 		t.updateScroll()
 		ctx.Invalidate(t.rect)
+
 		return true
 	}
 
@@ -241,16 +255,19 @@ func (t *TextInput) handlePaste(e event.PasteEvent, ctx *tui.Ctx) bool {
 	if ctx.FocusedID != t.id {
 		return false
 	}
+
 	insert := text.Sanitize(e.Text)
 	if insert == "" {
 		return true
 	}
+
 	t.cursor = text.ClampCluster(t.text, t.cursor)
 	t.text = t.text[:t.cursor] + insert + t.text[t.cursor:]
 	t.cursor += len(insert)
 	t.cursor = text.ClampCluster(t.text, t.cursor)
 	t.updateScroll()
 	ctx.Invalidate(t.rect)
+
 	return true
 }
 
@@ -264,6 +281,7 @@ func (t *TextInput) selectionRange() text.Range {
 	if t.anchor < 0 {
 		return text.Range{Start: t.cursor, End: t.cursor}
 	}
+
 	return text.Range{Start: t.anchor, End: t.cursor}.Normalized()
 }
 
@@ -272,7 +290,9 @@ func (t *TextInput) selectedText() string {
 	if !t.hasSelection() {
 		return ""
 	}
+
 	r := t.selectionRange()
+
 	return t.text[r.Start:r.End]
 }
 
@@ -281,6 +301,7 @@ func (t *TextInput) deleteSelection() {
 	if !t.hasSelection() {
 		return
 	}
+
 	r := t.selectionRange()
 	t.text, _ = text.DeleteRange(t.text, r)
 	t.cursor = r.Start
@@ -305,9 +326,11 @@ func (t *TextInput) HandleAction(act int, ctx *tui.Ctx) bool {
 		} else {
 			t.anchor = -1
 		}
+
 		t.cursor = text.PrevCluster(t.text, t.cursor)
 		t.updateScroll()
 		ctx.Invalidate(t.rect)
+
 		return true
 	case ui.ActionMoveRight:
 		if isShift {
@@ -317,9 +340,11 @@ func (t *TextInput) HandleAction(act int, ctx *tui.Ctx) bool {
 		} else {
 			t.anchor = -1
 		}
+
 		t.cursor = text.NextCluster(t.text, t.cursor)
 		t.updateScroll()
 		ctx.Invalidate(t.rect)
+
 		return true
 	case ui.ActionDeleteBackward:
 		if t.hasSelection() {
@@ -327,9 +352,11 @@ func (t *TextInput) HandleAction(act int, ctx *tui.Ctx) bool {
 		} else {
 			t.text, t.cursor = text.DeletePrevCluster(t.text, t.cursor)
 		}
+
 		t.anchor = -1
 		t.updateScroll()
 		ctx.Invalidate(t.rect)
+
 		return true
 	case ui.ActionDeleteForward:
 		if t.hasSelection() {
@@ -337,9 +364,11 @@ func (t *TextInput) HandleAction(act int, ctx *tui.Ctx) bool {
 		} else {
 			t.text, t.cursor = text.DeleteNextCluster(t.text, t.cursor)
 		}
+
 		t.anchor = -1
 		t.updateScroll()
 		ctx.Invalidate(t.rect)
+
 		return true
 	case ui.ActionHome:
 		if isShift {
@@ -349,9 +378,11 @@ func (t *TextInput) HandleAction(act int, ctx *tui.Ctx) bool {
 		} else {
 			t.anchor = -1
 		}
+
 		t.cursor = 0
 		t.updateScroll()
 		ctx.Invalidate(t.rect)
+
 		return true
 	case ui.ActionEnd:
 		if isShift {
@@ -361,32 +392,39 @@ func (t *TextInput) HandleAction(act int, ctx *tui.Ctx) bool {
 		} else {
 			t.anchor = -1
 		}
+
 		t.cursor = len(t.text)
 		t.updateScroll()
 		ctx.Invalidate(t.rect)
+
 		return true
 	case ui.ActionSelectAll:
 		t.anchor = 0
 		t.cursor = len(t.text)
 		t.updateScroll()
 		ctx.Invalidate(t.rect)
+
 		return true
 	case ui.ActionCopy:
 		if t.hasSelection() && ctx.ClipboardWrite != nil {
 			ctx.ClipboardWrite(t.selectedText())
 		}
+
 		return true
 	case ui.ActionCut:
 		if t.hasSelection() {
 			if ctx.ClipboardWrite != nil {
 				ctx.ClipboardWrite(t.selectedText())
 			}
+
 			t.deleteSelection()
 			t.updateScroll()
 			ctx.Invalidate(t.rect)
 		}
+
 		return true
 	}
+
 	return false
 }
 
@@ -415,6 +453,7 @@ func (t *TextInput) updateScroll() {
 	if cursorX < t.scrollX {
 		t.scrollX = cursorX
 	}
+
 	if cursorX >= t.scrollX+t.rect.W {
 		t.scrollX = cursorX - t.rect.W + 1
 	}

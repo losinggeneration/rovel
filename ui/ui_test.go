@@ -8,6 +8,7 @@ import (
 
 func TestKeystrokeOf(t *testing.T) {
 	e := event.KeyEvent{Key: event.KeyRune, Rune: 'x', Mod: event.ModCtrl}
+
 	ks := KeystrokeOf(e)
 	if ks.Key != event.KeyRune || ks.Rune != 'x' || ks.Mod != event.ModCtrl {
 		t.Errorf("KeystrokeOf mismatch: got %+v", ks)
@@ -84,6 +85,7 @@ func TestCompositeKeymap_FirstMatchWins(t *testing.T) {
 		if k.Key == event.KeyEnter {
 			return ActionSubmit, true
 		}
+
 		return ActionNone, false
 	})
 
@@ -106,6 +108,7 @@ func TestCompositeKeymap_FirstMatchWins(t *testing.T) {
 
 func TestCompositeKeymap_Empty(t *testing.T) {
 	composite := CompositeKeymap{}
+
 	_, ok := composite.Resolve(KeyCtxGlobal, Keystroke{Key: event.KeyEnter})
 	if ok {
 		t.Error("empty composite should not resolve anything")
@@ -122,11 +125,13 @@ func TestAction_Constants(t *testing.T) {
 		ActionDeleteBackward, ActionDeleteForward,
 		ActionPaste, ActionSelectAll, ActionCopy, ActionCut,
 	}
+
 	seen := make(map[Action]bool)
 	for _, a := range actions {
 		if seen[a] {
 			t.Errorf("duplicate Action value: %d", a)
 		}
+
 		seen[a] = true
 	}
 }

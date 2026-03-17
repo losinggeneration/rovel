@@ -43,6 +43,7 @@ func (pm *PerfMonitor) RecordPaint(name string, duration time.Duration) {
 	if !pm.enabled {
 		return
 	}
+
 	pm.recordMetric(name+"_paint", duration, pm.paintThreshold)
 }
 
@@ -51,6 +52,7 @@ func (pm *PerfMonitor) RecordScroll(name string, duration time.Duration) {
 	if !pm.enabled {
 		return
 	}
+
 	pm.recordMetric(name+"_scroll", duration, pm.scrollThreshold)
 }
 
@@ -76,9 +78,11 @@ func (pm *PerfMonitor) recordMetric(key string, duration time.Duration, threshol
 	if ns < m.minNs {
 		m.minNs = ns
 	}
+
 	if ns > m.maxNs {
 		m.maxNs = ns
 	}
+
 	if duration > threshold {
 		m.exceeds++
 	}
@@ -98,6 +102,7 @@ func (pm *PerfMonitor) Report() string {
 	}
 
 	var report string
+
 	report += "=== Performance Report ===\n"
 
 	// Group by operation type
@@ -154,8 +159,10 @@ func (pm *PerfMonitor) Summary() string {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
-	var totalOps int64
-	var totalExceeds int64
+	var (
+		totalOps     int64
+		totalExceeds int64
+	)
 
 	for _, m := range pm.metrics {
 		totalOps += m.count
@@ -188,7 +195,9 @@ func NewInstrumentedVirtualList(name string, base *virtual.VirtualList, monitor 
 // Paint records paint performance before delegating to the base list.
 func (i *InstrumentedVirtualList) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	start := time.Now()
+
 	i.VirtualList.Paint(p, ctx)
+
 	duration := time.Since(start)
 	i.monitor.RecordPaint(i.name, duration)
 }
@@ -196,7 +205,9 @@ func (i *InstrumentedVirtualList) Paint(p *tui.Painter, ctx *tui.Ctx) {
 // ScrollTo records scroll performance before delegating to the base list.
 func (i *InstrumentedVirtualList) ScrollTo(ctx *tui.Ctx, item int) {
 	start := time.Now()
+
 	i.VirtualList.ScrollTo(ctx, item)
+
 	duration := time.Since(start)
 	i.monitor.RecordScroll(i.name, duration)
 }
@@ -204,7 +215,9 @@ func (i *InstrumentedVirtualList) ScrollTo(ctx *tui.Ctx, item int) {
 // ScrollBy records scroll performance before delegating to the base list.
 func (i *InstrumentedVirtualList) ScrollBy(ctx *tui.Ctx, delta int) {
 	start := time.Now()
+
 	i.VirtualList.ScrollBy(ctx, delta)
+
 	duration := time.Since(start)
 	i.monitor.RecordScroll(i.name+"_by", duration)
 }
@@ -212,7 +225,9 @@ func (i *InstrumentedVirtualList) ScrollBy(ctx *tui.Ctx, delta int) {
 // ScrollTop records scroll performance before delegating to the base list.
 func (i *InstrumentedVirtualList) ScrollTop(ctx *tui.Ctx) {
 	start := time.Now()
+
 	i.VirtualList.ScrollTop(ctx)
+
 	duration := time.Since(start)
 	i.monitor.RecordScroll(i.name+"_top", duration)
 }
@@ -220,7 +235,9 @@ func (i *InstrumentedVirtualList) ScrollTop(ctx *tui.Ctx) {
 // ScrollBottom records scroll performance before delegating to the base list.
 func (i *InstrumentedVirtualList) ScrollBottom(ctx *tui.Ctx) {
 	start := time.Now()
+
 	i.VirtualList.ScrollBottom(ctx)
+
 	duration := time.Since(start)
 	i.monitor.RecordScroll(i.name+"_bottom", duration)
 }
@@ -228,7 +245,9 @@ func (i *InstrumentedVirtualList) ScrollBottom(ctx *tui.Ctx) {
 // SelectIndex records selection performance before delegating to the base list.
 func (i *InstrumentedVirtualList) SelectIndex(ctx *tui.Ctx, index int) {
 	start := time.Now()
+
 	i.VirtualList.SelectIndex(ctx, index)
+
 	duration := time.Since(start)
 	i.monitor.RecordScroll(i.name+"_select", duration)
 }

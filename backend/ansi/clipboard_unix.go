@@ -15,13 +15,16 @@ func (b *Backend) ClipboardWrite(text string) error {
 	if len(text) > maxClipboardBytes {
 		return fmt.Errorf("clipboard payload too large: %d bytes (max %d)", len(text), maxClipboardBytes)
 	}
+
 	encoded := base64.StdEncoding.EncodeToString([]byte(text))
 	// OSC 52 ; c ; <base64> ST
 	seq := fmt.Sprintf("\x1b]52;c;%s\x1b\\", encoded)
+
 	_, err := b.w.WriteString(seq)
 	if err != nil {
 		return err
 	}
+
 	return b.w.Flush()
 }
 
@@ -39,5 +42,6 @@ func (b *Backend) ClipboardReadRequest() error {
 	if err != nil {
 		return err
 	}
+
 	return b.w.Flush()
 }

@@ -33,8 +33,10 @@ func WrapLines(s string, opts WrapOptions) []WrappedLine {
 	var out []WrappedLine
 
 	lineStart := 0
+
 	for i := 0; i <= len(s); i++ {
 		atEnd := i == len(s)
+
 		isNL := !atEnd && s[i] == '\n'
 		if !atEnd && !isNL {
 			continue
@@ -77,6 +79,7 @@ func WrapLines(s string, opts WrapOptions) []WrappedLine {
 	if len(out) == 0 {
 		return []WrappedLine{{StartByte: 0, EndByte: 0, Cols: 0, HardBreak: false}}
 	}
+
 	return out
 }
 
@@ -103,14 +106,17 @@ func wrapSegmentClusters(
 			if next > endByte {
 				next = endByte
 			}
+
 			clusterW := WidthBetween(s, pos, next)
 
 			if width > 0 && cols == 0 && clusterW > width {
 				cols = clusterW
 				pos = next
 				lineEnd = pos
+
 				break
 			}
+
 			if width > 0 && cols > 0 && cols+clusterW > width {
 				break
 			}
@@ -125,6 +131,7 @@ func wrapSegmentClusters(
 			if next > endByte {
 				next = endByte
 			}
+
 			lineEnd = next
 			cols = WidthBetween(s, lineStart, lineEnd)
 			pos = lineEnd
@@ -167,6 +174,7 @@ func wrapSegmentWords(
 			if next > endByte {
 				next = endByte
 			}
+
 			cluster := s[pos:next]
 			clusterW := WidthBetween(s, pos, next)
 
@@ -174,19 +182,23 @@ func wrapSegmentWords(
 				cols = clusterW
 				pos = next
 				lineEnd = pos
+
 				break
 			}
+
 			if width > 0 && cols > 0 && cols+clusterW > width {
 				if lastBreakPos > lineStart {
 					pos = lastBreakPos
 					lineEnd = lastBreakPos
 					cols = lastBreakCols
+
 					break
 				}
 
 				cols += clusterW
 				lineEnd = next
 				pos = next
+
 				break
 			}
 
@@ -205,6 +217,7 @@ func wrapSegmentWords(
 			if next > endByte {
 				next = endByte
 			}
+
 			lineEnd = next
 			cols = WidthBetween(s, lineStart, lineEnd)
 			pos = lineEnd

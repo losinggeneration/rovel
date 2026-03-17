@@ -11,6 +11,7 @@ func DiffRuns(back, front *Buffer, dmg *Damage) []Run {
 	if back == nil || front == nil {
 		return nil
 	}
+
 	if dmg != nil && (back.W != dmg.W || back.H != dmg.H ||
 		front.W != dmg.W || front.H != dmg.H) {
 		// Mismatch: return empty - defensive programming
@@ -51,9 +52,11 @@ func DiffRuns(back, front *Buffer, dmg *Damage) []Run {
 				if runX0 < 0 {
 					runX0 = 0
 				}
+
 				if runX1 > dmg.W {
 					runX1 = dmg.W
 				}
+
 				if runX0 < runX1 {
 					runs = append(runs, Run{
 						Y:  y,
@@ -123,12 +126,15 @@ func coalesceRuns(runs []Run) []Run {
 			if r.X1 > cur.X1 {
 				cur.X1 = r.X1
 			}
+
 			continue
 		}
+
 		out = append(out, cur)
 		cur = r
 	}
 
 	out = append(out, cur)
+
 	return out
 }

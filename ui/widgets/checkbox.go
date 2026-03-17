@@ -38,6 +38,7 @@ func NewCheckboxOpts(opts CheckboxOpts) *Checkbox {
 	if isZeroID(id) {
 		id = tui.NewID()
 	}
+
 	return &Checkbox{
 		id:       id,
 		label:    opts.Label,
@@ -60,6 +61,7 @@ func (c *Checkbox) SetChecked(ctx *tui.Ctx, v bool) {
 	if c.checked == v {
 		return
 	}
+
 	c.checked = v
 	if ctx != nil {
 		ctx.Invalidate(c.rect)
@@ -71,6 +73,7 @@ func (c *Checkbox) SetLabel(ctx *tui.Ctx, s string) {
 	if c.label == s {
 		return
 	}
+
 	c.label = s
 	if ctx != nil {
 		ctx.Invalidate(c.rect)
@@ -118,9 +121,12 @@ func (c *Checkbox) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			if ctx != nil && ctx.RequestFocus != nil {
 				ctx.RequestFocus(c.id)
 			}
+
 			c.toggle(ctx)
+
 			return true
 		}
+
 		return false
 	}
 
@@ -128,13 +134,16 @@ func (c *Checkbox) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	if !ok {
 		return false
 	}
+
 	if c.disabled {
 		return false
 	}
+
 	if ke.Key == tui.KeyEnter || (ke.Key == tui.KeyRune && ke.Rune == ' ') {
 		c.toggle(ctx)
 		return true
 	}
+
 	return false
 }
 
@@ -143,10 +152,12 @@ func (c *Checkbox) HandleAction(act int, ctx *tui.Ctx) bool {
 	if c.disabled {
 		return false
 	}
+
 	if ui.Action(act) == ui.ActionActivate {
 		c.toggle(ctx)
 		return true
 	}
+
 	return false
 }
 
@@ -155,6 +166,7 @@ func (c *Checkbox) toggle(ctx *tui.Ctx) {
 	if ctx != nil {
 		ctx.Invalidate(c.rect)
 	}
+
 	if c.onChange != nil {
 		c.onChange(c.checked, ctx)
 	}
@@ -164,11 +176,14 @@ func (c *Checkbox) style(ctx *tui.Ctx, focused bool) style.Style {
 	if ctx == nil {
 		return style.Style{}
 	}
+
 	if c.disabled {
 		return ctx.Theme.Palette.Disabled
 	}
+
 	if focused {
 		return ctx.Theme.Palette.Focus
 	}
+
 	return ctx.Theme.Base
 }

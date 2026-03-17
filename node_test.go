@@ -67,6 +67,7 @@ func TestRebuildTree_NilRoot(t *testing.T) {
 	app, _ := New(AppOpts{})
 	// Should not panic with nil root.
 	app.rebuildTree()
+
 	if len(app.nodes) != 0 {
 		t.Errorf("expected 0 nodes with nil root, got %d", len(app.nodes))
 	}
@@ -81,13 +82,16 @@ func TestRebuildTree_SingleNode(t *testing.T) {
 	if len(app.nodes) != 1 {
 		t.Fatalf("expected 1 node, got %d", len(app.nodes))
 	}
+
 	entry, ok := app.nodes[v.ID()]
 	if !ok {
 		t.Fatal("root node not found in nodes map")
 	}
+
 	if entry.parentID != 0 {
 		t.Errorf("root parentID should be 0, got %v", entry.parentID)
 	}
+
 	if !entry.focusable {
 		t.Error("expected root to be focusable")
 	}
@@ -123,10 +127,12 @@ func TestRebuildTree_ParentPointers(t *testing.T) {
 
 func TestRebuildTree_ChildOrder(t *testing.T) {
 	app, _ := New(AppOpts{})
+
 	children := make([]View, 4)
 	for i := range children {
 		children[i] = newMockNode(false)
 	}
+
 	root := newMockContainer(children...)
 	app.root = root
 	app.rebuildTree()
@@ -135,6 +141,7 @@ func TestRebuildTree_ChildOrder(t *testing.T) {
 	if len(rootEntry.childIDs) != 4 {
 		t.Fatalf("expected 4 child IDs, got %d", len(rootEntry.childIDs))
 	}
+
 	for i, child := range children {
 		if rootEntry.childIDs[i] != child.ID() {
 			t.Errorf("child order mismatch at %d: got %v, want %v", i, rootEntry.childIDs[i], child.ID())
@@ -153,6 +160,7 @@ func TestRebuildTree_FocusableFlag(t *testing.T) {
 	if !app.nodes[focusable.ID()].focusable {
 		t.Error("focusable node should have focusable=true")
 	}
+
 	if app.nodes[notFocusable.ID()].focusable {
 		t.Error("non-focusable node should have focusable=false")
 	}
@@ -249,9 +257,11 @@ func TestAncestorIDs_Chain(t *testing.T) {
 	if len(ids) != 2 {
 		t.Fatalf("leaf should have 2 ancestors, got %d: %v", len(ids), ids)
 	}
+
 	if ids[0] != mid.ID() {
 		t.Errorf("first ancestor should be mid, got %v", ids[0])
 	}
+
 	if ids[1] != root.ID() {
 		t.Errorf("second ancestor should be root, got %v", ids[1])
 	}
@@ -270,6 +280,7 @@ func TestUpdateBounds_BasicRect(t *testing.T) {
 
 	// Simulate layout placing the view at a known rect.
 	v.rect = geom.Rect{X: 5, Y: 3, W: 10, H: 4}
+
 	app.updateBounds()
 
 	entry := app.nodes[v.ID()]
@@ -346,20 +357,24 @@ func TestRebuildTree_DynamicChildren(t *testing.T) {
 
 	// First build — tab1 is active.
 	app.rebuildTree()
+
 	if _, ok := app.nodes[tab1.ID()]; !ok {
 		t.Fatal("tab1 should be in nodes on first build")
 	}
+
 	if _, ok := app.nodes[tab2.ID()]; ok {
 		t.Error("tab2 should NOT be in nodes before switch")
 	}
 
 	// Switch to tab2 and rebuild.
 	container.current = tab2
+
 	app.rebuildTree()
 
 	if _, ok := app.nodes[tab2.ID()]; !ok {
 		t.Fatal("tab2 should be in nodes after switch")
 	}
+
 	if _, ok := app.nodes[tab1.ID()]; ok {
 		t.Error("tab1 should NOT be in nodes after switch")
 	}

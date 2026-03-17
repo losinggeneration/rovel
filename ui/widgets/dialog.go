@@ -55,13 +55,16 @@ func NewDialog(opts DialogOpts) *Dialog {
 				w = lw
 			}
 		}
+
 		btnW := 2 // left/right padding
 		for _, b := range opts.Buttons {
 			btnW += text.Width(b.Label) + 4 + 1 // "[ label ] "
 		}
+
 		if btnW > w {
 			w = btnW
 		}
+
 		if w < 20 {
 			w = 20
 		}
@@ -85,6 +88,7 @@ func (d *Dialog) MinSize() geom.Size {
 	lines := splitLines(d.message)
 	// title line + blank + message lines + blank + button row + border
 	h := 1 + 1 + len(lines) + 1 + 1 + 2
+
 	return geom.Size{W: d.prefW, H: h}
 }
 
@@ -102,6 +106,7 @@ func (d *Dialog) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	if surfSt == (style.Style{}) {
 		surfSt = ctx.Theme.Base
 	}
+
 	borderSt := ctx.Theme.Palette.Border
 	if borderSt == (style.Style{}) {
 		borderSt = surfSt
@@ -122,6 +127,7 @@ func (d *Dialog) Paint(p *tui.Painter, ctx *tui.Ctx) {
 		if titleSt == (style.Style{}) {
 			titleSt = surfSt.WithAttr(style.AttrBold)
 		}
+
 		title := text.Truncate(d.title, inner.W, false)
 		tx := inner.X + (inner.W-text.Width(title))/2
 		p.Text(tx, inner.Y, title, titleSt)
@@ -129,11 +135,13 @@ func (d *Dialog) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 	// Message
 	lines := splitLines(d.message)
+
 	msgY := inner.Y + 2
 	for i, line := range lines {
 		if msgY+i >= inner.Y+inner.H-1 {
 			break
 		}
+
 		l := text.Truncate(line, inner.W, false)
 		p.Text(inner.X, msgY+i, l, surfSt)
 	}
@@ -145,8 +153,10 @@ func (d *Dialog) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	}
 
 	btnX := inner.X + 1
+
 	for i, btn := range d.buttons {
 		label := "[ " + btn.Label + " ]"
+
 		w := text.Width(label)
 		if btnX+w > inner.X+inner.W {
 			break
@@ -169,22 +179,28 @@ func (d *Dialog) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		if me.Button == tui.MouseButtonLeft && me.Action == tui.MousePress && len(d.buttons) > 0 {
 			// Check if click is on the button row
 			inner := geom.Rect{X: d.rect.X + 1, Y: d.rect.Y + 1, W: d.rect.W - 2, H: d.rect.H - 2}
+
 			btnY := inner.Y + inner.H - 1
 			if me.Y == btnY {
 				// Walk button positions to find which was clicked
 				btnX := inner.X + 1
+
 				for i, btn := range d.buttons {
 					label := "[ " + btn.Label + " ]"
+
 					w := text.Width(label)
 					if me.X >= btnX && me.X < btnX+w {
 						d.focused = i
 						d.pressButton(ctx)
+
 						return true
 					}
+
 					btnX += w + 1
 				}
 			}
 		}
+
 		return true // modal dialog consumes all mouse events
 	}
 
@@ -199,22 +215,26 @@ func (d *Dialog) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			d.focused--
 			ctx.Invalidate(d.rect)
 		}
+
 		return true
 	case tui.KeyRight:
 		if d.focused < len(d.buttons)-1 {
 			d.focused++
 			ctx.Invalidate(d.rect)
 		}
+
 		return true
 	case tui.KeyTab:
 		if ke.Mod == 0 {
 			d.focused = (d.focused + 1) % len(d.buttons)
 			ctx.Invalidate(d.rect)
+
 			return true
 		}
 	case tui.KeyShiftTab:
 		d.focused = (d.focused - 1 + len(d.buttons)) % len(d.buttons)
 		ctx.Invalidate(d.rect)
+
 		return true
 	case tui.KeyEnter:
 		d.pressButton(ctx)
@@ -225,6 +245,7 @@ func (d *Dialog) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -233,6 +254,7 @@ func (d *Dialog) HandleAction(act int, ctx *tui.Ctx) bool {
 	if len(d.buttons) == 0 {
 		return false
 	}
+
 	switch ui.Action(act) {
 	case ui.ActionActivate:
 		d.pressButton(ctx)
@@ -242,22 +264,27 @@ func (d *Dialog) HandleAction(act int, ctx *tui.Ctx) bool {
 			d.focused--
 			ctx.Invalidate(d.rect)
 		}
+
 		return true
 	case ui.ActionMoveRight:
 		if d.focused < len(d.buttons)-1 {
 			d.focused++
 			ctx.Invalidate(d.rect)
 		}
+
 		return true
 	case ui.ActionFocusNext:
 		d.focused = (d.focused + 1) % len(d.buttons)
 		ctx.Invalidate(d.rect)
+
 		return true
 	case ui.ActionFocusPrev:
 		d.focused = (d.focused - 1 + len(d.buttons)) % len(d.buttons)
 		ctx.Invalidate(d.rect)
+
 		return true
 	}
+
 	return false
 }
 
@@ -265,6 +292,7 @@ func (d *Dialog) pressButton(ctx *tui.Ctx) {
 	if d.focused < 0 || d.focused >= len(d.buttons) {
 		return
 	}
+
 	if fn := d.buttons[d.focused].OnPress; fn != nil {
 		fn(ctx)
 	}
@@ -274,16 +302,21 @@ func splitLines(s string) []string {
 	if s == "" {
 		return nil
 	}
+
 	var lines []string
+
 	start := 0
+
 	for i := 0; i < len(s); i++ {
 		if s[i] == '\n' {
 			lines = append(lines, s[start:i])
 			start = i + 1
 		}
 	}
+
 	if start < len(s) {
 		lines = append(lines, s[start:])
 	}
+
 	return lines
 }

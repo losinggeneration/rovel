@@ -93,6 +93,7 @@ func (d *InputDecoder) FlushPending(
 		d.state = stateGround
 		return append(dst, event.KeyEvent{Key: event.KeyEsc})
 	}
+
 	return dst
 }
 
@@ -131,6 +132,7 @@ func (d *InputDecoder) Finalize(dst []event.Event) []event.Event {
 	}
 
 	d.Reset()
+
 	return dst
 }
 
@@ -197,17 +199,22 @@ func csiModToMask(p1, n int) event.ModMask {
 	if n < 2 || p1 <= 1 {
 		return 0
 	}
+
 	bits := p1 - 1
+
 	var mod event.ModMask
 	if bits&1 != 0 {
 		mod |= event.ModShift
 	}
+
 	if bits&2 != 0 {
 		mod |= event.ModAlt
 	}
+
 	if bits&4 != 0 {
 		mod |= event.ModCtrl
 	}
+
 	return mod
 }
 
@@ -299,11 +306,14 @@ func (d *InputDecoder) emitLiteralCSI(
 	for i := 0; i < d.csiN; i++ {
 		dst = appendLiteralByte(dst, d.csiBuf[i])
 	}
+
 	if final != nil {
 		dst = appendLiteralByte(dst, *final)
 	}
+
 	d.csiN = 0
 	d.state = stateGround
+
 	return dst
 }
 
@@ -315,6 +325,7 @@ func (d *InputDecoder) handleGround(
 		d.state = stateEsc
 		return dst
 	}
+
 	return d.pushGround(dst, b)
 }
 
@@ -326,11 +337,13 @@ func (d *InputDecoder) handleEsc(
 	case '[':
 		d.state = stateCSI
 		d.csiN = 0
+
 		return dst
 
 	case ']':
 		d.state = stateOSC
 		d.oscBuf = d.oscBuf[:0]
+
 		return dst
 
 	case 'O':
@@ -349,12 +362,14 @@ func (d *InputDecoder) handleEsc(
 		d.utf8Buf[0] = b
 		d.utf8N = 1
 		d.utf8Need = n
+
 		return dst
 	}
 
 	// ESC + printable ASCII -> Alt+Rune
 	if b >= 0x20 && b < 0x7f {
 		d.state = stateGround
+
 		return append(dst, event.KeyEvent{
 			Key:  event.KeyRune,
 			Rune: rune(b),
@@ -364,7 +379,9 @@ func (d *InputDecoder) handleEsc(
 
 	// ESC + other byte -> emit ESC, replay byte in Ground.
 	d.state = stateGround
+
 	dst = append(dst, event.KeyEvent{Key: event.KeyEsc})
+
 	return d.PushByte(dst, b)
 }
 
@@ -395,6 +412,7 @@ func isValidUTF8NextByte(first byte, have int, b byte) bool {
 			return isUTF8Cont(b)
 		}
 	}
+
 	return isUTF8Cont(b)
 }
 
@@ -418,6 +436,7 @@ func (d *InputDecoder) pushUTF8(
 			Rune: utf8.RuneError,
 			Mod:  mod,
 		})
+
 		return d.PushByte(dst, b)
 	}
 
@@ -472,7 +491,9 @@ func parseCSIParams2(buf []byte) (p0, p1, n int, ok bool) {
 		default:
 			return false
 		}
+
 		n++
+
 		return true
 	}
 
@@ -482,14 +503,17 @@ func parseCSIParams2(buf []byte) (p0, p1, n int, ok bool) {
 			if cur < 0 {
 				cur = 0
 			}
+
 			cur = cur*10 + int(b-'0')
 		case b == ';':
 			if cur < 0 {
 				return 0, 0, 0, false
 			}
+
 			if !commit(cur) {
 				return 0, 0, 0, false
 			}
+
 			cur = -1
 		default:
 			return 0, 0, 0, false
@@ -499,9 +523,11 @@ func parseCSIParams2(buf []byte) (p0, p1, n int, ok bool) {
 	if cur < 0 {
 		return 0, 0, 0, false
 	}
+
 	if !commit(cur) {
 		return 0, 0, 0, false
 	}
+
 	return p0, p1, n, true
 }
 
@@ -524,7 +550,9 @@ func parseCSIParams3(buf []byte) (p0, p1, p2, n int, ok bool) {
 		default:
 			return false
 		}
+
 		n++
+
 		return true
 	}
 
@@ -534,14 +562,17 @@ func parseCSIParams3(buf []byte) (p0, p1, p2, n int, ok bool) {
 			if cur < 0 {
 				cur = 0
 			}
+
 			cur = cur*10 + int(b-'0')
 		case b == ';':
 			if cur < 0 {
 				return 0, 0, 0, 0, false
 			}
+
 			if !commit(cur) {
 				return 0, 0, 0, 0, false
 			}
+
 			cur = -1
 		default:
 			return 0, 0, 0, 0, false
@@ -551,9 +582,11 @@ func parseCSIParams3(buf []byte) (p0, p1, p2, n int, ok bool) {
 	if cur < 0 {
 		return 0, 0, 0, 0, false
 	}
+
 	if !commit(cur) {
 		return 0, 0, 0, 0, false
 	}
+
 	return p0, p1, p2, n, true
 }
 
@@ -581,10 +614,12 @@ func acceptsCSIKey(final byte, p0, _ /* mod */, n int) bool {
 		if n != 1 {
 			return false
 		}
+
 		switch p0 {
 		case 1, 2, 3, 4, 5, 6, 15, 17, 18, 19, 20, 21, 23, 24:
 			return true
 		}
+
 		return false
 	default:
 		return false
@@ -605,6 +640,7 @@ func (d *InputDecoder) pushCSI(
 	if b >= 0x20 && b <= 0x3F {
 		d.csiBuf[d.csiN] = b
 		d.csiN++
+
 		return dst
 	}
 
@@ -615,6 +651,7 @@ func (d *InputDecoder) pushCSI(
 			if me, ok := d.parseSGRMouse(b); ok {
 				d.state = stateGround
 				d.csiN = 0
+
 				return append(dst, me)
 			}
 		}
@@ -626,6 +663,7 @@ func (d *InputDecoder) pushCSI(
 				d.state = statePaste
 				d.csiN = 0
 				d.pasteBuf = d.pasteBuf[:0]
+
 				return dst
 			}
 			// CSI 201~ outside paste state: ignore (shouldn't happen normally)
@@ -634,15 +672,18 @@ func (d *InputDecoder) pushCSI(
 		p0, p1, n, ok := parseCSIParams2(d.csiBuf[:d.csiN])
 		if ok && acceptsCSIKey(b, p0, p1, n) {
 			mod := csiModToMask(p1, n)
+
 			if b == '~' {
 				if key := dispatchCSITilde(p0); key != event.KeyNone {
 					d.state = stateGround
 					d.csiN = 0
+
 					return append(dst, event.KeyEvent{Key: key, Mod: mod})
 				}
 			} else if key := dispatchCSI(b); key != event.KeyNone {
 				d.state = stateGround
 				d.csiN = 0
+
 				return append(dst, event.KeyEvent{Key: key, Mod: mod})
 			}
 		}
@@ -653,6 +694,7 @@ func (d *InputDecoder) pushCSI(
 
 	// Invalid byte for CSI: emit buffered CSI literally, then replay offending byte.
 	dst = d.emitLiteralCSI(dst, nil)
+
 	return d.PushByte(dst, b)
 }
 
@@ -673,9 +715,11 @@ func (d *InputDecoder) parseSGRMouse(final byte) (event.MouseEvent, bool) {
 	// Coordinates are 1-based in SGR, convert to 0-based
 	x := px - 1
 	y := py - 1
+
 	if x < 0 {
 		x = 0
 	}
+
 	if y < 0 {
 		y = 0
 	}
@@ -685,17 +729,22 @@ func (d *InputDecoder) parseSGRMouse(final byte) (event.MouseEvent, bool) {
 	if pb&4 != 0 {
 		mod |= event.ModShift
 	}
+
 	if pb&8 != 0 {
 		mod |= event.ModAlt
 	}
+
 	if pb&16 != 0 {
 		mod |= event.ModCtrl
 	}
 
 	// Determine button and action
 	buttonBits := pb & 0xC3 // bits 0-1 and 6-7
-	var button event.MouseButton
-	var action event.MouseAction
+
+	var (
+		button event.MouseButton
+		action event.MouseAction
+	)
 
 	if pb&64 != 0 {
 		// Wheel events
@@ -707,10 +756,12 @@ func (d *InputDecoder) parseSGRMouse(final byte) (event.MouseEvent, bool) {
 		default:
 			button = event.MouseButtonNone
 		}
+
 		action = event.MousePress
 	} else if pb&32 != 0 {
 		// Motion events
 		action = event.MouseMove
+
 		switch buttonBits & 3 {
 		case 0:
 			button = event.MouseButtonLeft
@@ -768,6 +819,7 @@ func (d *InputDecoder) pushOSC(dst []event.Event, b byte) []event.Event {
 		d.oscBuf = d.oscBuf[:0]
 		d.state = stateGround
 	}
+
 	return dst
 }
 
@@ -782,11 +834,13 @@ func (d *InputDecoder) pushOSCEsc(dst []event.Event, b byte) []event.Event {
 	}
 	// Not ST — the ESC was part of the payload (unusual but possible).
 	d.oscBuf = append(d.oscBuf, 0x1b, b)
+
 	d.state = stateOSC
 	if len(d.oscBuf) > maxOSCBytes {
 		d.oscBuf = d.oscBuf[:0]
 		d.state = stateGround
 	}
+
 	return dst
 }
 
@@ -801,6 +855,7 @@ func (d *InputDecoder) finishOSC(dst []event.Event) []event.Event {
 		// Strip the selection parameter (typically "c" or "s" or "p")
 		if idx := strings.IndexByte(after, ';'); idx >= 0 {
 			encoded := after[idx+1:]
+
 			decoded, err := base64.StdEncoding.DecodeString(encoded)
 			if err == nil {
 				dst = append(dst, event.ClipboardResponseEvent{Text: string(decoded)})
@@ -828,6 +883,7 @@ func (d *InputDecoder) pushPaste(dst []event.Event, b byte) []event.Event {
 			d.pasteBuf = nil
 			d.state = stateGround
 		}
+
 		return dst
 	}
 
@@ -848,6 +904,7 @@ func (d *InputDecoder) pushPaste(dst []event.Event, b byte) []event.Event {
 			dst = append(dst, event.PasteEvent{Text: sanitizePasteUTF8(content)})
 			d.pasteBuf = nil
 			d.state = stateGround
+
 			return dst
 		}
 	}
@@ -869,6 +926,7 @@ func sanitizePasteUTF8(buf []byte) string {
 
 	// Build valid UTF-8 string, replacing invalid bytes with replacement char
 	var out []byte
+
 	for i := 0; i < len(buf); {
 		r, size := utf8.DecodeRune(buf[i:])
 		if r == utf8.RuneError && size <= 1 {
@@ -879,6 +937,7 @@ func sanitizePasteUTF8(buf []byte) string {
 			i += size
 		}
 	}
+
 	return string(out)
 }
 
@@ -893,8 +952,10 @@ func (d *InputDecoder) handleSS3(
 
 	// Unknown SS3 -> emit ESC, literal 'O', then replay byte.
 	d.state = stateGround
+
 	dst = append(dst, event.KeyEvent{Key: event.KeyEsc})
 	dst = append(dst, event.KeyEvent{Key: event.KeyRune, Rune: 'O'})
+
 	return d.PushByte(dst, b)
 }
 
@@ -909,6 +970,7 @@ func (d *InputDecoder) pushGround(
 		d.utf8N = 1
 		d.utf8Need = n
 		d.utf8Mod = 0
+
 		return dst
 	}
 

@@ -192,6 +192,7 @@ func (t Theme) Resolved(cap style.Capability) Theme {
 		resolved := s
 		resolved.FG = s.FG.Resolve(cap)
 		resolved.BG = s.BG.Resolve(cap)
+
 		return resolved
 	}
 

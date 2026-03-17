@@ -53,6 +53,7 @@ func main() {
 		fmt.Printf("Failed to enable app: %v\n", err)
 		return
 	}
+
 	defer func() {
 		if err := app.Restore(); err != nil {
 			fmt.Printf("Failed to restore terminal: %v\n", err)
@@ -69,6 +70,7 @@ func generateLines(n int) []string {
 	for i := 0; i < n; i++ {
 		lines[i] = fmt.Sprintf("Line %d: This is some sample content that demonstrates scrolling.", i+1)
 	}
+
 	return lines
 }
 

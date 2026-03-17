@@ -34,6 +34,7 @@ func (r Rect) Intersect(other Rect) Rect {
 	if other.X > x0 {
 		x0 = other.X
 	}
+
 	x1 := r.X + r.W
 	if other.X+other.W < x1 {
 		x1 = other.X + other.W
@@ -43,6 +44,7 @@ func (r Rect) Intersect(other Rect) Rect {
 	if other.Y > y0 {
 		y0 = other.Y
 	}
+
 	y1 := r.Y + r.H
 	if other.Y+other.H < y1 {
 		y1 = other.Y + other.H
@@ -51,6 +53,7 @@ func (r Rect) Intersect(other Rect) Rect {
 	if x0 > x1 {
 		x0 = x1
 	}
+
 	if y0 > y1 {
 		y0 = y1
 	}

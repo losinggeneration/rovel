@@ -12,9 +12,11 @@ func TestNewDamage(t *testing.T) {
 	if d.W != 10 {
 		t.Errorf("NewDamage() W = %v, want 10", d.W)
 	}
+
 	if d.H != 5 {
 		t.Errorf("NewDamage() H = %v, want 5", d.H)
 	}
+
 	if len(d.Rows) != 5 {
 		t.Errorf("NewDamage() Rows length = %v, want 5", len(d.Rows))
 	}
@@ -58,9 +60,11 @@ func TestDamage_Reset(t *testing.T) {
 	if d.W != 15 {
 		t.Errorf("Reset() W = %v, want 15", d.W)
 	}
+
 	if d.H != 8 {
 		t.Errorf("Reset() H = %v, want 8", d.H)
 	}
+
 	if !d.IsEmpty() {
 		t.Error("IsEmpty() should return true after Reset()")
 	}
@@ -77,12 +81,15 @@ func TestDamage_Reset_SameSize(t *testing.T) {
 	if d.W != 10 {
 		t.Errorf("Reset() W = %v, want 10", d.W)
 	}
+
 	if d.H != 5 {
 		t.Errorf("Reset() H = %v, want 5", d.H)
 	}
+
 	if !d.IsEmpty() {
 		t.Error("IsEmpty() should return true after Reset()")
 	}
+
 	if cap(d.Rows) != rowsCap {
 		t.Error("Reset() should reuse capacity when size is unchanged")
 	}
@@ -174,6 +181,7 @@ func TestDamage_AddSpan(t *testing.T) {
 	if len(d.Rows[2]) != 1 {
 		t.Errorf("AddSpan() row 2 length = %v, want 1", len(d.Rows[2]))
 	}
+
 	if d.Rows[2][0].X0 != 3 || d.Rows[2][0].X1 != 7 {
 		t.Errorf("AddSpan() row 2 span = %+v, want {X0:3, X1:7}", d.Rows[2][0])
 	}
@@ -184,6 +192,7 @@ func TestDamage_AddSpan(t *testing.T) {
 	if len(d.Rows[2]) != 1 {
 		t.Errorf("AddSpan() overlapping should merge, got %d spans", len(d.Rows[2]))
 	}
+
 	if d.Rows[2][0].X0 != 3 || d.Rows[2][0].X1 != 9 {
 		t.Errorf("AddSpan() merged span = %+v, want {X0:3, X1:9}", d.Rows[2][0])
 	}
@@ -194,6 +203,7 @@ func TestDamage_AddSpan(t *testing.T) {
 	if len(d.Rows[2]) != 1 {
 		t.Errorf("AddSpan() adjacent should merge, got %d spans", len(d.Rows[2]))
 	}
+
 	if d.Rows[2][0].X0 != 3 || d.Rows[2][0].X1 != 10 {
 		t.Errorf("AddSpan() merged span = %+v, want {X0:3, X1:10}", d.Rows[2][0])
 	}
@@ -209,6 +219,7 @@ func TestDamage_AddSpan(t *testing.T) {
 	if d.Rows[2][0].X0 != 0 || d.Rows[2][0].X1 != 1 {
 		t.Errorf("AddSpan() first span = %+v, want {X0:0, X1:1}", d.Rows[2][0])
 	}
+
 	if d.Rows[2][1].X0 != 3 || d.Rows[2][1].X1 != 10 {
 		t.Errorf("AddSpan() second span = %+v, want {X0:3, X1:10}", d.Rows[2][1])
 	}
@@ -219,21 +230,25 @@ func TestDamage_AddSpan_OutOfBounds(t *testing.T) {
 
 	// Negative y
 	d.AddSpan(-1, 0, 5)
+
 	if !d.IsEmpty() {
 		t.Error("AddSpan() with negative y should be ignored")
 	}
 
 	// Y >= H
 	d.AddSpan(5, 0, 5)
+
 	if !d.IsEmpty() {
 		t.Error("AddSpan() with y >= H should be ignored")
 	}
 
 	// Add valid span then test x clamping
 	d.AddSpan(2, -5, 15)
+
 	if len(d.Rows[2]) != 1 {
 		t.Errorf("AddSpan() with x out of bounds should be clamped, got %d spans", len(d.Rows[2]))
 	}
+
 	if d.Rows[2][0].X0 != 0 || d.Rows[2][0].X1 != 10 {
 		t.Errorf("AddSpan() clamped span = %+v, want {X0:0, X1:10}", d.Rows[2][0])
 	}

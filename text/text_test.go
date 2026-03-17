@@ -180,6 +180,7 @@ func TestOffsetAtColumnBias(t *testing.T) {
 	if got := OffsetAtColumnBias(s, 1, BiasLeft); got != 0 {
 		t.Errorf("OffsetAtColumnBias(%q, 1, BiasLeft) = %d, want 0", s, got)
 	}
+
 	if got := OffsetAtColumnBias(s, 1, BiasRight); got != len(s) {
 		t.Errorf("OffsetAtColumnBias(%q, 1, BiasRight) = %d, want %d", s, got, len(s))
 	}
@@ -190,6 +191,7 @@ func TestWidthBetween(t *testing.T) {
 	if got := WidthBetween(s, 0, len(s)); got != 4 {
 		t.Errorf("WidthBetween(%q, 0, len) = %d, want 4", s, got)
 	}
+
 	if got := WidthBetween(s, 1, 1); got != 0 {
 		t.Errorf("WidthBetween(%q, 1, 1) = %d, want 0", s, got)
 	}
@@ -230,6 +232,7 @@ func TestWrap(t *testing.T) {
 			t.Errorf("Wrap(%q, %d) returned %d lines, want %d", tt.input, tt.width, len(got), len(tt.expect))
 			continue
 		}
+
 		for i, line := range got {
 			if line != tt.expect[i] {
 				t.Errorf("Wrap(%q, %d)[%d] = %+v, want %+v", tt.input, tt.width, i, line, tt.expect[i])

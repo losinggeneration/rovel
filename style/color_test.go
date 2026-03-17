@@ -8,6 +8,7 @@ func TestColorConstructors(t *testing.T) {
 	if kind, _ := c.BasicIndex(); kind != 1 {
 		t.Errorf("ColorBasic(1) BasicIndex() = %d, want 1", kind)
 	}
+
 	if c.Kind() != ColorKindBasic {
 		t.Errorf("ColorBasic(1) Kind() = %d, want %d", c.Kind(), ColorKindBasic)
 	}
@@ -17,16 +18,19 @@ func TestColorConstructors(t *testing.T) {
 	if i, _ := idx.Index(); i != 232 {
 		t.Errorf("ColorIndex(232) Index() = %d, want 232", i)
 	}
+
 	if idx.Kind() != ColorKindIndexed {
 		t.Errorf("ColorIndex(232) Kind() = %d, want %d", idx.Kind(), ColorKindIndexed)
 	}
 
 	// Test ColorRGB
 	rgb := ColorRGB(255, 128, 0)
+
 	r, g, b, ok := rgb.RGB()
 	if !ok || r != 255 || g != 128 || b != 0 {
 		t.Errorf("ColorRGB(255,128,0) RGB() = %d,%d,%d,%v, want 255,128,0,true", r, g, b, ok)
 	}
+
 	if rgb.Kind() != ColorKindRGB {
 		t.Errorf("ColorRGB(255,128,0) Kind() = %d, want %d", rgb.Kind(), ColorKindRGB)
 	}
@@ -37,6 +41,7 @@ func TestColorResolve_Basic(t *testing.T) {
 
 	// Basic colors should pass through unchanged
 	c := ColorRed
+
 	resolved := c.Resolve(cap)
 	if resolved != c {
 		t.Errorf("Basic color changed after Resolve: got %d, want %d", resolved, c)
@@ -44,6 +49,7 @@ func TestColorResolve_Basic(t *testing.T) {
 
 	// Default should pass through
 	d := ColorDefault
+
 	resolved = d.Resolve(cap)
 	if resolved != d {
 		t.Errorf("Default color changed after Resolve")
@@ -66,6 +72,7 @@ func TestColorResolve_RGBToIndexed(t *testing.T) {
 	if !ok {
 		t.Errorf("failed to get index from resolved color")
 	}
+
 	_ = idx
 }
 
@@ -119,6 +126,7 @@ func TestColorConstants(t *testing.T) {
 		if kind != tt.wantKind {
 			t.Errorf("%v.Kind() = %d, want %d", tt.color, kind, tt.wantKind)
 		}
+
 		if idx, ok := tt.color.BasicIndex(); !ok || idx != tt.wantIdx {
 			t.Errorf("%v.BasicIndex() = %d,%v, want %d,true", tt.color, idx, ok, tt.wantIdx)
 		}
@@ -137,6 +145,7 @@ func TestStyleDerivation(t *testing.T) {
 	if withFG.FG != ColorRed {
 		t.Errorf("WithFG() failed: got %v, want FG=Red", withFG)
 	}
+
 	if withFG.BG != base.BG {
 		t.Errorf("WithFG() changed BG")
 	}
@@ -149,10 +158,12 @@ func TestStyleDerivation(t *testing.T) {
 
 	// Test Merge
 	override := Style{FG: ColorBlue, Attr: AttrUnderline}
+
 	merged := Merge(base, override)
 	if merged.FG != ColorBlue {
 		t.Errorf("Merge() didn't apply FG override")
 	}
+
 	if merged.Attr != (base.Attr | override.Attr) {
 		t.Errorf("Merge() didn't merge attrs")
 	}

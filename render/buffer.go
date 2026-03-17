@@ -21,6 +21,7 @@ func (b *Buffer) At(x, y int) *Cell {
 	if x < 0 || x >= b.W || y < 0 || y >= b.H {
 		return &zeroCell
 	}
+
 	return &b.cells[y*b.W+x]
 }
 
@@ -37,6 +38,7 @@ func (b *Buffer) Resize(w, h int) {
 	if copyW > b.W {
 		copyW = b.W
 	}
+
 	copyH := h
 	if copyH > b.H {
 		copyH = b.H

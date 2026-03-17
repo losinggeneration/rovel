@@ -8,11 +8,13 @@ import (
 
 func Width(s string) int {
 	width := 0
+
 	for i := 0; i < len(s); {
 		r, size := utf8.DecodeRuneInString(s[i:])
 		width += cellwidth.RuneWidth(r)
 		i += size
 	}
+
 	return width
 }
 
@@ -26,6 +28,7 @@ func FitPrefix(s string, maxCols int) (endByte int, cols int, clipped bool) {
 	}
 
 	width := 0
+
 	i := 0
 	for i < len(s) {
 		next := NextCluster(s, i)
@@ -37,6 +40,7 @@ func FitPrefix(s string, maxCols int) (endByte int, cols int, clipped bool) {
 		if width == 0 && clusterW > maxCols {
 			return 0, 0, true
 		}
+
 		if width+clusterW > maxCols {
 			return i, width, true
 		}
@@ -69,5 +73,6 @@ func Truncate(s string, maxCols int, ellipsis bool) string {
 	if ellipsis {
 		return s[:endByte] + "…"
 	}
+
 	return s[:endByte]
 }

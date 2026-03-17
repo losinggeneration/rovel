@@ -28,6 +28,7 @@ func (fn FrameChromeStyleFn) wrapResolver(resolve func(style.Style) style.Style)
 	if fn == nil {
 		return nil
 	}
+
 	return func(part BoxPart, x, y int, r geom.Rect, base style.Style) style.Style {
 		return resolve(fn(part, x, y, r, base))
 	}
@@ -42,6 +43,7 @@ func (fc FrameChrome) Effective(t Theme) FrameChrome {
 	if out.Edges == 0 {
 		out.Edges = BoxEdgesAll
 	}
+
 	if out.Glyphs == (BoxGlyphs{}) {
 		switch t.Aesthetic {
 		case AestheticClassic:
@@ -52,6 +54,7 @@ func (fc FrameChrome) Effective(t Theme) FrameChrome {
 			out.Glyphs = BoxGlyphsLight
 		}
 	}
+
 	return out
 }
 
@@ -68,5 +71,6 @@ func (fc FrameChrome) BoxStyle(base style.Style) BoxStyle {
 			return fc.StyleFn(part, x, y, r, base)
 		}
 	}
+
 	return bs
 }

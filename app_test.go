@@ -22,12 +22,16 @@ func TestPost_ErrClosed(t *testing.T) {
 func TestPost_FromGoroutine(t *testing.T) {
 	app, _ := New(AppOpts{})
 
-	var wg sync.WaitGroup
-	var posted atomic.Bool
+	var (
+		wg     sync.WaitGroup
+		posted atomic.Bool
+	)
 
 	wg.Add(1)
+
 	go func() {
 		defer wg.Done()
+
 		err := app.Post(func(ctx *UpdateCtx) {
 			posted.Store(true)
 		})
@@ -50,11 +54,14 @@ func TestPost_FromGoroutine(t *testing.T) {
 func TestPost_OrderingFIFO(t *testing.T) {
 	app, _ := New(AppOpts{})
 
-	var order []int
-	var mu sync.Mutex
+	var (
+		order []int
+		mu    sync.Mutex
+	)
 
 	for i := 0; i < 5; i++ {
 		i := i
+
 		if err := app.Post(func(ctx *UpdateCtx) {
 			mu.Lock()
 			order = append(order, i)
@@ -66,9 +73,11 @@ func TestPost_OrderingFIFO(t *testing.T) {
 
 	ctx := app.mkUpdateCtx()
 	app.postMu.Lock()
+
 	for _, fn := range app.postQueue {
 		fn(ctx)
 	}
+
 	app.postQueue = nil
 	app.postMu.Unlock()
 
@@ -103,6 +112,7 @@ func TestPost_NeverInline(t *testing.T) {
 
 	ctx := app.mkUpdateCtx()
 	app.postMu.Lock()
+
 	if len(app.postQueue) > 0 {
 		fn := app.postQueue[0]
 		app.postQueue = app.postQueue[1:]
@@ -113,9 +123,11 @@ func TestPost_NeverInline(t *testing.T) {
 	}
 
 	app.postMu.Lock()
+
 	if len(app.postQueue) != 1 {
 		t.Errorf("Expected 1 queued inner post, got %d", len(app.postQueue))
 	}
+
 	app.postMu.Unlock()
 }
 
@@ -272,15 +284,18 @@ func TestPost_BoundedBatch(t *testing.T) {
 	ctx := app.mkUpdateCtx()
 
 	app.postMu.Lock()
+
 	count := 0
 	for len(app.postQueue) > 0 && count < 64 {
 		fn := app.postQueue[0]
 		app.postQueue = app.postQueue[1:]
 		count++
+
 		app.postMu.Unlock()
 		fn(ctx)
 		app.postMu.Lock()
 	}
+
 	app.postMu.Unlock()
 
 	if atomic.LoadInt32(&executedCount) != 64 {
@@ -347,6 +362,7 @@ func containsRect(rects []geom.Rect, want geom.Rect) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -372,6 +388,7 @@ func TestLayout_InvalidatesOldAndNewRectsOnMove(t *testing.T) {
 	if !containsRect(app.invalidRects, oldRect) {
 		t.Errorf("expected old rect to be invalidated: %v", oldRect)
 	}
+
 	if !containsRect(app.invalidRects, newRect) {
 		t.Errorf("expected new rect to be invalidated: %v", newRect)
 	}
@@ -407,7 +424,9 @@ func TestDrainMotionEvents_CoalescesToLast(t *testing.T) {
 
 	// Pre-fill channel with consecutive move events.
 	app.eventCh <- MouseEvent{X: 1, Y: 1, Action: event.MouseMove}
+
 	app.eventCh <- MouseEvent{X: 2, Y: 2, Action: event.MouseMove}
+
 	app.eventCh <- MouseEvent{X: 3, Y: 3, Action: event.MouseMove}
 
 	initial := MouseEvent{X: 0, Y: 0, Action: event.MouseMove}
@@ -416,6 +435,7 @@ func TestDrainMotionEvents_CoalescesToLast(t *testing.T) {
 	if got.X != 3 || got.Y != 3 {
 		t.Errorf("expected last position (3,3), got (%d,%d)", got.X, got.Y)
 	}
+
 	if len(extra) != 0 {
 		t.Errorf("expected no extra events, got %d", len(extra))
 	}
@@ -425,6 +445,7 @@ func TestDrainMotionEvents_StopsAtNonMotion(t *testing.T) {
 	app, _ := New(AppOpts{})
 
 	app.eventCh <- MouseEvent{X: 5, Y: 5, Action: event.MouseMove}
+
 	app.eventCh <- KeyEvent{Key: event.KeyEnter}
 	// This move should NOT be drained (it's after the non-motion event).
 	app.eventCh <- MouseEvent{X: 9, Y: 9, Action: event.MouseMove}
@@ -435,9 +456,11 @@ func TestDrainMotionEvents_StopsAtNonMotion(t *testing.T) {
 	if got.X != 5 || got.Y != 5 {
 		t.Errorf("expected coalesced to (5,5), got (%d,%d)", got.X, got.Y)
 	}
+
 	if len(extra) != 1 {
 		t.Fatalf("expected 1 queued event, got %d", len(extra))
 	}
+
 	if _, ok := extra[0].(KeyEvent); !ok {
 		t.Errorf("expected queued KeyEvent, got %T", extra[0])
 	}
@@ -452,6 +475,7 @@ func TestDrainMotionEvents_EmptyChannel(t *testing.T) {
 	if got != initial {
 		t.Errorf("expected input returned unchanged, got (%d,%d)", got.X, got.Y)
 	}
+
 	if len(extra) != 0 {
 		t.Errorf("expected no extra events, got %d", len(extra))
 	}
@@ -461,6 +485,7 @@ func TestDrainMotionEvents_DragCoalesces(t *testing.T) {
 	app, _ := New(AppOpts{})
 
 	app.eventCh <- MouseEvent{X: 1, Y: 1, Action: event.MouseDrag}
+
 	app.eventCh <- MouseEvent{X: 2, Y: 2, Action: event.MouseDrag}
 
 	initial := MouseEvent{X: 0, Y: 0, Action: event.MouseDrag}
@@ -469,6 +494,7 @@ func TestDrainMotionEvents_DragCoalesces(t *testing.T) {
 	if got.X != 2 || got.Y != 2 {
 		t.Errorf("expected last drag position (2,2), got (%d,%d)", got.X, got.Y)
 	}
+
 	if len(extra) != 0 {
 		t.Errorf("expected no extra events, got %d", len(extra))
 	}
@@ -484,6 +510,7 @@ func TestDrainMotionEvents_ClosedChannel(t *testing.T) {
 	if got != initial {
 		t.Errorf("expected input returned unchanged on closed channel")
 	}
+
 	if len(extra) != 0 {
 		t.Errorf("expected no extra events, got %d", len(extra))
 	}
@@ -503,6 +530,7 @@ func TestSetRequestFocus_ClearFocusDoesNotInvalidateAll(t *testing.T) {
 	if len(app.invalidRects) != 1 {
 		t.Fatalf("expected 1 invalid rect, got %d", len(app.invalidRects))
 	}
+
 	if app.invalidRects[0] != oldRect {
 		t.Fatalf("expected invalid rect %v, got %v", oldRect, app.invalidRects[0])
 	}

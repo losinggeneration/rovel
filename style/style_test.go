@@ -77,6 +77,7 @@ func TestColor_Constants(t *testing.T) {
 		if seen[c] {
 			t.Errorf("Duplicate color value: %v", c)
 		}
+
 		seen[c] = true
 	}
 }
@@ -108,6 +109,7 @@ func TestAttrMask_Constants(t *testing.T) {
 		if seen[attr] {
 			t.Errorf("Duplicate attribute bit: %v", attr)
 		}
+
 		seen[attr] = true
 	}
 }

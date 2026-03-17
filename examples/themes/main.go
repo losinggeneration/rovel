@@ -45,6 +45,7 @@ func (themeKeymap) Resolve(ctx ui.KeyContext, k ui.Keystroke) (ui.Action, bool) 
 		// Ctrl-C also quits (common TUI convention)
 		return ActionQuit, true
 	}
+
 	return ui.ActionNone, false
 }
 
@@ -113,6 +114,7 @@ func main() {
 		fmt.Printf("Failed to create app: %v\n", err)
 		return
 	}
+
 	state.app = app
 
 	// Create widgets
@@ -243,6 +245,7 @@ func main() {
 		fmt.Printf("Failed to enable app: %v\n", err)
 		return
 	}
+
 	defer func() {
 		if err := app.Restore(); err != nil {
 			fmt.Printf("Failed to restore terminal: %v\n", err)
@@ -281,6 +284,7 @@ func createMouseAwareButton(label string, onPress func(*tui.Ctx), disabled bool)
 		OnPress:  onPress,
 		Disabled: disabled,
 	})
+
 	return &widgets.Clickable{View: btn, OnClick: onPress}
 }
 
@@ -290,12 +294,14 @@ func createSemanticButton(label string, roleFunc func(*tui.Theme) style.Style, o
 		OnPress: onPress,
 	})
 	sb := &semanticButton{Button: btn, semanticRole: roleFunc}
+
 	return &widgets.Clickable{View: sb, OnClick: onPress}
 }
 
 func buildInputSection(state *appState) tui.View {
 	inputBorder := layout.NewBorder(state.textInput)
 	inputBorder.SetTitle(" Text Input ")
+
 	return inputBorder
 }
 
@@ -310,6 +316,7 @@ func buildContentList(state *appState) tui.View {
 
 	border := layout.NewBorder(label)
 	border.SetTitle(" Sample List ")
+
 	return border
 }
 
@@ -377,6 +384,7 @@ func (s *appState) switchTheme(ctx *tui.Ctx, index int) {
 		s.app.SetTheme(s.themes[index].theme)
 	}); err != nil {
 		s.statusMessage = fmt.Sprintf("Failed to switch theme: %v", err)
+
 		s.statusType = "danger"
 		if s.updateStatus != nil {
 			s.updateStatus(s.statusMessage, s.statusType)
@@ -390,6 +398,7 @@ func (s *appState) updateLabels() {
 
 	// Update capability label
 	var capText string
+
 	switch s.currentThemeIndex {
 	case 1: // Classic theme
 		capText = "Basic 16-color"
@@ -398,6 +407,7 @@ func (s *appState) updateLabels() {
 	default: // Default theme - monochrome
 		capText = "Monochrome"
 	}
+
 	s.capabilityLabel.SetText(nil, fmt.Sprintf("Capability: %s", capText))
 }
 
@@ -421,9 +431,11 @@ func (w *statusWrapper) Rect() tui.Rect {
 	if w.border != nil {
 		return w.border.Rect()
 	}
+
 	if w.textView != nil {
 		return w.textView.Rect()
 	}
+
 	return tui.Rect{}
 }
 
@@ -432,6 +444,7 @@ func (w *statusWrapper) Layout(r geom.Rect) {
 	if w.border != nil {
 		w.border.Layout(r)
 	}
+
 	if w.textView != nil {
 		inner := layout.InsetRect(r, 1, 1, 1, 1)
 		w.textView.Layout(inner)
@@ -442,9 +455,11 @@ func (w *statusWrapper) MinSize() geom.Size {
 	if w.border != nil {
 		return w.border.MinSize()
 	}
+
 	if w.textView != nil {
 		return w.textView.MinSize()
 	}
+
 	return geom.Size{W: 40, H: 1}
 }
 
@@ -506,11 +521,13 @@ func (w *statusWrapper) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			return true
 		}
 	}
+
 	if w.textView != nil {
 		if w.textView.Handle(e, ctx) {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -578,8 +595,10 @@ func (h *eventHandler) HandleAction(act int, ctx *tui.Ctx) bool {
 		if ctx != nil && ctx.Quit != nil {
 			ctx.Quit()
 		}
+
 		return true
 	}
+
 	return false
 }
 
@@ -594,6 +613,7 @@ func (h *eventHandler) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			if ctx != nil && ctx.Quit != nil {
 				ctx.Quit()
 			}
+
 			return true
 		}
 
@@ -625,6 +645,7 @@ func (h *eventHandler) Children() []tui.View {
 	if c, ok := h.rootView.(interface{ Children() []tui.View }); ok {
 		return c.Children()
 	}
+
 	return nil
 }
 
@@ -688,6 +709,7 @@ func (w *focusBlockWrapper) Children() []tui.View {
 	if c, ok := w.view.(interface{ Children() []tui.View }); ok {
 		return c.Children()
 	}
+
 	return nil
 }
 

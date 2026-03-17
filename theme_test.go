@@ -13,6 +13,7 @@ func TestDefaultTheme(t *testing.T) {
 	if theme.Base.FG != style.ColorDefault {
 		t.Errorf("DefaultTheme() Base.FG = %v, want ColorDefault", theme.Base.FG)
 	}
+
 	if theme.Base.BG != style.ColorDefault {
 		t.Errorf("DefaultTheme() Base.BG = %v, want ColorDefault", theme.Base.BG)
 	}
@@ -31,12 +32,15 @@ func TestDefaultTheme(t *testing.T) {
 	if theme.Palette.Success.FG != style.ColorDefault {
 		t.Errorf("DefaultTheme() Palette.Success.FG should be ColorDefault, got FG=%v", theme.Palette.Success.FG)
 	}
+
 	if theme.Palette.Warning.FG != style.ColorDefault {
 		t.Errorf("DefaultTheme() Palette.Warning.FG should be ColorDefault, got FG=%v", theme.Palette.Warning.FG)
 	}
+
 	if theme.Palette.Danger.FG != style.ColorDefault {
 		t.Errorf("DefaultTheme() Palette.Danger.FG should be ColorDefault, got FG=%v", theme.Palette.Danger.FG)
 	}
+
 	if theme.Palette.Accent.FG != style.ColorDefault {
 		t.Errorf("DefaultTheme() Palette.Accent.FG should be ColorDefault, got FG=%v", theme.Palette.Accent.FG)
 	}
@@ -45,9 +49,11 @@ func TestDefaultTheme(t *testing.T) {
 	if theme.Palette.Success.BG != style.ColorDefault {
 		t.Errorf("DefaultTheme() Palette.Success.BG should be ColorDefault, got BG=%v", theme.Palette.Success.BG)
 	}
+
 	if theme.Palette.Warning.BG != style.ColorDefault {
 		t.Errorf("DefaultTheme() Palette.Warning.BG should be ColorDefault, got BG=%v", theme.Palette.Warning.BG)
 	}
+
 	if theme.Palette.Danger.BG != style.ColorDefault {
 		t.Errorf("DefaultTheme() Palette.Danger.BG should be ColorDefault, got BG=%v", theme.Palette.Danger.BG)
 	}
@@ -171,12 +177,14 @@ func TestThemePreservesBaseAndPaletteFocus(t *testing.T) {
 
 func TestThemeChrome_Defaults(t *testing.T) {
 	classic := DefaultThemeClassic()
+
 	ec := classic.Chrome.Border.Effective(classic)
 	if ec.Glyphs != BoxGlyphsASCII {
 		t.Errorf("DefaultThemeClassic() Border glyphs = %+v, want ASCII", ec.Glyphs)
 	}
 
 	modern := DefaultThemeModern()
+
 	em := modern.Chrome.Border.Effective(modern)
 	if em.Glyphs != BoxGlyphsLight {
 		t.Errorf("DefaultThemeModern() Border glyphs = %+v, want light", em.Glyphs)
@@ -186,6 +194,7 @@ func TestThemeChrome_Defaults(t *testing.T) {
 	legacy := Theme{
 		Base: style.Style{FG: style.ColorWhite, BG: style.ColorBlack},
 	}
+
 	el := legacy.Chrome.Border.Effective(legacy)
 	if el.Glyphs != BoxGlyphsLight {
 		t.Errorf("legacy theme Border glyphs = %+v, want light", el.Glyphs)
@@ -198,6 +207,7 @@ func TestThemeResolved_DefaultsPaletteFocus(t *testing.T) {
 	}
 
 	cap := style.Capability{HasBasic: true}
+
 	resolved := original.Resolved(cap)
 	if resolved.Palette.Focus.Attr&style.AttrReverse == 0 {
 		t.Error("Resolved() Palette.Focus should default to AttrReverse when unset")
@@ -212,6 +222,7 @@ func TestThemeResolved_ChromeStyleFn(t *testing.T) {
 		_ = y
 		_ = r
 		_ = base
+
 		return style.Style{FG: style.ColorRGB(10, 20, 30), BG: style.ColorRGB(40, 50, 60)}
 	}
 
@@ -219,6 +230,7 @@ func TestThemeResolved_ChromeStyleFn(t *testing.T) {
 	resolved := theme.Resolved(cap)
 
 	chrome := resolved.Chrome.Border.Effective(resolved)
+
 	bs := chrome.BoxStyle(resolved.Palette.Border)
 	if bs.StyleFn == nil {
 		t.Fatal("resolved Border StyleFn is nil")
@@ -228,6 +240,7 @@ func TestThemeResolved_ChromeStyleFn(t *testing.T) {
 	if out.FG.Kind() != style.ColorKindBasic && out.FG != 0 {
 		t.Errorf("resolved StyleFn FG kind = %v, want basic or default", out.FG.Kind())
 	}
+
 	if out.BG.Kind() != style.ColorKindBasic && out.BG != 0 {
 		t.Errorf("resolved StyleFn BG kind = %v, want basic or default", out.BG.Kind())
 	}

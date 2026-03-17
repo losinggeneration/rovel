@@ -24,14 +24,17 @@ func NewDamage(w, h int) *Damage {
 
 func (d *Damage) Reset(w, h int) {
 	d.W = w
+
 	d.H = h
 	if cap(d.Rows) >= h {
 		d.Rows = d.Rows[:h]
 		for i := range d.Rows {
 			d.Rows[i] = d.Rows[i][:0]
 		}
+
 		return
 	}
+
 	d.Rows = make([]RowSpans, h)
 }
 
@@ -47,6 +50,7 @@ func (d *Damage) IsEmpty() bool {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -73,12 +77,12 @@ func (d *Damage) AddRect(r geom.Rect) {
 func (d *Damage) AddSpan(y, x0, x1 int) {
 	// Maintains row spans in sorted, merged (normalized) form.
 	// Merges both overlaps and adjacent spans (recommended for fewer fragments).
-
 	if y < 0 || y >= d.H {
 		return
 	}
 
 	x0 = clamp(x0, 0, d.W)
+
 	x1 = clamp(x1, 0, d.W)
 	if x0 >= x1 {
 		return
@@ -118,7 +122,9 @@ func (d *Damage) AddSpan(y, x0, x1 int) {
 				out = append(out, newS)
 				inserted = true
 			}
+
 			out = append(out, s)
+
 			continue
 		}
 
@@ -126,6 +132,7 @@ func (d *Damage) AddSpan(y, x0, x1 int) {
 		if s.X0 < newS.X0 {
 			newS.X0 = s.X0
 		}
+
 		if s.X1 > newS.X1 {
 			newS.X1 = s.X1
 		}
@@ -142,8 +149,10 @@ func clamp(v, lo, hi int) int {
 	if v < lo {
 		return lo
 	}
+
 	if v > hi {
 		return hi
 	}
+
 	return v
 }

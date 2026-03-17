@@ -52,6 +52,7 @@ func (f *ANSIFlusher) FlushRuns(back, front *Buffer, runs []Run) error {
 			if c.WideCont {
 				x++
 				f.curX++
+
 				continue
 			}
 
@@ -59,6 +60,7 @@ func (f *ANSIFlusher) FlushRuns(back, front *Buffer, runs []Run) error {
 				if err := f.emitSGR(c.Style); err != nil {
 					return err
 				}
+
 				f.curStyle = c.Style
 				f.hasStyle = true
 			}
@@ -73,8 +75,10 @@ func (f *ANSIFlusher) FlushRuns(back, front *Buffer, runs []Run) error {
 				if x+1 < back.W {
 					*front.At(x+1, y) = *back.At(x+1, y)
 				}
+
 				x += 2
 				f.curX += 2
+
 				continue
 			}
 
@@ -98,6 +102,7 @@ func (f *ANSIFlusher) moveCursorTo(y, x int) error {
 
 	f.curX = x
 	f.curY = y
+
 	return nil
 }
 
@@ -127,18 +132,23 @@ func (f *ANSIFlusher) emitSGR(s style.Style) error {
 	if s.Attr&style.AttrBold != 0 {
 		params = append(params, 1)
 	}
+
 	if s.Attr&style.AttrDim != 0 {
 		params = append(params, 2)
 	}
+
 	if s.Attr&style.AttrItalic != 0 {
 		params = append(params, 3)
 	}
+
 	if s.Attr&style.AttrUnderline != 0 {
 		params = append(params, 4)
 	}
+
 	if s.Attr&style.AttrBlink != 0 {
 		params = append(params, 5)
 	}
+
 	if s.Attr&style.AttrReverse != 0 {
 		params = append(params, 7)
 	}
@@ -154,6 +164,7 @@ func appendFGColor(params []int, c style.Color) []int {
 		if idx <= 7 {
 			return append(params, 30+int(idx))
 		}
+
 		return append(params, 90+int(idx-8))
 	case style.ColorKindIndexed:
 		idx, _ := c.Index()
@@ -162,6 +173,7 @@ func appendFGColor(params []int, c style.Color) []int {
 		r, g, b, _ := c.RGB()
 		return append(params, 38, 2, int(r), int(g), int(b))
 	}
+
 	return params
 }
 
@@ -173,6 +185,7 @@ func appendBGColor(params []int, c style.Color) []int {
 		if idx <= 7 {
 			return append(params, 40+int(idx))
 		}
+
 		return append(params, 100+int(idx-8))
 	case style.ColorKindIndexed:
 		idx, _ := c.Index()
@@ -181,6 +194,7 @@ func appendBGColor(params []int, c style.Color) []int {
 		r, g, b, _ := c.RGB()
 		return append(params, 48, 2, int(r), int(g), int(b))
 	}
+
 	return params
 }
 
@@ -189,17 +203,21 @@ func emitSGRParams(w *bufio.Writer, params []int) error {
 	if _, err := w.WriteString("\x1b["); err != nil {
 		return err
 	}
+
 	for i, p := range params {
 		if i > 0 {
 			if _, err := w.WriteString(";"); err != nil {
 				return err
 			}
 		}
+
 		if _, err := fmt.Fprintf(w, "%d", p); err != nil {
 			return err
 		}
 	}
+
 	_, err := w.WriteString("m")
+
 	return err
 }
 
@@ -209,8 +227,10 @@ func (f *ANSIFlusher) emitRune(r rune) error {
 	}
 
 	var buf [utf8.UTFMax]byte
+
 	n := utf8.EncodeRune(buf[:], r)
 	_, err := f.w.Write(buf[:n])
+
 	return err
 }
 
@@ -224,6 +244,7 @@ func (f *ANSIFlusher) ClearScreen() error {
 	_, err = f.w.WriteString("\x1b[H")
 	f.curX = 0
 	f.curY = 0
+
 	return err
 }
 

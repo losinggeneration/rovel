@@ -47,16 +47,19 @@ func TestScrollbar_ThumbPosition(t *testing.T) {
 	// 100 content, 20 view → thumbH = 4, maxScroll = 80
 	// At position 0: thumbY = 0
 	sb.SetState(100, 20, 0)
+
 	thumbH, thumbY := sb.thumbGeometry()
 	if thumbH != 4 {
 		t.Errorf("thumbH = %d, want 4", thumbH)
 	}
+
 	if thumbY != 0 {
 		t.Errorf("at pos 0: thumbY = %d, want 0", thumbY)
 	}
 
 	// At max scroll (80): thumbY should be at bottom = 20 - 4 = 16
 	sb.SetState(100, 20, 80)
+
 	_, thumbY = sb.thumbGeometry()
 	if thumbY != 16 {
 		t.Errorf("at pos 80: thumbY = %d, want 16", thumbY)
@@ -64,6 +67,7 @@ func TestScrollbar_ThumbPosition(t *testing.T) {
 
 	// At midpoint (40): thumbY = 40 * 16 / 80 = 8
 	sb.SetState(100, 20, 40)
+
 	_, thumbY = sb.thumbGeometry()
 	if thumbY != 8 {
 		t.Errorf("at pos 40: thumbY = %d, want 8", thumbY)
@@ -72,6 +76,7 @@ func TestScrollbar_ThumbPosition(t *testing.T) {
 
 func TestScrollbar_ClickTrack(t *testing.T) {
 	var scrolledTo int
+
 	sb := NewScrollbar(ScrollbarOpts{
 		ContentSize: 100,
 		ViewSize:    20,
@@ -109,6 +114,7 @@ func TestScrollbar_ClickTrack(t *testing.T) {
 		Button: event.MouseButtonLeft,
 		Action: event.MousePress,
 	}, ctx)
+
 	if scrolledTo != 0 {
 		t.Errorf("scrolledTo = %d, want 0", scrolledTo)
 	}
@@ -116,6 +122,7 @@ func TestScrollbar_ClickTrack(t *testing.T) {
 
 func TestScrollbar_DragThumb(t *testing.T) {
 	var scrolledTo int
+
 	sb := NewScrollbar(ScrollbarOpts{
 		ContentSize: 100,
 		ViewSize:    20,
@@ -231,6 +238,7 @@ func TestScrollView_ScrollbarAutoHidden(t *testing.T) {
 	if sv.showScrollbar {
 		t.Error("expected scrollbar to be hidden when content fits")
 	}
+
 	if child.rect.W != 20 {
 		t.Errorf("expected child width 20, got %d", child.rect.W)
 	}
@@ -250,6 +258,7 @@ func TestScrollView_ScrollbarAlways(t *testing.T) {
 	if !sv.showScrollbar {
 		t.Error("expected scrollbar to always be shown")
 	}
+
 	if child.rect.W != 19 {
 		t.Errorf("expected child width 19, got %d", child.rect.W)
 	}
@@ -274,6 +283,7 @@ func TestScrollView_ScrollbarHidden(t *testing.T) {
 	if sv.showScrollbar {
 		t.Error("expected scrollbar to be hidden")
 	}
+
 	if child.rect.W != 20 {
 		t.Errorf("expected child width 20, got %d", child.rect.W)
 	}

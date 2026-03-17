@@ -121,11 +121,13 @@ func (p *Painter) SetClipRect(r geom.Rect) {
 // Text writes a string at position, advancing by rune width.
 func (p *Painter) Text(x, y int, s string, style style.Style) {
 	x += p.offsetX
+
 	y += p.offsetY
 	for _, r := range s {
 		if IsClipped(x, y, p.clip) {
 			break
 		}
+
 		p.setCellAt(x, y, r, style)
 		x += RuneWidth(r)
 	}
@@ -137,6 +139,7 @@ func (p *Painter) Fill(r geom.Rect, ch rune, style style.Style) {
 	// Apply offset to get absolute coordinates
 	r.X += p.offsetX
 	r.Y += p.offsetY
+
 	r = ClipRect(r, p.clip)
 	if r.Empty() {
 		return
@@ -258,6 +261,7 @@ func (p *Painter) BoxStyled(r geom.Rect, bs BoxStyle) {
 		if bs.StyleFn != nil {
 			return bs.StyleFn(part, x, y, r)
 		}
+
 		return bs.Style
 	}
 
@@ -268,6 +272,7 @@ func (p *Painter) BoxStyled(r geom.Rect, bs BoxStyle) {
 			p.setCellAt(x, y, g.H, cellStyle(BoxPartTop, x, y))
 		}
 	}
+
 	if edges&BoxEdgeBottom != 0 && r.H > 1 {
 		y := r.Y + r.H - 1
 		for x := r.X; x < r.X+r.W; x++ {
@@ -281,6 +286,7 @@ func (p *Painter) BoxStyled(r geom.Rect, bs BoxStyle) {
 			p.setCellAt(x, y, g.V, cellStyle(BoxPartLeft, x, y))
 		}
 	}
+
 	if edges&BoxEdgeRight != 0 && r.W > 0 {
 		x := r.X + r.W - 1
 		for y := r.Y; y < r.Y+r.H; y++ {
@@ -295,14 +301,17 @@ func (p *Painter) BoxStyled(r geom.Rect, bs BoxStyle) {
 			x, y := r.X, r.Y
 			p.setCellAt(x, y, g.TL, cellStyle(BoxPartCornerTL, x, y))
 		}
+
 		if edges&BoxEdgeTop != 0 && edges&BoxEdgeRight != 0 {
 			x, y := r.X+r.W-1, r.Y
 			p.setCellAt(x, y, g.TR, cellStyle(BoxPartCornerTR, x, y))
 		}
+
 		if edges&BoxEdgeBottom != 0 && edges&BoxEdgeLeft != 0 && r.H > 1 {
 			x, y := r.X, r.Y+r.H-1
 			p.setCellAt(x, y, g.BL, cellStyle(BoxPartCornerBL, x, y))
 		}
+
 		if edges&BoxEdgeBottom != 0 && edges&BoxEdgeRight != 0 && r.H > 1 {
 			x, y := r.X+r.W-1, r.Y+r.H-1
 			p.setCellAt(x, y, g.BR, cellStyle(BoxPartCornerBR, x, y))

@@ -49,9 +49,11 @@ func (s *Split) SetRatio(r float64) {
 	if r < 0 {
 		r = 0
 	}
+
 	if r > 1 {
 		r = 1
 	}
+
 	s.ratio = r
 }
 
@@ -84,6 +86,7 @@ func (s *Split) Layout(r tui.Rect) {
 		if dividerPos < 1 {
 			dividerPos = 1
 		}
+
 		if dividerPos > totalW-1 {
 			dividerPos = totalW - 1
 		}
@@ -120,6 +123,7 @@ func (s *Split) Layout(r tui.Rect) {
 		if dividerPos < 1 {
 			dividerPos = 1
 		}
+
 		if dividerPos > totalH-1 {
 			dividerPos = totalH - 1
 		}
@@ -158,39 +162,49 @@ func (s *Split) MinSize() tui.Size {
 		// Horizontal: sum widths, max heights
 		totalW := 0
 		maxH := 0
+
 		if s.first != nil {
 			sz := s.first.MinSize()
+
 			totalW += sz.W
 			if sz.H > maxH {
 				maxH = sz.H
 			}
 		}
+
 		if s.second != nil {
 			sz := s.second.MinSize()
+
 			totalW += sz.W
 			if sz.H > maxH {
 				maxH = sz.H
 			}
 		}
+
 		return tui.Size{W: totalW, H: maxH}
 	} else {
 		// Vertical: max widths, sum heights
 		maxW := 0
 		totalH := 0
+
 		if s.first != nil {
 			sz := s.first.MinSize()
 			if sz.W > maxW {
 				maxW = sz.W
 			}
+
 			totalH += sz.H
 		}
+
 		if s.second != nil {
 			sz := s.second.MinSize()
 			if sz.W > maxW {
 				maxW = sz.W
 			}
+
 			totalH += sz.H
 		}
+
 		return tui.Size{W: maxW, H: totalH}
 	}
 }
@@ -204,6 +218,7 @@ func (s *Split) Paint(p *tui.Painter, ctx *tui.Ctx) {
 				s.first.Paint(p, ctx)
 			})
 		}
+
 		if s.second != nil {
 			p.WithClip(s.second.Rect(), func(p *tui.Painter) {
 				s.second.Paint(p, ctx)
@@ -234,6 +249,7 @@ func (s *Split) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			if firstFocusable != nil {
 				ctx.RequestFocus(firstFocusable.ID())
 				ctx.Invalidate(s.Rect())
+
 				return true
 			}
 		}
@@ -263,9 +279,11 @@ func (s *Split) Children() []tui.View {
 	if s.first != nil {
 		children = append(children, s.first)
 	}
+
 	if s.second != nil {
 		children = append(children, s.second)
 	}
+
 	return children
 }
 
@@ -291,6 +309,7 @@ func (s *Split) findNextFocusable(currentFocusID tui.ID) (tui.View, bool) {
 
 	// Find the index of the currently focused view by ID
 	currentIdx := -1
+
 	for i, v := range focusableViews {
 		if v.ID() == currentFocusID {
 			currentIdx = i
@@ -306,6 +325,7 @@ func (s *Split) findNextFocusable(currentFocusID tui.ID) (tui.View, bool) {
 	// Return next focusable, check if wrapping
 	nextIdx := (currentIdx + 1) % len(focusableViews)
 	wrapped := nextIdx < currentIdx // wrapped if next index is less than current
+
 	return focusableViews[nextIdx], wrapped
 }
 

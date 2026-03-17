@@ -9,10 +9,14 @@ type scopeState struct {
 // within the given scope. Stops recursing when a child's focusScopeID differs
 // (nested scope boundary).
 func (a *App) collectFocusableInScope(scopeID ID) []ID {
-	var result []ID
-	var walk func(v View)
+	var (
+		result []ID
+		walk   func(v View)
+	)
+
 	walk = func(v View) {
 		id := v.ID()
+
 		entry, ok := a.nodes[id]
 		if !ok {
 			return
@@ -21,9 +25,11 @@ func (a *App) collectFocusableInScope(scopeID ID) []ID {
 		if entry.focusScopeID != scopeID {
 			return
 		}
+
 		if entry.focusable {
 			result = append(result, id)
 		}
+
 		if c, ok := v.(viewChildren); ok {
 			for _, child := range c.Children() {
 				walk(child)
@@ -47,6 +53,7 @@ func (a *App) collectFocusableInScope(scopeID ID) []ID {
 			}
 		}
 	}
+
 	return result
 }
 
@@ -54,10 +61,12 @@ func (a *App) collectFocusableInScope(scopeID ID) []ID {
 // of the currently focused view. Wraps around at boundaries.
 func (a *App) focusNextInScope() {
 	scope := a.focusScopeOf(a.focusedID)
+
 	targets := a.collectFocusableInScope(scope)
 	if len(targets) == 0 {
 		return
 	}
+
 	idx := indexOf(targets, a.focusedID)
 	next := (idx + 1) % len(targets)
 	a.setRequestFocus(targets[next])
@@ -66,10 +75,12 @@ func (a *App) focusNextInScope() {
 // focusPrevInScope moves focus to the previous focusable view within scope.
 func (a *App) focusPrevInScope() {
 	scope := a.focusScopeOf(a.focusedID)
+
 	targets := a.collectFocusableInScope(scope)
 	if len(targets) == 0 {
 		return
 	}
+
 	idx := indexOf(targets, a.focusedID)
 	prev := (idx - 1 + len(targets)) % len(targets)
 	a.setRequestFocus(targets[prev])
@@ -80,6 +91,7 @@ func (a *App) focusScopeOf(id ID) ID {
 	if entry, ok := a.nodes[id]; ok {
 		return entry.focusScopeID
 	}
+
 	return 0
 }
 
@@ -117,6 +129,7 @@ func (a *App) ensureValidFocusScoped() {
 	if scope != 0 {
 		if scopeEntry, ok := a.nodes[scope]; ok {
 			parentScope := scopeEntry.focusScopeID
+
 			parentTargets := a.collectFocusableInScope(parentScope)
 			if len(parentTargets) > 0 {
 				a.setRequestFocus(parentTargets[0])
@@ -135,5 +148,6 @@ func indexOf(ids []ID, target ID) int {
 			return i
 		}
 	}
+
 	return 0
 }

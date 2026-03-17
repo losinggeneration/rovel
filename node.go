@@ -44,6 +44,7 @@ func (a *App) rebuildTree() {
 	}
 
 	var walk func(v View, parentID ID, scopeID ID, overlayID ID)
+
 	walk = func(v View, parentID ID, scopeID ID, overlayID ID) {
 		id := v.ID()
 
@@ -95,6 +96,7 @@ func (a *App) rebuildTree() {
 		if o.modal {
 			scopeID = o.id
 		}
+
 		walk(o.root, 0, scopeID, o.id)
 	}
 }
@@ -110,8 +112,10 @@ func (a *App) updateBounds() {
 	screenRect := geom.Rect{X: 0, Y: 0, W: a.size.W, H: a.size.H}
 
 	var walk func(v View, parentClip geom.Rect)
+
 	walk = func(v View, parentClip geom.Rect) {
 		id := v.ID()
+
 		entry, ok := a.nodes[id]
 		if !ok {
 			return
@@ -140,14 +144,17 @@ func (a *App) updateBounds() {
 // child-to-root order. O(depth).
 func (a *App) ancestorIDs(id ID) []ID {
 	var result []ID
+
 	current := id
 	for {
 		entry, ok := a.nodes[current]
 		if !ok || entry.parentID == 0 {
 			break
 		}
+
 		result = append(result, entry.parentID)
 		current = entry.parentID
 	}
+
 	return result
 }

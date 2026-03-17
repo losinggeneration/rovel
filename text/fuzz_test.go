@@ -32,6 +32,7 @@ func FuzzWrapLines(f *testing.F) {
 						// Hard break consumes \n.
 						continue
 					}
+
 					t.Fatalf("gap between lines %d and %d: end=%d, start=%d",
 						i-1, i, lines[i-1].EndByte, lines[i].StartByte)
 				}

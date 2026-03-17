@@ -23,12 +23,14 @@ func NewHStack() *HStack {
 func NewHStackWithChildren(children []Child) *HStack {
 	s := NewHStack()
 	s.children = children
+
 	return s
 }
 
 func NewHStackWithGap(children []Child, gap int) *HStack {
 	s := NewHStackWithChildren(children)
 	s.gap = gap
+
 	return s
 }
 
@@ -60,6 +62,7 @@ func (s *HStack) Layout(r tui.Rect) {
 	}
 
 	n := len(s.children)
+
 	totalGap := s.gap * (n - 1)
 	if totalGap < 0 {
 		totalGap = 0
@@ -85,6 +88,7 @@ func (s *HStack) Layout(r tui.Rect) {
 		info.opts = c.Opts
 
 		minSz := c.View.MinSize()
+
 		info.minW = minSz.W
 		if minSz.H > maxH {
 			maxH = minSz.H
@@ -126,19 +130,23 @@ func (s *HStack) Layout(r tui.Rect) {
 	}
 
 	x := r.X
+
 	for i := range infos {
 		childW := infos[i].allocated
 		if childW < 0 {
 			childW = 0
 		}
+
 		if x+childW > r.X+r.W {
 			childW = r.X + r.W - x
 		}
+
 		if childW < 0 {
 			childW = 0
 		}
 
 		childH := r.H
+
 		alignY := infos[i].opts.AlignY
 		if alignY == AlignStretch || childH <= maxH {
 			alignY = AlignStretch
@@ -168,17 +176,21 @@ func (s *HStack) Layout(r tui.Rect) {
 func (s *HStack) MinSize() tui.Size {
 	totalW := 0
 	maxH := 0
+
 	n := len(s.children)
 	for _, c := range s.children {
 		sz := c.View.MinSize()
+
 		totalW += sz.W
 		if sz.H > maxH {
 			maxH = sz.H
 		}
 	}
+
 	if n > 1 {
 		totalW += s.gap * (n - 1)
 	}
+
 	return tui.Size{W: totalW, H: maxH}
 }
 
@@ -197,30 +209,39 @@ func (s *HStack) HandleAction(act int, ctx *tui.Ctx) bool {
 	switch ui.Action(act) {
 	case ui.ActionFocusNext:
 		focusables := s.collectFocusable()
+
 		next, atBoundary := s.findNextFocusable(focusables, ctx.FocusedID)
 		if atBoundary {
 			return false
 		}
+
 		if next != nil {
 			ctx.RequestFocus(next.ID())
 			ctx.Invalidate(s.Rect())
+
 			return true
 		}
+
 		return false
 
 	case ui.ActionFocusPrev:
 		focusables := s.collectFocusable()
+
 		prev, atBoundary := s.findPrevFocusable(focusables, ctx.FocusedID)
 		if atBoundary {
 			return false
 		}
+
 		if prev != nil {
 			ctx.RequestFocus(prev.ID())
 			ctx.Invalidate(s.Rect())
+
 			return true
 		}
+
 		return false
 	}
+
 	return false
 }
 
@@ -243,8 +264,10 @@ func (s *HStack) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			if len(focusables) > 0 {
 				ctx.RequestFocus(focusables[0].ID())
 				ctx.Invalidate(s.Rect())
+
 				return true
 			}
+
 			return false
 		}
 
@@ -252,11 +275,14 @@ func (s *HStack) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		if atBoundary {
 			return false
 		}
+
 		if next != nil {
 			ctx.RequestFocus(next.ID())
 			ctx.Invalidate(s.Rect())
+
 			return true
 		}
+
 		return false
 
 	case event.KeyShiftTab:
@@ -264,8 +290,10 @@ func (s *HStack) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			if len(focusables) > 0 {
 				ctx.RequestFocus(focusables[len(focusables)-1].ID())
 				ctx.Invalidate(s.Rect())
+
 				return true
 			}
+
 			return false
 		}
 
@@ -273,11 +301,14 @@ func (s *HStack) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		if atBoundary {
 			return false
 		}
+
 		if prev != nil {
 			ctx.RequestFocus(prev.ID())
 			ctx.Invalidate(s.Rect())
+
 			return true
 		}
+
 		return false
 	}
 
@@ -293,6 +324,7 @@ func (s *HStack) Children() []tui.View {
 	for i, c := range s.children {
 		views[i] = c.View
 	}
+
 	return views
 }
 
@@ -306,6 +338,7 @@ func (s *HStack) findNextFocusable(focusables []tui.View, currentFocusID tui.ID)
 	}
 
 	currentIdx := -1
+
 	for i, v := range focusables {
 		if v.ID() == currentFocusID {
 			currentIdx = i
@@ -334,6 +367,7 @@ func (s *HStack) findPrevFocusable(focusables []tui.View, currentFocusID tui.ID)
 	}
 
 	currentIdx := -1
+
 	for i, v := range focusables {
 		if v.ID() == currentFocusID {
 			currentIdx = i

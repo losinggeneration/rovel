@@ -12,9 +12,11 @@ func TestNewBuffer(t *testing.T) {
 	if b.W != 10 {
 		t.Errorf("NewBuffer() W = %v, want 10", b.W)
 	}
+
 	if b.H != 5 {
 		t.Errorf("NewBuffer() H = %v, want 5", b.H)
 	}
+
 	if len(b.cells) != 50 {
 		t.Errorf("NewBuffer() cells length = %v, want 50", len(b.cells))
 	}
@@ -34,6 +36,7 @@ func TestBuffer_At(t *testing.T) {
 	if cell == nil {
 		t.Error("At() should not return nil for out of bounds")
 	}
+
 	if !cell.IsZero() {
 		t.Error("At() should return zero cell for out of bounds")
 	}
@@ -78,6 +81,7 @@ func TestBuffer_Resize(t *testing.T) {
 	if b.W != 15 {
 		t.Errorf("Resize() W = %v, want 15", b.W)
 	}
+
 	if b.H != 8 {
 		t.Errorf("Resize() H = %v, want 8", b.H)
 	}
@@ -86,6 +90,7 @@ func TestBuffer_Resize(t *testing.T) {
 	for y := 0; y < 5; y++ {
 		for x := 0; x < 10; x++ {
 			cell := b.At(x, y)
+
 			expectedR := rune('A' + x%26)
 			if cell.R != expectedR {
 				t.Errorf("Resize() preserved content at (%d,%d) = %v, want %v", x, y, cell.R, expectedR)
@@ -99,6 +104,7 @@ func TestBuffer_Resize(t *testing.T) {
 	if b.W != 5 {
 		t.Errorf("Resize() W = %v, want 5", b.W)
 	}
+
 	if b.H != 3 {
 		t.Errorf("Resize() H = %v, want 3", b.H)
 	}
@@ -107,6 +113,7 @@ func TestBuffer_Resize(t *testing.T) {
 	for y := 0; y < 3; y++ {
 		for x := 0; x < 5; x++ {
 			cell := b.At(x, y)
+
 			expectedR := rune('A' + x%26)
 			if cell.R != expectedR {
 				t.Errorf("Resize() preserved content at (%d,%d) = %v, want %v", x, y, cell.R, expectedR)
@@ -150,6 +157,7 @@ func TestBuffer_Clear(t *testing.T) {
 			if cell.R != ' ' {
 				t.Errorf("Clear() cell at (%d,%d) R = %v, want ' '", x, y, cell.R)
 			}
+
 			if cell.Style != clearStyle {
 				t.Errorf("Clear() cell at (%d,%d) Style = %+v, want %+v", x, y, cell.Style, clearStyle)
 			}

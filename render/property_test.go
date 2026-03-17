@@ -12,6 +12,7 @@ import (
 // never modifies cells outside that rect.
 func TestSetCell_NeverWritesOutsideClipRect(t *testing.T) {
 	const W, H = 20, 10
+
 	rng := rand.New(rand.NewPCG(42, 0))
 
 	for range 200 {
@@ -38,6 +39,7 @@ func TestSetCell_NeverWritesOutsideClipRect(t *testing.T) {
 				if x >= clip.X && x < clip.X+clip.W && y >= clip.Y && y < clip.Y+clip.H {
 					continue // inside clip, may have been modified
 				}
+
 				cell := buf.At(x, y)
 				if cell.R != 0 && cell.R != ' ' {
 					t.Fatalf("cell at (%d,%d) was modified outside clip %v: R=%q", x, y, clip, cell.R)
@@ -51,6 +53,7 @@ func TestSetCell_NeverWritesOutsideClipRect(t *testing.T) {
 // copying back->front for flushed cells, those cells match.
 func TestDiffRuns_FrontMatchesBackAfterFlush(t *testing.T) {
 	const W, H = 30, 10
+
 	rng := rand.New(rand.NewPCG(99, 0))
 
 	back := NewBuffer(W, H)
@@ -81,6 +84,7 @@ func TestDiffRuns_FrontMatchesBackAfterFlush(t *testing.T) {
 	for y := range H {
 		for x := range W {
 			b := *back.At(x, y)
+
 			f := *front.At(x, y)
 			if b != f {
 				t.Fatalf("cell (%d,%d) differs after flush: back=%+v front=%+v", x, y, b, f)
@@ -102,9 +106,11 @@ func TestWideChar_ContinuationClearing(t *testing.T) {
 	// Verify lead and continuation cells.
 	lead := buf.At(3, 1)
 	cont := buf.At(4, 1)
+
 	if !lead.Wide {
 		t.Fatal("lead cell should be Wide")
 	}
+
 	if !cont.WideCont {
 		t.Fatal("continuation cell should be WideCont")
 	}
@@ -114,12 +120,15 @@ func TestWideChar_ContinuationClearing(t *testing.T) {
 
 	lead = buf.At(3, 1)
 	cont = buf.At(4, 1)
+
 	if lead.Wide {
 		t.Error("lead cell should no longer be Wide after narrow overwrite")
 	}
+
 	if cont.WideCont {
 		t.Error("continuation cell should be cleared after lead overwrite")
 	}
+
 	if cont.R != ' ' {
 		t.Errorf("continuation cell R should be space, got %q", cont.R)
 	}
@@ -140,12 +149,15 @@ func TestWideChar_OverwriteContinuation(t *testing.T) {
 
 	lead := buf.At(3, 1)
 	over := buf.At(4, 1)
+
 	if lead.Wide {
 		t.Error("lead cell should be cleared to narrow")
 	}
+
 	if lead.R != ' ' {
 		t.Errorf("lead cell R should be space, got %q", lead.R)
 	}
+
 	if over.R != 'b' {
 		t.Errorf("overwritten cell should be 'b', got %q", over.R)
 	}
@@ -166,6 +178,7 @@ func TestBufferResize_PreservesContent(t *testing.T) {
 
 	// Resize to larger.
 	buf.Resize(15, 8)
+
 	if buf.W != 15 || buf.H != 8 {
 		t.Fatalf("resize to 15x8 failed: got %dx%d", buf.W, buf.H)
 	}
@@ -174,6 +187,7 @@ func TestBufferResize_PreservesContent(t *testing.T) {
 	for y := range 5 {
 		for x := range 10 {
 			cell := buf.At(x, y)
+
 			want := rune('A' + y*10 + x)
 			if cell.R != want {
 				t.Errorf("at (%d,%d): got %q, want %q", x, y, cell.R, want)
@@ -193,6 +207,7 @@ func TestBufferResize_PreservesContent(t *testing.T) {
 // TestBufferResize_Shrink verifies resize to smaller preserves intersection.
 func TestBufferResize_Shrink(t *testing.T) {
 	buf := NewBuffer(10, 5)
+
 	for y := range 5 {
 		for x := range 10 {
 			buf.At(x, y).R = rune('A' + y*10 + x)
@@ -204,6 +219,7 @@ func TestBufferResize_Shrink(t *testing.T) {
 	for y := range 3 {
 		for x := range 5 {
 			cell := buf.At(x, y)
+
 			want := rune('A' + y*10 + x)
 			if cell.R != want {
 				t.Errorf("at (%d,%d): got %q, want %q", x, y, cell.R, want)
@@ -228,6 +244,7 @@ func TestDamage_NormalizationNoOverlap(t *testing.T) {
 			h := rng.IntN(12) + 1
 			dmg.AddRect(geom.Rect{X: x, Y: y, W: w, H: h})
 		}
+
 		for range 10 {
 			y := rng.IntN(24)
 			x0 := rng.IntN(80)
@@ -242,6 +259,7 @@ func TestDamage_NormalizationNoOverlap(t *testing.T) {
 					t.Fatalf("row %d: overlapping spans: [%d,%d) and [%d,%d)",
 						y, row[i-1].X0, row[i-1].X1, row[i].X0, row[i].X1)
 				}
+
 				if row[i].X0 < row[i-1].X0 {
 					t.Fatalf("row %d: unsorted spans", y)
 				}

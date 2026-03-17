@@ -60,10 +60,13 @@ func Merge(base, override Style) Style {
 	if override.FG != 0 { // non-default
 		result.FG = override.FG
 	}
+
 	if override.BG != 0 {
 		result.BG = override.BG
 	}
+
 	result.Attr |= override.Attr
+
 	return result
 }
 

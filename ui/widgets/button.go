@@ -126,6 +126,7 @@ func (b *Button) MinSize() geom.Size {
 	if w < 4 {
 		w = 4
 	}
+
 	return geom.Size{W: w, H: 1}
 }
 
@@ -138,6 +139,7 @@ func (b *Button) SetLabel(ctx *tui.Ctx, s string) {
 	if b.label == s {
 		return
 	}
+
 	b.label = s
 	if ctx != nil {
 		ctx.Invalidate(b.rect)
@@ -149,6 +151,7 @@ func (b *Button) SetDisabled(ctx *tui.Ctx, v bool) {
 	if b.disabled == v {
 		return
 	}
+
 	b.disabled = v
 	if ctx != nil {
 		ctx.Invalidate(b.rect)
@@ -167,6 +170,7 @@ func (b *Button) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	}
 
 	focused := ctx != nil && ctx.FocusedID == b.id
+
 	chrome := b.chrome
 	if chrome == ButtonChromeAuto && ctx != nil {
 		switch ctx.Theme.EffectiveAesthetic() {
@@ -176,11 +180,13 @@ func (b *Button) Paint(p *tui.Painter, ctx *tui.Ctx) {
 			chrome = ButtonChromeBrackets
 		}
 	}
+
 	if chrome == ButtonChromeAuto {
 		chrome = ButtonChromeBrackets
 	}
 
 	var st style.Style
+
 	if b.useTheme {
 		// Derive from theme roles
 		if b.disabled {
@@ -211,6 +217,7 @@ func (b *Button) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	y := r.Y + r.H/2
 
 	text := b.renderText(r.W, chrome)
+
 	x := r.X + (r.W-approxWidth(text))/2
 	if x < r.X {
 		x = r.X
@@ -225,14 +232,18 @@ func (b *Button) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			if ctx != nil && ctx.RequestFocus != nil {
 				ctx.RequestFocus(b.id)
 			}
+
 			if b.onPress != nil {
 				b.onPress(ctx)
 			}
+
 			if ctx != nil {
 				ctx.Invalidate(b.rect)
 			}
+
 			return true
 		}
+
 		return false
 	}
 
@@ -250,9 +261,11 @@ func (b *Button) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		if b.onPress != nil {
 			b.onPress(ctx)
 		}
+
 		if ctx != nil {
 			ctx.Invalidate(b.rect)
 		}
+
 		return true
 
 	case tui.KeyRune:
@@ -261,11 +274,14 @@ func (b *Button) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			if b.onPress != nil {
 				b.onPress(ctx)
 			}
+
 			if ctx != nil {
 				ctx.Invalidate(b.rect)
 			}
+
 			return true
 		}
+
 		return false
 
 	default:
@@ -278,16 +294,20 @@ func (b *Button) HandleAction(act int, ctx *tui.Ctx) bool {
 	if b.disabled {
 		return false
 	}
+
 	switch ui.Action(act) {
 	case ui.ActionActivate:
 		if b.onPress != nil {
 			b.onPress(ctx)
 		}
+
 		if ctx != nil {
 			ctx.Invalidate(b.rect)
 		}
+
 		return true
 	}
+
 	return false
 }
 
@@ -308,6 +328,7 @@ func (b *Button) renderText(maxW int, chrome ButtonChrome) string {
 			lbl := truncateRunes(b.label, maxW-2)
 			return " " + lbl + " "
 		}
+
 		return truncateRunes(b.label, maxW)
 
 	default:
@@ -320,15 +341,18 @@ func (b *Button) renderText(maxW int, chrome ButtonChrome) string {
 		if maxW == 1 {
 			return "["
 		}
+
 		if maxW == 2 {
 			return "[]"
 		}
+
 		if maxW == 3 {
 			return "[ ]"
 		}
 
 		maxLabel := maxW - 4
 		lbl := truncateRunes(b.label, maxLabel)
+
 		return "[ " + lbl + " ]"
 	}
 }
@@ -337,6 +361,7 @@ func truncateRunes(s string, max int) string {
 	if max <= 0 || s == "" {
 		return ""
 	}
+
 	return text.Truncate(s, max, false)
 }
 

@@ -12,10 +12,12 @@ import (
 // ke extracts a KeyEvent from an Event, failing the test if it's not one.
 func ke(t *testing.T, e event.Event, idx int) event.KeyEvent {
 	t.Helper()
+
 	k, ok := e.(event.KeyEvent)
 	if !ok {
 		t.Fatalf("event %d is %T, want KeyEvent", idx, e)
 	}
+
 	return k
 }
 
@@ -26,6 +28,7 @@ func TestInputDecoder_ASCII(t *testing.T) {
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1", len(evs))
 	}
+
 	k := ke(t, evs[0], 0)
 	if k.Key != event.KeyRune || k.Rune != 'a' {
 		t.Fatalf("got %#v, want KeyRune('a')", k)
@@ -39,6 +42,7 @@ func TestInputDecoder_Tab(t *testing.T) {
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1", len(evs))
 	}
+
 	k := ke(t, evs[0], 0)
 	if k.Key != event.KeyTab {
 		t.Fatalf("got %#v, want KeyTab", k)
@@ -52,16 +56,19 @@ func TestInputDecoder_Enter(t *testing.T) {
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1", len(evs))
 	}
+
 	k := ke(t, evs[0], 0)
 	if k.Key != event.KeyEnter {
 		t.Fatalf("got %#v, want KeyEnter", k)
 	}
 
 	d.Reset()
+
 	evs = d.PushByte(nil, '\r')
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1", len(evs))
 	}
+
 	k = ke(t, evs[0], 0)
 	if k.Key != event.KeyEnter {
 		t.Fatalf("got %#v, want KeyEnter", k)
@@ -75,6 +82,7 @@ func TestInputDecoder_Backspace(t *testing.T) {
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1", len(evs))
 	}
+
 	k := ke(t, evs[0], 0)
 	if k.Key != event.KeyBackspace {
 		t.Fatalf("got %#v, want KeyBackspace", k)
@@ -88,6 +96,7 @@ func TestInputDecoder_CtrlC(t *testing.T) {
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1", len(evs))
 	}
+
 	k := ke(t, evs[0], 0)
 	if k.Key != event.KeyCtrlC {
 		t.Fatalf("got %#v, want KeyCtrlC", k)
@@ -107,7 +116,9 @@ func TestInputDecoder_CSIArrowKeys(t *testing.T) {
 
 	for _, tt := range tests {
 		d := &InputDecoder{}
+
 		var evs []event.Event
+
 		evs = d.PushByte(evs, 0x1b) // ESC
 		evs = d.PushByte(evs, '[')  // CSI start
 		evs = d.PushByte(evs, tt.final)
@@ -116,6 +127,7 @@ func TestInputDecoder_CSIArrowKeys(t *testing.T) {
 			t.Errorf("CSI %c: got %d events, want 1", tt.final, len(evs))
 			continue
 		}
+
 		k := ke(t, evs[0], 0)
 		if k.Key != tt.key {
 			t.Errorf("CSI %c: got %#v, want %v", tt.final, k, tt.key)
@@ -125,6 +137,7 @@ func TestInputDecoder_CSIArrowKeys(t *testing.T) {
 
 func TestInputDecoder_CSIShiftTab(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 	// ESC [ Z -> Shift+Tab
 	evs = d.PushByte(evs, 0x1b) // ESC
@@ -134,6 +147,7 @@ func TestInputDecoder_CSIShiftTab(t *testing.T) {
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1: %#v", len(evs), evs)
 	}
+
 	k := ke(t, evs[0], 0)
 	if k.Key != event.KeyShiftTab {
 		t.Fatalf("got %#v, want KeyShiftTab", k)
@@ -142,6 +156,7 @@ func TestInputDecoder_CSIShiftTab(t *testing.T) {
 
 func TestInputDecoder_CSIShiftTab_SplitAcrossPushByte(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 
 	evs = d.PushByte(evs, 0x1b)
@@ -158,6 +173,7 @@ func TestInputDecoder_CSIShiftTab_SplitAcrossPushByte(t *testing.T) {
 	if len(evs) != 1 {
 		t.Fatalf("after Z: got %d events, want 1", len(evs))
 	}
+
 	k := ke(t, evs[0], 0)
 	if k.Key != event.KeyShiftTab {
 		t.Fatalf("got %#v, want KeyShiftTab", k)
@@ -177,6 +193,7 @@ func TestInputDecoder_CSIShiftTab_RejectsParams(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &InputDecoder{}
+
 			var evs []event.Event
 
 			for _, b := range tt.seq {
@@ -194,6 +211,7 @@ func TestInputDecoder_CSIShiftTab_RejectsParams(t *testing.T) {
 
 func TestInputDecoder_CSIShiftTab_FlushPendingDoesNotEmit(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 
 	evs = d.PushByte(evs, 0x1b)
@@ -208,6 +226,7 @@ func TestInputDecoder_CSIShiftTab_FlushPendingDoesNotEmit(t *testing.T) {
 	if len(evs) != 1 {
 		t.Fatalf("after Z: got %d events, want 1", len(evs))
 	}
+
 	k := ke(t, evs[0], 0)
 	if k.Key != event.KeyShiftTab {
 		t.Fatalf("got %#v, want KeyShiftTab", k)
@@ -216,6 +235,7 @@ func TestInputDecoder_CSIShiftTab_FlushPendingDoesNotEmit(t *testing.T) {
 
 func TestInputDecoder_CSI_ParamArrow_Normalized(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 	// ESC [ 1 ; 2 A -> Shift+Up (modifier param 2 = Shift)
 	evs = d.PushByte(evs, 0x1b)
@@ -228,10 +248,12 @@ func TestInputDecoder_CSI_ParamArrow_Normalized(t *testing.T) {
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1: %#v", len(evs), evs)
 	}
+
 	k := ke(t, evs[0], 0)
 	if k.Key != event.KeyUp {
 		t.Fatalf("got key %#v, want KeyUp", k)
 	}
+
 	if k.Mod != event.ModShift {
 		t.Fatalf("got mod %d, want ModShift (%d)", k.Mod, event.ModShift)
 	}
@@ -252,18 +274,22 @@ func TestInputDecoder_CSI_ShiftArrow_Modifiers(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &InputDecoder{}
+
 			var evs []event.Event
 			// CSI 1;<mod> D
 			for _, b := range []byte{0x1b, '[', '1', ';', tt.param, 'D'} {
 				evs = d.PushByte(evs, b)
 			}
+
 			if len(evs) != 1 {
 				t.Fatalf("got %d events, want 1", len(evs))
 			}
+
 			k := ke(t, evs[0], 0)
 			if k.Key != event.KeyLeft {
 				t.Fatalf("got key %v, want KeyLeft", k.Key)
 			}
+
 			if k.Mod != tt.mod {
 				t.Fatalf("got mod %d, want %d", k.Mod, tt.mod)
 			}
@@ -273,11 +299,14 @@ func TestInputDecoder_CSI_ShiftArrow_Modifiers(t *testing.T) {
 
 func TestInputDecoder_CtrlA(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
+
 	evs = d.PushByte(evs, 0x01) // Ctrl+A
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1", len(evs))
 	}
+
 	k := ke(t, evs[0], 0)
 	if k.Key != event.KeyRune || k.Rune != 'a' || k.Mod != event.ModCtrl {
 		t.Fatalf("got %#v, want KeyRune 'a' ModCtrl", k)
@@ -301,7 +330,9 @@ func TestInputDecoder_SS3_Keys(t *testing.T) {
 
 	for _, tt := range tests {
 		d := &InputDecoder{}
+
 		var evs []event.Event
+
 		evs = d.PushByte(evs, 0x1b) // ESC
 		evs = d.PushByte(evs, 'O')  // SS3 start
 		evs = d.PushByte(evs, tt.final)
@@ -310,6 +341,7 @@ func TestInputDecoder_SS3_Keys(t *testing.T) {
 			t.Errorf("SS3 %c: got %d events, want 1", tt.final, len(evs))
 			continue
 		}
+
 		k := ke(t, evs[0], 0)
 		if k.Key != tt.key {
 			t.Errorf("SS3 %c: got %#v, want %v", tt.final, k, tt.key)
@@ -319,7 +351,9 @@ func TestInputDecoder_SS3_Keys(t *testing.T) {
 
 func TestInputDecoder_SS3_Unknown(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
+
 	evs = d.PushByte(evs, 0x1b) // ESC
 	evs = d.PushByte(evs, 'O')  // SS3 start
 	evs = d.PushByte(evs, 'x')  // Unknown final
@@ -327,15 +361,19 @@ func TestInputDecoder_SS3_Unknown(t *testing.T) {
 	if len(evs) != 3 {
 		t.Fatalf("got %d events, want 3: %#v", len(evs), evs)
 	}
+
 	k0 := ke(t, evs[0], 0)
 	k1 := ke(t, evs[1], 1)
+
 	k2 := ke(t, evs[2], 2)
 	if k0.Key != event.KeyEsc {
 		t.Fatalf("event 0 = %#v, want KeyEsc", k0)
 	}
+
 	if k1.Key != event.KeyRune || k1.Rune != 'O' {
 		t.Fatalf("event 1 = %#v, want 'O'", k1)
 	}
+
 	if k2.Key != event.KeyRune || k2.Rune != 'x' {
 		t.Fatalf("event 2 = %#v, want 'x'", k2)
 	}
@@ -344,7 +382,9 @@ func TestInputDecoder_SS3_Unknown(t *testing.T) {
 func TestInputDecoder_CSI_Unknown(t *testing.T) {
 	// ESC [ ? 25 h -> unknown CSI, should preserve all bytes
 	d := &InputDecoder{}
+
 	var evs []event.Event
+
 	evs = d.PushByte(evs, 0x1b)
 	evs = d.PushByte(evs, '[')
 	evs = d.PushByte(evs, '?')
@@ -358,30 +398,37 @@ func TestInputDecoder_CSI_Unknown(t *testing.T) {
 	if len(evs) != 7 {
 		t.Fatalf("got %d events, want 7: %#v", len(evs), evs)
 	}
+
 	k0 := ke(t, evs[0], 0)
 	if k0.Key != event.KeyEsc {
 		t.Fatalf("event 0 = %#v, want KeyEsc", k0)
 	}
+
 	k1 := ke(t, evs[1], 1)
 	if k1.Key != event.KeyRune || k1.Rune != '[' {
 		t.Fatalf("event 1 = %#v, want '['", k1)
 	}
+
 	k2 := ke(t, evs[2], 2)
 	if k2.Key != event.KeyRune || k2.Rune != '?' {
 		t.Fatalf("event 2 = %#v, want '?'", k2)
 	}
+
 	k3 := ke(t, evs[3], 3)
 	if k3.Key != event.KeyRune || k3.Rune != '2' {
 		t.Fatalf("event 3 = %#v, want '2'", k3)
 	}
+
 	k4 := ke(t, evs[4], 4)
 	if k4.Key != event.KeyRune || k4.Rune != '5' {
 		t.Fatalf("event 4 = %#v, want '5'", k4)
 	}
+
 	k5 := ke(t, evs[5], 5)
 	if k5.Key != event.KeyRune || k5.Rune != ' ' {
 		t.Fatalf("event 5 = %#v, want ' '", k5)
 	}
+
 	k6 := ke(t, evs[6], 6)
 	if k6.Key != event.KeyRune || k6.Rune != 'h' {
 		t.Fatalf("event 6 = %#v, want 'h'", k6)
@@ -390,7 +437,9 @@ func TestInputDecoder_CSI_Unknown(t *testing.T) {
 
 func TestInputDecoder_CSI_Overflow(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
+
 	evs = d.PushByte(evs, 0x1b) // ESC
 	evs = d.PushByte(evs, '[')  // CSI start
 
@@ -408,10 +457,12 @@ func TestInputDecoder_CSI_Overflow(t *testing.T) {
 	if len(evs) != wantCount {
 		t.Fatalf("got %d events, want %d: %#v", len(evs), wantCount, evs)
 	}
+
 	k0 := ke(t, evs[0], 0)
 	if k0.Key != event.KeyEsc {
 		t.Fatalf("event 0 = %#v, want KeyEsc", k0)
 	}
+
 	k1 := ke(t, evs[1], 1)
 	if k1.Key != event.KeyRune || k1.Rune != '[' {
 		t.Fatalf("event 1 = %#v, want '['", k1)
@@ -420,7 +471,9 @@ func TestInputDecoder_CSI_Overflow(t *testing.T) {
 
 func TestInputDecoder_CSI_InvalidByte(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
+
 	evs = d.PushByte(evs, 0x1b) // ESC
 	evs = d.PushByte(evs, '[')  // CSI start
 	evs = d.PushByte(evs, '1')  // parameter
@@ -430,18 +483,22 @@ func TestInputDecoder_CSI_InvalidByte(t *testing.T) {
 	if len(evs) != 3 {
 		t.Fatalf("got %d events, want 3: %#v", len(evs), evs)
 	}
+
 	k0 := ke(t, evs[0], 0)
 	if k0.Key != event.KeyEsc {
 		t.Fatalf("event 0 = %#v, want KeyEsc", k0)
 	}
+
 	k1 := ke(t, evs[1], 1)
 	if k1.Key != event.KeyRune || k1.Rune != '[' {
 		t.Fatalf("event 1 = %#v, want '['", k1)
 	}
+
 	k2 := ke(t, evs[2], 2)
 	if k2.Key != event.KeyRune || k2.Rune != '1' {
 		t.Fatalf("event 2 = %#v, want '1'", k2)
 	}
+
 	if d.state != stateEsc {
 		t.Errorf("state = %v, want stateEsc", d.state)
 	}
@@ -449,7 +506,9 @@ func TestInputDecoder_CSI_InvalidByte(t *testing.T) {
 
 func TestInputDecoder_Finalize_PartialCSI(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
+
 	evs = d.PushByte(evs, 0x1b) // ESC
 	evs = d.PushByte(evs, '[')  // CSI start
 	evs = d.PushByte(evs, '1')
@@ -461,18 +520,22 @@ func TestInputDecoder_Finalize_PartialCSI(t *testing.T) {
 	if len(evs) != 4 {
 		t.Fatalf("got %d events, want 4: %#v", len(evs), evs)
 	}
+
 	k0 := ke(t, evs[0], 0)
 	if k0.Key != event.KeyEsc {
 		t.Fatalf("event 0 = %#v, want KeyEsc", k0)
 	}
+
 	k1 := ke(t, evs[1], 1)
 	if k1.Key != event.KeyRune || k1.Rune != '[' {
 		t.Fatalf("event 1 = %#v, want '['", k1)
 	}
+
 	k2 := ke(t, evs[2], 2)
 	if k2.Key != event.KeyRune || k2.Rune != '1' {
 		t.Fatalf("event 2 = %#v, want '1'", k2)
 	}
+
 	k3 := ke(t, evs[3], 3)
 	if k3.Key != event.KeyRune || k3.Rune != ';' {
 		t.Fatalf("event 3 = %#v, want ';'", k3)
@@ -481,7 +544,9 @@ func TestInputDecoder_Finalize_PartialCSI(t *testing.T) {
 
 func TestInputDecoder_Finalize_PartialSS3(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
+
 	evs = d.PushByte(evs, 0x1b) // ESC
 	evs = d.PushByte(evs, 'O')  // SS3 start
 
@@ -491,10 +556,12 @@ func TestInputDecoder_Finalize_PartialSS3(t *testing.T) {
 	if len(evs) != 2 {
 		t.Fatalf("got %d events, want 2: %#v", len(evs), evs)
 	}
+
 	k0 := ke(t, evs[0], 0)
 	if k0.Key != event.KeyEsc {
 		t.Fatalf("event 0 = %#v, want KeyEsc", k0)
 	}
+
 	k1 := ke(t, evs[1], 1)
 	if k1.Key != event.KeyRune || k1.Rune != 'O' {
 		t.Fatalf("event 1 = %#v, want 'O'", k1)
@@ -503,7 +570,9 @@ func TestInputDecoder_Finalize_PartialSS3(t *testing.T) {
 
 func TestInputDecoder_Finalize_IncompleteAltUTF8(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
+
 	evs = d.PushByte(evs, 0x1b) // ESC
 	evs = d.PushByte(evs, 0xC3) // Start Alt+UTF-8 (é is C3 A9)
 
@@ -512,10 +581,12 @@ func TestInputDecoder_Finalize_IncompleteAltUTF8(t *testing.T) {
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1: %#v", len(evs), evs)
 	}
+
 	k := ke(t, evs[0], 0)
 	if k.Key != event.KeyRune || k.Rune != utf8.RuneError {
 		t.Fatalf("got %#v, want RuneError with ModAlt", k)
 	}
+
 	if k.Mod != event.ModAlt {
 		t.Fatalf("got Mod %v, want ModAlt", k.Mod)
 	}
@@ -523,6 +594,7 @@ func TestInputDecoder_Finalize_IncompleteAltUTF8(t *testing.T) {
 
 func TestInputDecoder_ESC_Esc(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 
 	// First ESC -> stateEsc
@@ -530,6 +602,7 @@ func TestInputDecoder_ESC_Esc(t *testing.T) {
 	if len(evs) != 0 {
 		t.Fatalf("after first ESC: got %d events, want 0", len(evs))
 	}
+
 	if d.state != stateEsc {
 		t.Fatalf("after first ESC: state = %v, want stateEsc", d.state)
 	}
@@ -539,10 +612,12 @@ func TestInputDecoder_ESC_Esc(t *testing.T) {
 	if len(evs) != 1 {
 		t.Fatalf("after second ESC: got %d events, want 1", len(evs))
 	}
+
 	k := ke(t, evs[0], 0)
 	if k.Key != event.KeyEsc {
 		t.Fatalf("got %#v, want KeyEsc", k)
 	}
+
 	if d.state != stateEsc {
 		t.Fatalf("after second ESC: state = %v, want stateEsc", d.state)
 	}
@@ -553,7 +628,9 @@ func TestInputDecoder_ESC_Esc(t *testing.T) {
 	if len(evs) != 2 {
 		t.Fatalf("after Finalize: got %d events, want 2", len(evs))
 	}
+
 	k0 := ke(t, evs[0], 0)
+
 	k1 := ke(t, evs[1], 1)
 	if k0.Key != event.KeyEsc || k1.Key != event.KeyEsc {
 		t.Fatalf("got %#v, want two KeyEsc", evs)
@@ -562,6 +639,7 @@ func TestInputDecoder_ESC_Esc(t *testing.T) {
 
 func TestInputDecoder_ESC_Esc_AltRune(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 
 	// ESC ESC a
@@ -572,10 +650,12 @@ func TestInputDecoder_ESC_Esc_AltRune(t *testing.T) {
 	if len(evs) != 2 {
 		t.Fatalf("got %d events, want 2: %#v", len(evs), evs)
 	}
+
 	k0 := ke(t, evs[0], 0)
 	if k0.Key != event.KeyEsc {
 		t.Fatalf("event 0 = %#v, want KeyEsc", k0)
 	}
+
 	k1 := ke(t, evs[1], 1)
 	if k1.Key != event.KeyRune || k1.Rune != 'a' || k1.Mod != event.ModAlt {
 		t.Fatalf("event 1 = %#v, want Alt+'a'", k1)
@@ -584,17 +664,21 @@ func TestInputDecoder_ESC_Esc_AltRune(t *testing.T) {
 
 func TestInputDecoder_ESC_AltRune(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
+
 	evs = d.PushByte(evs, 0x1b)
 	evs = d.PushByte(evs, 'a')
 
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1: %#v", len(evs), evs)
 	}
+
 	k := ke(t, evs[0], 0)
 	if k.Key != event.KeyRune || k.Rune != 'a' {
 		t.Fatalf("got %#v, want KeyRune('a')", k)
 	}
+
 	if k.Mod != event.ModAlt {
 		t.Fatalf("got Mod %v, want ModAlt", k.Mod)
 	}
@@ -602,6 +686,7 @@ func TestInputDecoder_ESC_AltRune(t *testing.T) {
 
 func TestInputDecoder_ESC_AltUTF8(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 	// ESC C3 A9 -> Alt+é
 	evs = d.PushByte(evs, 0x1b)
@@ -611,10 +696,12 @@ func TestInputDecoder_ESC_AltUTF8(t *testing.T) {
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1: %#v", len(evs), evs)
 	}
+
 	k := ke(t, evs[0], 0)
 	if k.Key != event.KeyRune || k.Rune != 'é' {
 		t.Fatalf("got %#v, want KeyRune('é')", k)
 	}
+
 	if k.Mod != event.ModAlt {
 		t.Fatalf("got Mod %v, want ModAlt", k.Mod)
 	}
@@ -622,6 +709,7 @@ func TestInputDecoder_ESC_AltUTF8(t *testing.T) {
 
 func TestInputDecoder_UTF8_InvalidContinuation(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 	// C3 28 -> invalid UTF-8 (0x28 is not a valid continuation byte)
 	evs = d.PushByte(evs, 0xC3)
@@ -630,10 +718,12 @@ func TestInputDecoder_UTF8_InvalidContinuation(t *testing.T) {
 	if len(evs) != 2 {
 		t.Fatalf("got %d events, want 2: %#v", len(evs), evs)
 	}
+
 	k0 := ke(t, evs[0], 0)
 	if k0.Key != event.KeyRune || k0.Rune != utf8.RuneError {
 		t.Fatalf("event 0 = %#v, want RuneError", k0)
 	}
+
 	k1 := ke(t, evs[1], 1)
 	if k1.Key != event.KeyRune || k1.Rune != '(' {
 		t.Fatalf("event 1 = %#v, want '('", k1)
@@ -642,6 +732,7 @@ func TestInputDecoder_UTF8_InvalidContinuation(t *testing.T) {
 
 func TestInputDecoder_ESC_InvalidUTF8(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 	// ESC C3 28 -> invalid Alt+UTF-8
 	evs = d.PushByte(evs, 0x1b)
@@ -651,17 +742,21 @@ func TestInputDecoder_ESC_InvalidUTF8(t *testing.T) {
 	if len(evs) != 2 {
 		t.Fatalf("got %d events, want 2: %#v", len(evs), evs)
 	}
+
 	k0 := ke(t, evs[0], 0)
 	if k0.Key != event.KeyRune || k0.Rune != utf8.RuneError {
 		t.Fatalf("event 0 = %#v, want RuneError with ModAlt", k0)
 	}
+
 	if k0.Mod != event.ModAlt {
 		t.Fatalf("event 0 Mod = %v, want ModAlt", k0.Mod)
 	}
+
 	k1 := ke(t, evs[1], 1)
 	if k1.Key != event.KeyRune || k1.Rune != '(' {
 		t.Fatalf("event 1 = %#v, want '('", k1)
 	}
+
 	if k1.Mod != 0 {
 		t.Fatalf("event 1 Mod = %v, want 0", k1.Mod)
 	}
@@ -669,6 +764,7 @@ func TestInputDecoder_ESC_InvalidUTF8(t *testing.T) {
 
 func TestInputDecoder_ESC_ControlChar(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 	// ESC 0x03 -> ESC followed by Ctrl+C
 	evs = d.PushByte(evs, 0x1b)
@@ -677,10 +773,12 @@ func TestInputDecoder_ESC_ControlChar(t *testing.T) {
 	if len(evs) != 2 {
 		t.Fatalf("got %d events, want 2: %#v", len(evs), evs)
 	}
+
 	k0 := ke(t, evs[0], 0)
 	if k0.Key != event.KeyEsc {
 		t.Fatalf("event 0 = %#v, want KeyEsc", k0)
 	}
+
 	k1 := ke(t, evs[1], 1)
 	if k1.Key != event.KeyCtrlC {
 		t.Fatalf("event 1 = %#v, want KeyCtrlC", k1)
@@ -689,6 +787,7 @@ func TestInputDecoder_ESC_ControlChar(t *testing.T) {
 
 func TestInputDecoder_FlushPending(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 
 	// ESC -> goes to stateEsc, no event yet
@@ -702,6 +801,7 @@ func TestInputDecoder_FlushPending(t *testing.T) {
 	if len(evs) != 1 {
 		t.Fatalf("after FlushPending: got %d events, want 1", len(evs))
 	}
+
 	k := ke(t, evs[0], 0)
 	if k.Key != event.KeyEsc {
 		t.Fatalf("got %#v, want KeyEsc", k)
@@ -715,6 +815,7 @@ func TestInputDecoder_FlushPending(t *testing.T) {
 
 func TestInputDecoder_FlushPending_PartialCSI(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 
 	evs = d.PushByte(evs, 0x1b)
@@ -725,6 +826,7 @@ func TestInputDecoder_FlushPending_PartialCSI(t *testing.T) {
 	if len(evs) != 0 {
 		t.Fatalf("FlushPending flushed partial CSI: got %d events, want 0", len(evs))
 	}
+
 	if d.state != stateCSI {
 		t.Fatalf("state = %v, want stateCSI", d.state)
 	}
@@ -732,6 +834,7 @@ func TestInputDecoder_FlushPending_PartialCSI(t *testing.T) {
 
 func TestInputDecoder_FlushPending_PartialSS3(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 
 	evs = d.PushByte(evs, 0x1b)
@@ -742,6 +845,7 @@ func TestInputDecoder_FlushPending_PartialSS3(t *testing.T) {
 	if len(evs) != 0 {
 		t.Fatalf("FlushPending flushed partial SS3: got %d events, want 0", len(evs))
 	}
+
 	if d.state != stateSS3 {
 		t.Fatalf("state = %v, want stateSS3", d.state)
 	}
@@ -749,6 +853,7 @@ func TestInputDecoder_FlushPending_PartialSS3(t *testing.T) {
 
 func TestInputDecoder_FlushPending_PartialUTF8(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 
 	evs = d.PushByte(evs, 0xC3) // Start of 2-byte UTF-8
@@ -758,6 +863,7 @@ func TestInputDecoder_FlushPending_PartialUTF8(t *testing.T) {
 	if len(evs) != 0 {
 		t.Fatalf("FlushPending flushed partial UTF-8: got %d events, want 0", len(evs))
 	}
+
 	if d.state != stateUTF8 {
 		t.Fatalf("state = %v, want stateUTF8", d.state)
 	}
@@ -765,13 +871,16 @@ func TestInputDecoder_FlushPending_PartialUTF8(t *testing.T) {
 
 func TestInputDecoder_FinalizeTrailingEsc(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
+
 	evs = d.PushByte(evs, 0x1b)
 	evs = d.Finalize(evs)
 
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1: %#v", len(evs), evs)
 	}
+
 	k := ke(t, evs[0], 0)
 	if k.Key != event.KeyEsc {
 		t.Fatalf("got %#v, want KeyEsc", k)
@@ -780,7 +889,9 @@ func TestInputDecoder_FinalizeTrailingEsc(t *testing.T) {
 
 func TestInputDecoder_FinalizeTruncatedUTF8(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
+
 	evs = d.PushByte(evs, 0xE2) // start of 3-byte UTF-8 sequence
 	if len(evs) != 0 {
 		t.Fatalf("got %#v before finalize, want none", evs)
@@ -790,6 +901,7 @@ func TestInputDecoder_FinalizeTruncatedUTF8(t *testing.T) {
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1", len(evs))
 	}
+
 	k := ke(t, evs[0], 0)
 	if k.Key != event.KeyRune || k.Rune != utf8.RuneError {
 		t.Fatalf("got %#v, want RuneError", k)
@@ -811,6 +923,7 @@ func TestInputDecoder_UTF8(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &InputDecoder{}
+
 			var evs []event.Event
 
 			for i, b := range tt.seq {
@@ -829,10 +942,12 @@ func TestInputDecoder_UTF8(t *testing.T) {
 			if len(evs) != 1 {
 				t.Fatalf("%s: got %d events total, want 1", tt.name, len(evs))
 			}
+
 			k := ke(t, evs[0], 0)
 			if k.Key != event.KeyRune {
 				t.Errorf("%s: key = %v, want KeyRune", tt.name, k.Key)
 			}
+
 			if k.Rune != tt.r {
 				t.Errorf("%s: rune = %c, want %c", tt.name, k.Rune, tt.r)
 			}
@@ -845,6 +960,7 @@ func TestInputDecoder_Reset(t *testing.T) {
 
 	// Start a CSI sequence
 	var evs []event.Event
+
 	evs = d.PushByte(evs, 0x1b)
 	_ = d.PushByte(evs, '[')
 
@@ -856,6 +972,7 @@ func TestInputDecoder_Reset(t *testing.T) {
 	if len(evs) != 1 {
 		t.Errorf("After reset, got %d events, want 1", len(evs))
 	}
+
 	k := ke(t, evs[0], 0)
 	if k.Key != event.KeyRune || k.Rune != 'a' {
 		t.Errorf("After reset, got unexpected event: key=%v rune=%c", k.Key, k.Rune)
@@ -872,18 +989,21 @@ func TestInputDecoder_State(t *testing.T) {
 
 	// ESC should change to Esc state
 	d.PushByte(nil, 0x1b)
+
 	if d.state != stateEsc {
 		t.Errorf("After ESC, state = %v, want stateEsc", d.state)
 	}
 
 	// Reset should return to ground
 	d.Reset()
+
 	if d.state != stateGround {
 		t.Errorf("After reset, state = %v, want stateGround", d.state)
 	}
 
 	// Starting UTF-8 sequence should change state
 	d.PushByte(nil, 0xE2) // Start of 3-byte UTF-8
+
 	if d.state != stateUTF8 {
 		t.Errorf("After UTF-8 start, state = %v, want stateUTF8", d.state)
 	}
@@ -893,21 +1013,26 @@ func TestInputDecoder_State(t *testing.T) {
 
 func TestInputDecoder_SGRMouse_LeftPress(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 	// ESC [ < 0 ; 10 ; 20 M -> left press at (9, 19)
 	for _, b := range []byte("\x1b[<0;10;20M") {
 		evs = d.PushByte(evs, b)
 	}
+
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1: %#v", len(evs), evs)
 	}
+
 	me, ok := evs[0].(event.MouseEvent)
 	if !ok {
 		t.Fatalf("got %T, want MouseEvent", evs[0])
 	}
+
 	if me.Button != event.MouseButtonLeft || me.Action != event.MousePress {
 		t.Fatalf("got button=%v action=%v, want Left/Press", me.Button, me.Action)
 	}
+
 	if me.X != 9 || me.Y != 19 {
 		t.Fatalf("got (%d,%d), want (9,19)", me.X, me.Y)
 	}
@@ -915,13 +1040,16 @@ func TestInputDecoder_SGRMouse_LeftPress(t *testing.T) {
 
 func TestInputDecoder_SGRMouse_LeftRelease(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 	for _, b := range []byte("\x1b[<0;10;20m") {
 		evs = d.PushByte(evs, b)
 	}
+
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1", len(evs))
 	}
+
 	me := evs[0].(event.MouseEvent)
 	if me.Button != event.MouseButtonLeft || me.Action != event.MouseRelease {
 		t.Fatalf("got button=%v action=%v, want Left/Release", me.Button, me.Action)
@@ -938,13 +1066,16 @@ func TestInputDecoder_SGRMouse_MiddleRight(t *testing.T) {
 	}
 	for _, tt := range tests {
 		d := &InputDecoder{}
+
 		var evs []event.Event
 		for _, b := range []byte(tt.seq) {
 			evs = d.PushByte(evs, b)
 		}
+
 		if len(evs) != 1 {
 			t.Fatalf("%s: got %d events", tt.seq, len(evs))
 		}
+
 		me := evs[0].(event.MouseEvent)
 		if me.Button != tt.button {
 			t.Fatalf("%s: got button=%v, want %v", tt.seq, me.Button, tt.button)
@@ -954,13 +1085,16 @@ func TestInputDecoder_SGRMouse_MiddleRight(t *testing.T) {
 
 func TestInputDecoder_SGRMouse_WheelUp(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 	for _, b := range []byte("\x1b[<64;10;20M") {
 		evs = d.PushByte(evs, b)
 	}
+
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1", len(evs))
 	}
+
 	me := evs[0].(event.MouseEvent)
 	if me.Button != event.MouseButtonWheelUp {
 		t.Fatalf("got button=%v, want WheelUp", me.Button)
@@ -969,13 +1103,16 @@ func TestInputDecoder_SGRMouse_WheelUp(t *testing.T) {
 
 func TestInputDecoder_SGRMouse_WheelDown(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 	for _, b := range []byte("\x1b[<65;10;20M") {
 		evs = d.PushByte(evs, b)
 	}
+
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1", len(evs))
 	}
+
 	me := evs[0].(event.MouseEvent)
 	if me.Button != event.MouseButtonWheelDown {
 		t.Fatalf("got button=%v, want WheelDown", me.Button)
@@ -986,20 +1123,25 @@ func TestInputDecoder_SGRMouse_ButtonMotion(t *testing.T) {
 	// Button-motion events have bit 5 (32) set.
 	// Left button held + motion: pb = 32 | 0 = 32
 	d := &InputDecoder{}
+
 	var evs []event.Event
 	for _, b := range []byte("\x1b[<32;15;25M") {
 		evs = d.PushByte(evs, b)
 	}
+
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1", len(evs))
 	}
+
 	me := evs[0].(event.MouseEvent)
 	if me.Action != event.MouseMove {
 		t.Errorf("action: got %v, want MouseMove", me.Action)
 	}
+
 	if me.Button != event.MouseButtonLeft {
 		t.Errorf("button: got %v, want Left", me.Button)
 	}
+
 	if me.X != 14 || me.Y != 24 {
 		t.Errorf("pos: got (%d,%d), want (14,24)", me.X, me.Y)
 	}
@@ -1008,17 +1150,21 @@ func TestInputDecoder_SGRMouse_ButtonMotion(t *testing.T) {
 func TestInputDecoder_SGRMouse_RightButtonMotion(t *testing.T) {
 	// Right button held + motion: pb = 32 | 2 = 34
 	d := &InputDecoder{}
+
 	var evs []event.Event
 	for _, b := range []byte("\x1b[<34;5;5M") {
 		evs = d.PushByte(evs, b)
 	}
+
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1", len(evs))
 	}
+
 	me := evs[0].(event.MouseEvent)
 	if me.Action != event.MouseMove {
 		t.Errorf("action: got %v, want MouseMove", me.Action)
 	}
+
 	if me.Button != event.MouseButtonRight {
 		t.Errorf("button: got %v, want Right", me.Button)
 	}
@@ -1026,21 +1172,26 @@ func TestInputDecoder_SGRMouse_RightButtonMotion(t *testing.T) {
 
 func TestInputDecoder_SGRMouse_Modifiers(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 	// Shift=4, Alt=8, Ctrl=16 -> 4+8+16=28 -> button bits: 28
 	for _, b := range []byte("\x1b[<28;5;5M") {
 		evs = d.PushByte(evs, b)
 	}
+
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1", len(evs))
 	}
+
 	me := evs[0].(event.MouseEvent)
 	if me.Mod&event.ModShift == 0 {
 		t.Error("missing ModShift")
 	}
+
 	if me.Mod&event.ModAlt == 0 {
 		t.Error("missing ModAlt")
 	}
+
 	if me.Mod&event.ModCtrl == 0 {
 		t.Error("missing ModCtrl")
 	}
@@ -1048,13 +1199,16 @@ func TestInputDecoder_SGRMouse_Modifiers(t *testing.T) {
 
 func TestInputDecoder_SGRMouse_LargeCoords(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 	for _, b := range []byte("\x1b[<0;300;200M") {
 		evs = d.PushByte(evs, b)
 	}
+
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1", len(evs))
 	}
+
 	me := evs[0].(event.MouseEvent)
 	if me.X != 299 || me.Y != 199 {
 		t.Fatalf("got (%d,%d), want (299,199)", me.X, me.Y)
@@ -1065,18 +1219,22 @@ func TestInputDecoder_SGRMouse_LargeCoords(t *testing.T) {
 
 func TestInputDecoder_Paste_ASCII(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 	// ESC[200~ hello ESC[201~
 	for _, b := range []byte("\x1b[200~hello\x1b[201~") {
 		evs = d.PushByte(evs, b)
 	}
+
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1: %#v", len(evs), evs)
 	}
+
 	pe, ok := evs[0].(event.PasteEvent)
 	if !ok {
 		t.Fatalf("got %T, want PasteEvent", evs[0])
 	}
+
 	if pe.Text != "hello" {
 		t.Fatalf("got text=%q, want %q", pe.Text, "hello")
 	}
@@ -1084,13 +1242,16 @@ func TestInputDecoder_Paste_ASCII(t *testing.T) {
 
 func TestInputDecoder_Paste_Empty(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 	for _, b := range []byte("\x1b[200~\x1b[201~") {
 		evs = d.PushByte(evs, b)
 	}
+
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1", len(evs))
 	}
+
 	pe := evs[0].(event.PasteEvent)
 	if pe.Text != "" {
 		t.Fatalf("got text=%q, want empty", pe.Text)
@@ -1099,13 +1260,16 @@ func TestInputDecoder_Paste_Empty(t *testing.T) {
 
 func TestInputDecoder_Paste_UTF8(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 	for _, b := range []byte("\x1b[200~café\x1b[201~") {
 		evs = d.PushByte(evs, b)
 	}
+
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1", len(evs))
 	}
+
 	pe := evs[0].(event.PasteEvent)
 	if pe.Text != "café" {
 		t.Fatalf("got text=%q, want %q", pe.Text, "café")
@@ -1114,16 +1278,20 @@ func TestInputDecoder_Paste_UTF8(t *testing.T) {
 
 func TestInputDecoder_Paste_InvalidUTF8(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 	// Insert invalid UTF-8 byte in paste content
 	paste := append([]byte("\x1b[200~ab"), 0xFF)
+
 	paste = append(paste, []byte("cd\x1b[201~")...)
 	for _, b := range paste {
 		evs = d.PushByte(evs, b)
 	}
+
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1", len(evs))
 	}
+
 	pe := evs[0].(event.PasteEvent)
 	// Invalid byte should be replaced with U+FFFD
 	if pe.Text != "ab\uFFFDcd" {
@@ -1133,14 +1301,17 @@ func TestInputDecoder_Paste_InvalidUTF8(t *testing.T) {
 
 func TestInputDecoder_Paste_EmbeddedESC(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 	// ESC inside paste that doesn't form end marker
 	for _, b := range []byte("\x1b[200~a\x1bb\x1b[201~") {
 		evs = d.PushByte(evs, b)
 	}
+
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1", len(evs))
 	}
+
 	pe := evs[0].(event.PasteEvent)
 	if pe.Text != "a\x1bb" {
 		t.Fatalf("got text=%q, want %q", pe.Text, "a\x1bb")
@@ -1149,18 +1320,22 @@ func TestInputDecoder_Paste_EmbeddedESC(t *testing.T) {
 
 func TestInputDecoder_Paste_Finalize(t *testing.T) {
 	d := &InputDecoder{}
+
 	var evs []event.Event
 	// Start paste but don't finish it
 	for _, b := range []byte("\x1b[200~partial") {
 		evs = d.PushByte(evs, b)
 	}
+
 	if len(evs) != 0 {
 		t.Fatalf("got %d events before finalize, want 0", len(evs))
 	}
+
 	evs = d.Finalize(evs)
 	if len(evs) != 1 {
 		t.Fatalf("got %d events after finalize, want 1", len(evs))
 	}
+
 	pe := evs[0].(event.PasteEvent)
 	if pe.Text != "partial" {
 		t.Fatalf("got text=%q, want %q", pe.Text, "partial")
@@ -1174,6 +1349,7 @@ func pushAll(d *InputDecoder, data []byte) []event.Event {
 	for _, b := range data {
 		evs = d.PushByte(evs, b)
 	}
+
 	return evs
 }
 
@@ -1186,10 +1362,12 @@ func TestOSC52_BELTerminator(t *testing.T) {
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1", len(evs))
 	}
+
 	cr, ok := evs[0].(event.ClipboardResponseEvent)
 	if !ok {
 		t.Fatalf("event is %T, want ClipboardResponseEvent", evs[0])
 	}
+
 	if cr.Text != "hello" {
 		t.Fatalf("got text=%q, want %q", cr.Text, "hello")
 	}
@@ -1203,10 +1381,12 @@ func TestOSC52_STTerminator(t *testing.T) {
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1", len(evs))
 	}
+
 	cr, ok := evs[0].(event.ClipboardResponseEvent)
 	if !ok {
 		t.Fatalf("event is %T, want ClipboardResponseEvent", evs[0])
 	}
+
 	if cr.Text != "hello" {
 		t.Fatalf("got text=%q, want %q", cr.Text, "hello")
 	}
@@ -1221,6 +1401,7 @@ func TestOSC52_EmptyPayload(t *testing.T) {
 	if len(evs) != 1 {
 		t.Fatalf("got %d events, want 1", len(evs))
 	}
+
 	cr := evs[0].(event.ClipboardResponseEvent)
 	if cr.Text != "" {
 		t.Fatalf("got text=%q, want empty", cr.Text)
@@ -1251,26 +1432,32 @@ func TestOSC52_InterleavedWithInput(t *testing.T) {
 	d := &InputDecoder{}
 	// Type 'a', then clipboard response, then 'b'
 	var evs []event.Event
+
 	evs = d.PushByte(evs, 'a')
 	for _, b := range []byte("\x1b]52;c;aGVsbG8=\x07") {
 		evs = d.PushByte(evs, b)
 	}
+
 	evs = d.PushByte(evs, 'b')
 
 	if len(evs) != 3 {
 		t.Fatalf("got %d events, want 3", len(evs))
 	}
+
 	k0 := ke(t, evs[0], 0)
 	if k0.Key != event.KeyRune || k0.Rune != 'a' {
 		t.Fatalf("event 0: got %#v, want 'a'", k0)
 	}
+
 	cr, ok := evs[1].(event.ClipboardResponseEvent)
 	if !ok {
 		t.Fatalf("event 1 is %T, want ClipboardResponseEvent", evs[1])
 	}
+
 	if cr.Text != "hello" {
 		t.Fatalf("got text=%q, want %q", cr.Text, "hello")
 	}
+
 	k2 := ke(t, evs[2], 2)
 	if k2.Key != event.KeyRune || k2.Rune != 'b' {
 		t.Fatalf("event 2: got %#v, want 'b'", k2)
@@ -1284,6 +1471,7 @@ func TestOSC52_IncompleteAtFinalize(t *testing.T) {
 	if len(evs) != 0 {
 		t.Fatalf("got %d events before finalize, want 0", len(evs))
 	}
+
 	evs = d.Finalize(evs)
 	if len(evs) != 0 {
 		t.Fatalf("got %d events after finalize, want 0 (incomplete OSC discarded)", len(evs))
@@ -1299,6 +1487,7 @@ func TestOSC52_Overflow(t *testing.T) {
 	for i := range big {
 		big[i] = 'A'
 	}
+
 	evs := pushAll(d, big)
 	// Should have discarded and returned to ground
 	if d.state != stateGround {

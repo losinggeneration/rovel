@@ -121,10 +121,13 @@ func main() {
 			if r.W <= 0 {
 				return
 			}
+
 			row := fmt.Sprintf("Item %d", i)
+
 			if selected && focused {
 				// Selected + focused: reverse video
 				p.Fill(r, ' ', tui.Style{Attr: style.AttrReverse})
+
 				truncated := truncate(row, r.W-1)
 				if r.W > 1 {
 					p.Text(r.X, r.Y, ">"+truncated, tui.Style{Attr: style.AttrReverse})
@@ -132,6 +135,7 @@ func main() {
 			} else if selected {
 				// Selected but unfocused: lighter treatment
 				p.Fill(r, ' ', tui.Style{FG: style.ColorWhite, BG: style.ColorBlue})
+
 				truncated := truncate(row, r.W-1)
 				if r.W > 1 {
 					p.Text(r.X, r.Y, ">"+truncated, tui.Style{FG: style.ColorWhite, BG: style.ColorBlue})
@@ -144,6 +148,7 @@ func main() {
 		},
 		OnActivate: func(i int, ctx *tui.Ctx) {
 			st.status = fmt.Sprintf("Activated item %d", i)
+
 			if ctx != nil && ctx.InvalidateAll != nil {
 				ctx.InvalidateAll()
 			}
@@ -169,6 +174,7 @@ func main() {
 	if err := app.Enable(); err != nil {
 		panic(err)
 	}
+
 	defer func() {
 		if err := app.Restore(); err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to restore terminal: %v\n", err)
@@ -210,12 +216,14 @@ func paintEditor(st *appState, p *tui.Painter, rect geom.Rect, ctx *tui.Ctx) {
 		}
 
 		cx := rect.X + cursorDisplayX
+
 		cy := rect.Y + st.cursorY
 		if cx >= rect.X && cx < rect.X+rect.W {
 			ch := " "
 			if st.cursorX >= 0 && st.cursorX < len(runes) {
 				ch = string(runes[st.cursorX])
 			}
+
 			p.Text(cx, cy, ch, tui.Style{Attr: style.AttrReverse})
 		}
 	}
@@ -239,36 +247,43 @@ func handleEditor(
 	case tui.KeyRune:
 		insertRune(st, ke.Rune)
 		ref.canvas.InvalidateRow(ctx, st.cursorY)
+
 		return true
 
 	case tui.KeyLeft:
 		moveLeft(st)
 		invalidateCursorMove(ref.canvas, ctx, oldY, st.cursorY)
+
 		return true
 
 	case tui.KeyRight:
 		moveRight(st)
 		invalidateCursorMove(ref.canvas, ctx, oldY, st.cursorY)
+
 		return true
 
 	case tui.KeyUp:
 		moveUp(st)
 		invalidateCursorMove(ref.canvas, ctx, oldY, st.cursorY)
+
 		return true
 
 	case tui.KeyDown:
 		moveDown(st)
 		invalidateCursorMove(ref.canvas, ctx, oldY, st.cursorY)
+
 		return true
 
 	case tui.KeyEnter:
 		splitLine(st)
 		ref.canvas.Invalidate(ctx)
+
 		return true
 
 	case tui.KeyBackspace:
 		backspace(st)
 		ref.canvas.Invalidate(ctx)
+
 		return true
 
 	case tui.KeyEsc:
@@ -291,6 +306,7 @@ func invalidateCursorMove(
 		c.InvalidateRow(ctx, oldRow)
 		return
 	}
+
 	c.InvalidateRow(ctx, oldRow)
 	c.InvalidateRow(ctx, newRow)
 }
@@ -298,10 +314,12 @@ func invalidateCursorMove(
 // insertRune inserts a rune at the cursor position.
 func insertRune(st *appState, r rune) {
 	ensureCursor(st)
+
 	lineRunes := []rune(st.lines[st.cursorY])
 	if st.cursorX < 0 {
 		st.cursorX = 0
 	}
+
 	if st.cursorX > len(lineRunes) {
 		st.cursorX = len(lineRunes)
 	}
@@ -317,10 +335,12 @@ func insertRune(st *appState, r rune) {
 // moveLeft moves the cursor left.
 func moveLeft(st *appState) {
 	ensureCursor(st)
+
 	if st.cursorX > 0 {
 		st.cursorX--
 		return
 	}
+
 	if st.cursorY > 0 {
 		st.cursorY--
 		st.cursorX = len([]rune(st.lines[st.cursorY]))
@@ -330,11 +350,13 @@ func moveLeft(st *appState) {
 // moveRight moves the cursor right.
 func moveRight(st *appState) {
 	ensureCursor(st)
+
 	lineLen := len([]rune(st.lines[st.cursorY]))
 	if st.cursorX < lineLen {
 		st.cursorX++
 		return
 	}
+
 	if st.cursorY+1 < len(st.lines) {
 		st.cursorY++
 		st.cursorX = 0
@@ -344,6 +366,7 @@ func moveRight(st *appState) {
 // moveUp moves the cursor up.
 func moveUp(st *appState) {
 	ensureCursor(st)
+
 	if st.cursorY > 0 {
 		st.cursorY--
 		clampCursorX(st)
@@ -353,6 +376,7 @@ func moveUp(st *appState) {
 // moveDown moves the cursor down.
 func moveDown(st *appState) {
 	ensureCursor(st)
+
 	if st.cursorY+1 < len(st.lines) {
 		st.cursorY++
 		clampCursorX(st)
@@ -362,10 +386,12 @@ func moveDown(st *appState) {
 // splitLine splits the current line at the cursor position.
 func splitLine(st *appState) {
 	ensureCursor(st)
+
 	lineRunes := []rune(st.lines[st.cursorY])
 	if st.cursorX < 0 {
 		st.cursorX = 0
 	}
+
 	if st.cursorX > len(lineRunes) {
 		st.cursorX = len(lineRunes)
 	}
@@ -396,6 +422,7 @@ func backspace(st *appState) {
 		)
 		st.lines[st.cursorY] = string(lineRunes)
 		st.cursorX--
+
 		return
 	}
 
@@ -419,12 +446,15 @@ func ensureCursor(st *appState) {
 	if len(st.lines) == 0 {
 		st.lines = []string{""}
 	}
+
 	if st.cursorY < 0 {
 		st.cursorY = 0
 	}
+
 	if st.cursorY >= len(st.lines) {
 		st.cursorY = len(st.lines) - 1
 	}
+
 	clampCursorX(st)
 }
 
@@ -434,6 +464,7 @@ func clampCursorX(st *appState) {
 	if st.cursorX < 0 {
 		st.cursorX = 0
 	}
+
 	if st.cursorX > lineLen {
 		st.cursorX = lineLen
 	}
@@ -446,14 +477,17 @@ func truncate(s string, w int) string {
 	}
 
 	width := 0
+
 	runes := []rune(s)
 	for i, r := range runes {
 		rw := tui.RuneWidth(r)
 		if width+rw > w {
 			return string(runes[:i])
 		}
+
 		width += rw
 	}
+
 	return s
 }
 
@@ -463,9 +497,11 @@ func padRight(s string, w int) string {
 	for _, r := range s {
 		width += tui.RuneWidth(r)
 	}
+
 	if width >= w {
 		return truncate(s, w)
 	}
+
 	return s + strings.Repeat(" ", w-width)
 }
 
@@ -498,10 +534,12 @@ func buildFormPane(st *appState) tui.View {
 		st.name = nameInput.Text()
 		st.email = emailInput.Text()
 		st.status = fmt.Sprintf("Submitted: name=%q email=%q", st.name, st.email)
+
 		if ctx != nil && ctx.InvalidateAll != nil {
 			ctx.InvalidateAll()
 		}
 	})
+
 	split := layout.NewHStack()
 	split.Add(submitBtn)
 	split.Add(widgets.NewLabel(""))
@@ -533,6 +571,7 @@ func buildStatusBar(st *appState) tui.View {
 			return false
 		},
 	})
+
 	return statusCanvas
 }
 
@@ -606,9 +645,11 @@ func (w *quitWrapper) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		if w.state.perfEnabled && w.state.perfMonitor != nil {
 			if ke.Key == tui.KeyRune && (ke.Rune == 'P' || ke.Rune == 'p') {
 				w.state.status = w.state.perfMonitor.Summary()
+
 				if ctx != nil && ctx.InvalidateAll != nil {
 					ctx.InvalidateAll()
 				}
+
 				return true
 			}
 		}
@@ -619,6 +660,7 @@ func (w *quitWrapper) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -630,5 +672,6 @@ func (w *quitWrapper) Children() []tui.View {
 	if c, ok := w.root.(interface{ Children() []tui.View }); ok {
 		return c.Children()
 	}
+
 	return nil
 }

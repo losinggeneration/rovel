@@ -27,6 +27,7 @@ func main() {
 	if err := app.Enable(); err != nil {
 		panic(err)
 	}
+
 	defer func() {
 		if err := app.Restore(); err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to restore terminal: %v\n", err)
@@ -55,10 +56,12 @@ func (w *quitWrapper) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	if w.root.Handle(e, ctx) {
 		return true
 	}
+
 	if _, ok := e.(tui.KeyEvent); ok {
 		ctx.Quit()
 		return true
 	}
+
 	return false
 }
 

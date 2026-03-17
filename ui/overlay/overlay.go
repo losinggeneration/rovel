@@ -19,6 +19,7 @@ type Centered struct{}
 func (Centered) Resolve(root tui.View, screen geom.Size) geom.Rect {
 	sz := preferredOrMin(root)
 	sz = clampSize(sz, screen)
+
 	return geom.Rect{
 		X: (screen.W - sz.W) / 2,
 		Y: (screen.H - sz.H) / 2,
@@ -41,6 +42,7 @@ func (a Anchored) Resolve(root tui.View, screen geom.Size) geom.Rect {
 	if x+sz.W > screen.W {
 		x = screen.W - sz.W
 	}
+
 	x = max(x, 0)
 
 	// Prefer below anchor
@@ -74,6 +76,7 @@ func preferredOrMin(v tui.View) geom.Size {
 	if ps, ok := v.(preferredSizer); ok {
 		return ps.PreferredSize()
 	}
+
 	return v.MinSize()
 }
 
@@ -81,8 +84,10 @@ func clampSize(sz, screen geom.Size) geom.Size {
 	if sz.W > screen.W {
 		sz.W = screen.W
 	}
+
 	if sz.H > screen.H {
 		sz.H = screen.H
 	}
+
 	return sz
 }

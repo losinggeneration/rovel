@@ -15,12 +15,14 @@ func forEachCluster(s string, fn func(start, end int) bool) {
 	if len(s) == 0 {
 		return
 	}
+
 	if !utf8.ValidString(s) {
 		for i := 0; i < len(s); i++ {
 			if !fn(i, i+1) {
 				return
 			}
 		}
+
 		return
 	}
 

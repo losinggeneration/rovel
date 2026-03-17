@@ -80,6 +80,7 @@ func (s *ScrollView) Layout(r geom.Rect) {
 		if s.showScrollbar && r.W > 1 {
 			childRect.W = r.W - 1
 		}
+
 		s.child.Layout(childRect)
 	}
 
@@ -94,6 +95,7 @@ func (s *ScrollView) Layout(r geom.Rect) {
 				},
 			})
 		}
+
 		s.scrollbar.Layout(geom.Rect{
 			X: r.X + r.W - 1,
 			Y: r.Y,
@@ -110,8 +112,10 @@ func (s *ScrollView) MinSize() geom.Size {
 		if s.scrollbarMode == ScrollbarAlways {
 			ms.W++
 		}
+
 		return ms
 	}
+
 	return geom.Size{W: 1, H: 1}
 }
 
@@ -123,6 +127,7 @@ func (s *ScrollView) Children() []tui.View {
 	if s.child == nil {
 		return nil
 	}
+
 	return []tui.View{s.child}
 }
 
@@ -172,6 +177,7 @@ func (s *ScrollView) HandleAction(act int, ctx *tui.Ctx) bool {
 		s.ScrollTo(ctx, s.maxScrollY())
 		return true
 	}
+
 	return false
 }
 
@@ -206,17 +212,21 @@ func (s *ScrollView) Handle(e tui.Event, ctx *tui.Ctx) bool {
 
 			if s.child != nil {
 				adjusted := me
+
 				adjusted.Y += s.scrollY
 				if s.child.Handle(adjusted, ctx) {
 					return true
 				}
 			}
+
 			if me.Button == tui.MouseButtonLeft && me.Action == tui.MousePress && s.focusable {
 				if ctx != nil && ctx.RequestFocus != nil {
 					ctx.RequestFocus(s.id)
 				}
+
 				return true
 			}
+
 			return false
 		}
 	}
@@ -258,6 +268,7 @@ func (s *ScrollView) ScrollTo(ctx *tui.Ctx, y int) {
 	old := s.scrollY
 	s.scrollY = y
 	s.clampScroll()
+
 	if s.scrollY != old {
 		ctx.Invalidate(s.rect)
 	}
@@ -279,16 +290,19 @@ func (s *ScrollView) contentHeight() int {
 	if s.child == nil {
 		return 0
 	}
+
 	return s.child.MinSize().H
 }
 
 func (s *ScrollView) maxScrollY() int {
 	contentH := s.contentHeight()
 	viewH := s.rect.H
+
 	maxScroll := contentH - viewH
 	if maxScroll < 0 {
 		return 0
 	}
+
 	return maxScroll
 }
 

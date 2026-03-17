@@ -39,6 +39,7 @@ func main() {
 	if err := app.Enable(); err != nil {
 		panic(err)
 	}
+
 	defer func() {
 		if err := app.Restore(); err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to restore terminal: %v\n", err)
@@ -69,7 +70,9 @@ func buildHeader() tui.View {
 			if rect.H < 2 {
 				return
 			}
+
 			title := "P1 Foundation Demo: Text, Size Policy, Box Layout"
+
 			p.Fill(rect, ' ', tui.Style{FG: style.ColorYellow, BG: style.ColorBlue})
 			p.Text(rect.X, rect.Y, title, tui.Style{FG: style.ColorYellow, BG: style.ColorBlue, Attr: style.AttrBold})
 			p.Text(rect.X, rect.Y+1, "Esc or Ctrl+C to quit", tui.Style{FG: style.ColorWhite, BG: style.ColorBlue})
@@ -152,6 +155,7 @@ func buildTextDemo() tui.View {
 			s := "The quick brown fox jumps"
 			lines := text.Wrap(s, 10)
 			p.Text(rect.X, y, fmt.Sprintf("Wrap(%q, 10):", s), tui.Style{})
+
 			y++
 			for i, line := range lines {
 				p.Text(rect.X, y, fmt.Sprintf("  L%d: [%d,%d) w=%d", i, line.Start, line.End, line.Width), tui.Style{})
@@ -234,6 +238,7 @@ func buildSizePolicyDemo() tui.View {
 		},
 		Handle: func(e tui.Event, ctx *tui.Ctx) bool { return false },
 	})
+
 	h3.AddChild(layout.Child{View: tall1, Opts: layout.SizePolicy{AlignY: layout.AlignStart}})
 	h3.AddChild(layout.Child{View: tall2, Opts: layout.SizePolicy{AlignY: layout.AlignCenter}})
 	h3.AddChild(layout.Child{View: tall3, Opts: layout.SizePolicy{AlignY: layout.AlignEnd}})
@@ -334,6 +339,7 @@ func (w *quitWrapper) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -345,5 +351,6 @@ func (w *quitWrapper) Children() []tui.View {
 	if c, ok := w.root.(interface{ Children() []tui.View }); ok {
 		return c.Children()
 	}
+
 	return nil
 }

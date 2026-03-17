@@ -58,11 +58,13 @@ func FuzzInputDecoder(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, input []byte) {
 		d := &InputDecoder{}
+
 		var evs []event.Event
 
 		for _, b := range input {
 			evs = d.PushByte(evs, b)
 		}
+
 		evs = d.Finalize(evs)
 
 		// Invariant: Finalize() resets decoder to stateGround

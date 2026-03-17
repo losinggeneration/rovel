@@ -25,6 +25,7 @@ func TestCentered(t *testing.T) {
 	screen := geom.Size{W: 80, H: 24}
 
 	got := Centered{}.Resolve(view, screen)
+
 	want := geom.Rect{X: 30, Y: 7, W: 20, H: 10}
 	if got != want {
 		t.Errorf("Centered.Resolve = %v, want %v", got, want)
@@ -51,6 +52,7 @@ func TestAnchored_Below(t *testing.T) {
 	if got.Y != anchor.Y+anchor.H {
 		t.Errorf("expected Y=%d (below anchor), got Y=%d", anchor.Y+anchor.H, got.Y)
 	}
+
 	if got.X != anchor.X {
 		t.Errorf("expected X=%d, got X=%d", anchor.X, got.X)
 	}
@@ -86,6 +88,7 @@ func TestFullscreen(t *testing.T) {
 	screen := geom.Size{W: 80, H: 24}
 
 	got := Fullscreen{}.Resolve(view, screen)
+
 	want := geom.Rect{X: 0, Y: 0, W: 80, H: 24}
 	if got != want {
 		t.Errorf("Fullscreen.Resolve = %v, want %v", got, want)

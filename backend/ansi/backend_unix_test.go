@@ -36,6 +36,7 @@ func newTestBackend(t *testing.T) (*testBackend, error) {
 	if err := unix.Pipe2(pipeFds[:], unix.O_NONBLOCK|unix.O_CLOEXEC); err != nil {
 		closer(t, r)
 		closer(t, w)
+
 		return nil, err
 	}
 
@@ -91,13 +92,16 @@ func (tb *testBackend) readAllEvents(timeout time.Duration) []event.Event {
 // readAllEventsFromChannel reads all events from the channel until it closes or timeout.
 func readAllEventsFromChannel(ch <-chan event.Event, timeout time.Duration) []event.Event {
 	var events []event.Event
+
 	timeoutCh := time.After(timeout)
+
 	for {
 		select {
 		case e, ok := <-ch:
 			if !ok {
 				return events
 			}
+
 			events = append(events, e)
 		case <-timeoutCh:
 			return events
@@ -135,6 +139,7 @@ func TestBackend_SplitCSISequence(t *testing.T) {
 	if !ok {
 		t.Fatalf("got non-KeyEvent: %#v", events[0])
 	}
+
 	if ke.Key != event.KeyUp {
 		t.Errorf("got %v, want KeyUp", ke.Key)
 	}
@@ -153,6 +158,7 @@ func TestBackend_StandaloneESCatEOF(t *testing.T) {
 	if err := tb.writeInput([]byte{0x1b}); err != nil {
 		t.Fatal(err)
 	}
+
 	tb.closeInput()
 
 	events := tb.readAllEvents(100 * time.Millisecond)
@@ -166,6 +172,7 @@ func TestBackend_StandaloneESCatEOF(t *testing.T) {
 	if !ok {
 		t.Fatalf("got non-KeyEvent: %#v", events[0])
 	}
+
 	if ke.Key != event.KeyEsc {
 		t.Errorf("got %v, want KeyEsc", ke.Key)
 	}
@@ -203,9 +210,11 @@ func TestBackend_PartialCSIFinalized(t *testing.T) {
 		if !ok {
 			t.Fatalf("event %d: non-KeyEvent: %#v", i, events[i])
 		}
+
 		if ke.Key != expected[i] {
 			t.Errorf("event %d: got %v, want %v", i, ke.Key, expected[i])
 		}
+
 		if ke.Key == event.KeyRune && ke.Rune != expectedRunes[i-1] {
 			t.Errorf("event %d: got rune %c, want %c", i, ke.Rune, expectedRunes[i-1])
 		}
@@ -239,9 +248,11 @@ func TestBackend_EscAltRune(t *testing.T) {
 	if !ok {
 		t.Fatalf("got non-KeyEvent: %#v", events[0])
 	}
+
 	if ke.Key != event.KeyRune || ke.Rune != 'a' {
 		t.Errorf("got %v/%c, want KeyRune/'a'", ke.Key, ke.Rune)
 	}
+
 	if ke.Mod != event.ModAlt {
 		t.Errorf("got Mod %v, want ModAlt", ke.Mod)
 	}
@@ -275,6 +286,7 @@ func TestBackend_PartialSS3Finalized(t *testing.T) {
 	if !ok {
 		t.Fatalf("event 0: non-KeyEvent: %#v", events[0])
 	}
+
 	if ke1.Key != event.KeyEsc {
 		t.Errorf("event 0: got %v, want KeyEsc", ke1.Key)
 	}
@@ -283,6 +295,7 @@ func TestBackend_PartialSS3Finalized(t *testing.T) {
 	if !ok {
 		t.Fatalf("event 1: non-KeyEvent: %#v", events[1])
 	}
+
 	if ke2.Key != event.KeyRune || ke2.Rune != 'O' {
 		t.Errorf("event 1: got %v/%c, want KeyRune/'O'", ke2.Key, ke2.Rune)
 	}
@@ -317,6 +330,7 @@ func TestBackend_EscEscDouble(t *testing.T) {
 		if !ok {
 			t.Fatalf("event %d: non-KeyEvent: %#v", i, events[i])
 		}
+
 		if ke.Key != event.KeyEsc {
 			t.Errorf("event %d: got %v, want KeyEsc", i, ke.Key)
 		}
@@ -389,6 +403,7 @@ func TestEOFBehavior(t *testing.T) {
 				if !ok {
 					t.Fatalf("event %d: non-KeyEvent: %#v", i, events[i])
 				}
+
 				if ke.Key != wantKey {
 					t.Errorf("event %d: got %v, want %v", i, ke.Key, wantKey)
 				}
@@ -462,12 +477,15 @@ func TestBackend_AltKey(t *testing.T) {
 			if !ok {
 				t.Fatalf("got non-KeyEvent: %#v", events[0])
 			}
+
 			if ke.Key != tt.wantKey {
 				t.Errorf("got Key %v, want %v", ke.Key, tt.wantKey)
 			}
+
 			if ke.Rune != tt.wantRune {
 				t.Errorf("got Rune %c, want %c", ke.Rune, tt.wantRune)
 			}
+
 			if ke.Mod != tt.wantMod {
 				t.Errorf("got Mod %v, want %v", ke.Mod, tt.wantMod)
 			}
@@ -508,9 +526,11 @@ func TestBackend_UnknownCSI(t *testing.T) {
 		if !ok {
 			t.Fatalf("event %d: non-KeyEvent: %#v", i, events[i])
 		}
+
 		if ke.Key != expectedKeys[i] {
 			t.Errorf("event %d: got %v, want %v", i, ke.Key, expectedKeys[i])
 		}
+
 		if ke.Key == event.KeyRune && ke.Rune != expectedRunes[i-1] {
 			t.Errorf("event %d: got rune %c, want %c", i, ke.Rune, expectedRunes[i-1])
 		}
@@ -550,6 +570,7 @@ func TestBackend_CSIPrivateMarker(t *testing.T) {
 			if err := tb.writeInput(tt.input); err != nil {
 				t.Fatal(err)
 			}
+
 			time.Sleep(5 * time.Millisecond)
 			tb.closeInput()
 
@@ -628,6 +649,7 @@ func TestBackend_ChunkedInput(t *testing.T) {
 				if !ok {
 					t.Fatalf("event %d: non-KeyEvent: %#v", i, events[i])
 				}
+
 				if ke.Key != wantKey {
 					t.Errorf("event %d: got %v, want %v", i, ke.Key, wantKey)
 				}
@@ -672,6 +694,7 @@ func TestBackend_MultipleCSI(t *testing.T) {
 		if !ok {
 			t.Fatalf("event %d: non-KeyEvent: %#v", i, events[i])
 		}
+
 		if ke.Key != wantKey {
 			t.Errorf("event %d: got %v, want %v", i, ke.Key, wantKey)
 		}
@@ -715,9 +738,11 @@ func TestBackend_MixedEvents(t *testing.T) {
 		if !ok {
 			t.Fatalf("event %d: non-KeyEvent: %#v", i, events[i])
 		}
+
 		if ke.Key != wantKey {
 			t.Errorf("event %d: got %v, want %v", i, ke.Key, wantKey)
 		}
+
 		if ke.Rune != wantRunes[i] {
 			t.Errorf("event %d: got rune %c, want %c", i, ke.Rune, wantRunes[i])
 		}
@@ -737,6 +762,7 @@ func TestBackend_SingleESCatEOF(t *testing.T) {
 	if err := tb.writeInput([]byte{0x1b}); err != nil {
 		t.Fatal(err)
 	}
+
 	tb.closeInput()
 
 	events := tb.readAllEvents(100 * time.Millisecond)
@@ -750,6 +776,7 @@ func TestBackend_SingleESCatEOF(t *testing.T) {
 	if !ok {
 		t.Fatalf("got non-KeyEvent: %#v", events[0])
 	}
+
 	if ke.Key != event.KeyEsc {
 		t.Errorf("got %v, want KeyEsc", ke.Key)
 	}
@@ -784,6 +811,7 @@ func TestBackend_StandaloneESCPrompt(t *testing.T) {
 	if !ok {
 		t.Fatalf("got non-KeyEvent: %#v", events[0])
 	}
+
 	if ke.Key != event.KeyEsc {
 		t.Errorf("got %v, want KeyEsc", ke.Key)
 	}
@@ -816,6 +844,7 @@ func TestBackend_EscEscPrompt(t *testing.T) {
 		if !ok {
 			t.Fatalf("event %d: non-KeyEvent: %#v", i, events[i])
 		}
+
 		if ke.Key != event.KeyEsc {
 			t.Errorf("event %d: got %v, want KeyEsc", i, ke.Key)
 		}
@@ -837,6 +866,7 @@ func TestBackend_EOFAfterData(t *testing.T) {
 	if err := tb.writeInput([]byte{'a', 0x1b, '[', 'A', 0x1b}); err != nil {
 		t.Fatal(err)
 	}
+
 	tb.closeInput()
 
 	events := tb.readAllEvents(100 * time.Millisecond)
@@ -937,6 +967,7 @@ func TestBackend_SS3(t *testing.T) {
 			if !ok {
 				t.Fatalf("got non-KeyEvent: %#v", events[0])
 			}
+
 			if ke.Key != tt.wantKey {
 				t.Errorf("got Key %v, want %v", ke.Key, tt.wantKey)
 			}

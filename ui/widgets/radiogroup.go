@@ -40,10 +40,12 @@ func NewRadioGroupOpts(opts RadioGroupOpts) *RadioGroup {
 	if isZeroID(id) {
 		id = tui.NewID()
 	}
+
 	sel := opts.Selected
 	if sel < -1 || sel >= len(opts.Items) {
 		sel = -1
 	}
+
 	return &RadioGroup{
 		id:       id,
 		items:    opts.Items,
@@ -67,9 +69,11 @@ func (r *RadioGroup) SetSelected(ctx *tui.Ctx, idx int) {
 	if idx < -1 || idx >= len(r.items) {
 		return
 	}
+
 	if r.selected == idx {
 		return
 	}
+
 	r.selected = idx
 	if ctx != nil {
 		ctx.Invalidate(r.rect)
@@ -81,12 +85,14 @@ func (r *RadioGroup) SetOnChange(fn func(int, *tui.Ctx)) { r.onChange = fn }
 
 func (r *RadioGroup) MinSize() geom.Size {
 	maxW := 0
+
 	for _, item := range r.items {
 		w := 4 + text.Width(item) // "(o) " prefix
 		if w > maxW {
 			maxW = w
 		}
 	}
+
 	return geom.Size{W: maxW, H: len(r.items)}
 }
 
@@ -102,6 +108,7 @@ func (r *RadioGroup) Paint(p *tui.Painter, ctx *tui.Ctx) {
 		if i >= rect.H {
 			break
 		}
+
 		y := rect.Y + i
 
 		isItemFocused := isFocused && i == r.focused
@@ -113,6 +120,7 @@ func (r *RadioGroup) Paint(p *tui.Painter, ctx *tui.Ctx) {
 		if i == r.selected {
 			indicator = "(o) "
 		}
+
 		p.Text(rect.X, y, indicator, st)
 
 		if rect.W > 4 {
@@ -134,8 +142,10 @@ func (r *RadioGroup) Handle(e tui.Event, ctx *tui.Ctx) bool {
 				r.focused = idx
 				r.selectFocused(ctx)
 			}
+
 			return true
 		}
+
 		return false
 	}
 
@@ -150,12 +160,14 @@ func (r *RadioGroup) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			r.focused--
 			ctx.Invalidate(r.rect)
 		}
+
 		return true
 	case tui.KeyDown:
 		if r.focused < len(r.items)-1 {
 			r.focused++
 			ctx.Invalidate(r.rect)
 		}
+
 		return true
 	case tui.KeyEnter:
 		r.selectFocused(ctx)
@@ -166,6 +178,7 @@ func (r *RadioGroup) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -174,6 +187,7 @@ func (r *RadioGroup) HandleAction(act int, ctx *tui.Ctx) bool {
 	if r.disabled || len(r.items) == 0 {
 		return false
 	}
+
 	switch ui.Action(act) {
 	case ui.ActionActivate:
 		r.selectFocused(ctx)
@@ -183,14 +197,17 @@ func (r *RadioGroup) HandleAction(act int, ctx *tui.Ctx) bool {
 			r.focused--
 			ctx.Invalidate(r.rect)
 		}
+
 		return true
 	case ui.ActionMoveDown:
 		if r.focused < len(r.items)-1 {
 			r.focused++
 			ctx.Invalidate(r.rect)
 		}
+
 		return true
 	}
+
 	return false
 }
 
@@ -198,11 +215,14 @@ func (r *RadioGroup) selectFocused(ctx *tui.Ctx) {
 	if r.focused < 0 || r.focused >= len(r.items) {
 		return
 	}
+
 	old := r.selected
+
 	r.selected = r.focused
 	if ctx != nil {
 		ctx.Invalidate(r.rect)
 	}
+
 	if r.selected != old && r.onChange != nil {
 		r.onChange(r.selected, ctx)
 	}
@@ -212,11 +232,14 @@ func (r *RadioGroup) itemStyle(ctx *tui.Ctx, focused bool) style.Style {
 	if ctx == nil {
 		return style.Style{}
 	}
+
 	if r.disabled {
 		return ctx.Theme.Palette.Disabled
 	}
+
 	if focused {
 		return ctx.Theme.Palette.Focus
 	}
+
 	return ctx.Theme.Base
 }

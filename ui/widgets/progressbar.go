@@ -33,10 +33,12 @@ func NewProgressBarOpts(opts ProgressBarOpts) *ProgressBar {
 	if isZeroID(id) {
 		id = tui.NewID()
 	}
+
 	w := opts.Width
 	if w <= 0 {
 		w = 20
 	}
+
 	return &ProgressBar{
 		id:    id,
 		value: clampf(opts.Value),
@@ -58,6 +60,7 @@ func (b *ProgressBar) SetValue(ctx *tui.Ctx, v float64) {
 	if b.value == v {
 		return
 	}
+
 	b.value = v
 	if ctx != nil {
 		ctx.Invalidate(b.rect)
@@ -85,6 +88,7 @@ func (b *ProgressBar) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	if filledSt == (style.Style{}) {
 		filledSt = ctx.Theme.Base.WithAttr(style.AttrReverse)
 	}
+
 	emptySt := ctx.Theme.Palette.SurfaceMuted
 	if emptySt == (style.Style{}) {
 		emptySt = ctx.Theme.Base
@@ -93,6 +97,7 @@ func (b *ProgressBar) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	for x := r.X; x < r.X+filled; x++ {
 		p.SetCell(x, y, '█', filledSt)
 	}
+
 	for x := r.X + filled; x < r.X+r.W; x++ {
 		p.SetCell(x, y, '░', emptySt)
 	}
@@ -106,8 +111,10 @@ func clampf(v float64) float64 {
 	if v < 0 {
 		return 0
 	}
+
 	if v > 1 {
 		return 1
 	}
+
 	return v
 }

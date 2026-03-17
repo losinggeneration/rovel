@@ -106,6 +106,7 @@ func (p *Painter) ClipRect() geom.Rect {
 // then restores the previous clip. Skips calling fn if intersection is empty.
 func (p *Painter) WithClip(r geom.Rect, fn func(p *Painter)) {
 	cur := p.paint.ClipRect()
+
 	next := cur.Intersect(r)
 	if next.W <= 0 || next.H <= 0 {
 		return
@@ -122,6 +123,7 @@ func (p *Painter) WithClip(r geom.Rect, fn func(p *Painter)) {
 // This is useful for scroll containers where content needs to appear shifted.
 func (p *Painter) WithOffset(x, y int, fn func(p *Painter)) {
 	oldX, oldY := p.paint.Offset()
+
 	p.paint.SetOffset(oldX+x, oldY+y)
 	defer p.paint.SetOffset(oldX, oldY)
 

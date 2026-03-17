@@ -71,6 +71,7 @@ func (b *Backend) Enable() (geom.Size, error) {
 	if err != nil {
 		return geom.Size{}, err
 	}
+
 	b.origTermios = orig
 
 	// Create self-pipe for waking poll using raw fds (no Go runtime involvement)
@@ -94,6 +95,7 @@ func (b *Backend) Enable() (geom.Size, error) {
 
 		return geom.Size{}, err
 	}
+
 	b.signals = signals
 
 	// Get initial size before starting background goroutines.
@@ -109,6 +111,7 @@ func (b *Backend) Enable() (geom.Size, error) {
 
 		b.errs.Add(restore(orig))
 		b.origTermios = nil
+
 		return geom.Size{}, err
 	}
 
@@ -121,6 +124,7 @@ func (b *Backend) Enable() (geom.Size, error) {
 	b.shutdownOnce = sync.Once{}
 	b.shutdownCh = make(chan struct{})
 	b.readStarted.Store(true)
+
 	go b.readEvents()
 
 	return size, nil
@@ -207,6 +211,7 @@ func (b *Backend) ReadEvent() event.Event {
 func (b *Backend) Size() geom.Size {
 	b.sizeMu.RLock()
 	defer b.sizeMu.RUnlock()
+
 	return b.size
 }
 
@@ -228,6 +233,7 @@ func (b *Backend) emitEvents(evs []event.Event) bool {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -237,7 +243,9 @@ func (b *Backend) readEvents() {
 	defer func() {
 		// Resolve incomplete decoder state at EOF.
 		var evs []event.Event
+
 		evs = b.decoder.Finalize(evs)
+
 		alive := b.emitEvents(evs)
 		if !alive {
 			b.errs.Add(fmt.Errorf("emitKeyEvents already shutdown"))
@@ -267,6 +275,7 @@ func (b *Backend) readEvents() {
 	fd := int(b.r.Fd())
 	pipeFd := b.pipeR
 	buf := make([]byte, 256)
+
 	var pipeBuf [64]byte
 
 	shutdownRequested := false
@@ -284,6 +293,7 @@ func (b *Backend) readEvents() {
 			if err == unix.EINTR {
 				continue
 			}
+
 			return
 		}
 
@@ -313,9 +323,11 @@ func (b *Backend) readEvents() {
 					if !ok {
 						break drainResize
 					}
+
 					b.sizeMu.Lock()
 					b.size = size
 					b.sizeMu.Unlock()
+
 					if !b.sendEvent(event.ResizeEvent{W: size.W, H: size.H}) {
 						return
 					}
@@ -330,13 +342,16 @@ func (b *Backend) readEvents() {
 			if shutdownRequested {
 				return
 			}
+
 			continue
 		}
 
 		// Drain all available input
 		var evs []event.Event
+
 		eof := false
 		hupSeen := pollFds[0].Revents&(unix.POLLHUP|unix.POLLERR) != 0
+
 		for inputReadable(fd) {
 			n, err := b.r.Read(buf)
 			if err != nil {
@@ -346,6 +361,7 @@ func (b *Backend) readEvents() {
 				if err == io.EOF || hupSeen {
 					eof = true
 				}
+
 				break
 			}
 			// After POLLHUP/POLLERR, treat n==0 as EOF (terminal closure)
@@ -353,6 +369,7 @@ func (b *Backend) readEvents() {
 				if hupSeen {
 					eof = true
 				}
+
 				break
 			}
 
@@ -370,6 +387,7 @@ func (b *Backend) readEvents() {
 
 		// Emit decoded events BEFORE returning on EOF or shutdown
 		b.emitEvents(evs)
+
 		if eof || shutdownRequested {
 			return
 		}
@@ -382,14 +400,18 @@ func (b *Backend) readEvents() {
 func inputReadable(fd int) bool {
 	for {
 		pollFds := []unix.PollFd{{Fd: int32(fd), Events: unix.POLLIN}}
+
 		n, err := unix.Poll(pollFds, 0)
 		if err == unix.EINTR {
 			continue
 		}
+
 		if err != nil || n == 0 {
 			return false
 		}
+
 		revents := pollFds[0].Revents
+
 		return revents&unix.POLLIN != 0 || revents&(unix.POLLHUP|unix.POLLERR) != 0
 	}
 }

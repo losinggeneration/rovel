@@ -59,6 +59,7 @@ func main() {
 		fmt.Printf("Failed to enable app: %v\n", err)
 		return
 	}
+
 	defer func() {
 		if err := app.Restore(); err != nil {
 			fmt.Printf("Failed to restore terminal: %v\n", err)
@@ -145,6 +146,7 @@ func (q *QuitHandler) OnButton1(ctx *tui.Ctx) {
 	} else {
 		q.status = "Button 1 pressed - press again to clear"
 	}
+
 	if ctx != nil {
 		statusRect := tui.Rect{X: q.rect.X, Y: q.rect.Y, W: q.rect.W, H: 1}
 		ctx.Invalidate(statusRect)
@@ -158,6 +160,7 @@ func (q *QuitHandler) OnButton2(ctx *tui.Ctx) {
 	} else {
 		q.status = "Button 2 pressed - press again to clear"
 	}
+
 	if ctx != nil {
 		statusRect := tui.Rect{X: q.rect.X, Y: q.rect.Y, W: q.rect.W, H: 1}
 		ctx.Invalidate(statusRect)

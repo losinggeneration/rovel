@@ -47,13 +47,16 @@ func restore(orig *unix.Termios) error {
 	if orig == nil {
 		return nil
 	}
+
 	fd := int(os.Stdin.Fd())
+
 	return unix.IoctlSetTermios(fd, unix.TCSETS, orig)
 }
 
 // getTerminalSize returns the current terminal size.
 func getTerminalSize() (geom.Size, error) {
 	var ws unix.Winsize
+
 	_, _, errno := syscall.Syscall(
 		syscall.SYS_IOCTL,
 		uintptr(os.Stdout.Fd()),
@@ -73,6 +76,8 @@ func getTerminalSize() (geom.Size, error) {
 // isTerminal returns true if fd refers to a terminal.
 func isTerminal(fd int) bool {
 	var termios unix.Termios
+
 	err := unix.IoctlSetTermios(fd, unix.TCGETS, &termios)
+
 	return err == nil
 }
