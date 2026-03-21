@@ -13,6 +13,12 @@ type TabsOpts struct {
 	ID    tui.ID
 	Tabs  []Tab
 	OnTab func(index int, ctx *tui.Ctx)
+
+	// Optional style overrides. When non-nil, the style replaces the
+	// palette-derived style for that state completely (no merging).
+	StyleBar      *style.Style // tab bar background / unselected tabs
+	StyleSelected *style.Style // selected tab (unfocused)
+	StyleFocused  *style.Style // selected tab (focused)
 }
 
 // Tab represents a single tab with a title and content view.
@@ -29,6 +35,10 @@ type Tabs struct {
 	tabs     []Tab
 	selected int
 	onTab    func(index int, ctx *tui.Ctx)
+
+	stBar      *style.Style
+	stSelected *style.Style
+	stFocused  *style.Style
 }
 
 func NewTabs(tabs []Tab) *Tabs {
@@ -42,9 +52,12 @@ func NewTabsOpts(opts TabsOpts) *Tabs {
 	}
 
 	return &Tabs{
-		id:    id,
-		tabs:  opts.Tabs,
-		onTab: opts.OnTab,
+		id:         id,
+		tabs:       opts.Tabs,
+		onTab:      opts.OnTab,
+		stBar:      opts.StyleBar,
+		stSelected: opts.StyleSelected,
+		stFocused:  opts.StyleFocused,
 	}
 }
 
@@ -141,10 +154,12 @@ func (t *Tabs) Paint(p *tui.Painter, ctx *tui.Ctx) {
 func (t *Tabs) paintTabBar(p *tui.Painter, ctx *tui.Ctx, focused bool) {
 	r := t.rect
 
-	barSt := ctx.Theme.Palette.Surface
-	if barSt == (style.Style{}) {
-		barSt = ctx.Theme.Base
+	barFallback := ctx.Theme.Palette.Surface
+	if barFallback == (style.Style{}) {
+		barFallback = ctx.Theme.Base
 	}
+
+	barSt := resolveStyle(t.stBar, barFallback)
 
 	// Clear bar
 	p.Fill(geom.Rect{X: r.X, Y: r.Y, W: r.W, H: 1}, ' ', barSt)
@@ -162,9 +177,9 @@ func (t *Tabs) paintTabBar(p *tui.Painter, ctx *tui.Ctx, focused bool) {
 
 		if i == t.selected {
 			if focused {
-				st = ctx.Theme.Palette.Focus
+				st = resolveStyle(t.stFocused, ctx.Theme.Palette.Focus)
 			} else {
-				st = ctx.Theme.Palette.Accent
+				st = resolveStyle(t.stSelected, ctx.Theme.Palette.Accent)
 			}
 		} else {
 			st = barSt

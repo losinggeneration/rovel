@@ -15,6 +15,12 @@ type CheckboxOpts struct {
 	Checked  bool
 	Disabled bool
 	OnChange func(checked bool, ctx *tui.Ctx)
+
+	// Optional style overrides. When non-nil, the style replaces the
+	// palette-derived style for that state completely (no merging).
+	StyleNormal   *style.Style
+	StyleFocused  *style.Style
+	StyleDisabled *style.Style
 }
 
 // Checkbox is a toggle widget that shows [x] or [ ] with a label.
@@ -25,6 +31,10 @@ type Checkbox struct {
 	checked  bool
 	disabled bool
 	onChange func(checked bool, ctx *tui.Ctx)
+
+	stNormal   *style.Style
+	stFocused  *style.Style
+	stDisabled *style.Style
 }
 
 func NewCheckbox(label string) *Checkbox {
@@ -38,11 +48,14 @@ func NewCheckboxOpts(opts CheckboxOpts) *Checkbox {
 	}
 
 	return &Checkbox{
-		id:       id,
-		label:    opts.Label,
-		checked:  opts.Checked,
-		disabled: opts.Disabled,
-		onChange: opts.OnChange,
+		id:         id,
+		label:      opts.Label,
+		checked:    opts.Checked,
+		disabled:   opts.Disabled,
+		onChange:   opts.OnChange,
+		stNormal:   opts.StyleNormal,
+		stFocused:  opts.StyleFocused,
+		stDisabled: opts.StyleDisabled,
 	}
 }
 
@@ -174,12 +187,12 @@ func (c *Checkbox) style(ctx *tui.Ctx, focused bool) style.Style {
 	}
 
 	if c.disabled {
-		return ctx.Theme.Palette.Disabled
+		return resolveStyle(c.stDisabled, ctx.Theme.Palette.Disabled)
 	}
 
 	if focused {
-		return ctx.Theme.Palette.Focus
+		return resolveStyle(c.stFocused, ctx.Theme.Palette.Focus)
 	}
 
-	return ctx.Theme.Base
+	return resolveStyle(c.stNormal, ctx.Theme.Base)
 }

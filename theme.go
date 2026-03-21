@@ -109,9 +109,9 @@ func DefaultThemeClassic() Theme {
 		Base:      base,
 		Aesthetic: AestheticClassic,
 		Chrome: Chrome{
-			Border: FrameChrome{Glyphs: BoxGlyphsASCII, Edges: BoxEdgesAll},
+			Border: FrameChrome{Glyphs: BoxGlyphsLight, Edges: BoxEdgesAll},
 			FocusRing: FrameChrome{
-				Glyphs: BoxGlyphsASCII,
+				Glyphs: BoxGlyphsLight,
 				Edges:  BoxEdgesAll,
 			},
 		},

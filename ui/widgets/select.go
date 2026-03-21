@@ -16,6 +16,11 @@ type SelectOpts struct {
 	Selected    int    // initial selection, -1 for none
 	Placeholder string // shown when nothing selected
 	OnChange    func(index int, ctx *tui.Ctx)
+
+	// Optional style overrides. When non-nil, the style replaces the
+	// palette-derived style for that state completely (no merging).
+	StyleNormal  *style.Style
+	StyleFocused *style.Style
 }
 
 // Select is a dropdown widget. It renders as a single-line trigger showing
@@ -29,6 +34,9 @@ type Select struct {
 	placeholder string
 	onChange    func(index int, ctx *tui.Ctx)
 	overlayID   tui.ID // non-zero when dropdown is open
+
+	stNormal  *style.Style
+	stFocused *style.Style
 }
 
 func NewSelect(items []string) *Select {
@@ -57,6 +65,8 @@ func NewSelectOpts(opts SelectOpts) *Select {
 		selected:    sel,
 		placeholder: ph,
 		onChange:    opts.OnChange,
+		stNormal:    opts.StyleNormal,
+		stFocused:   opts.StyleFocused,
 	}
 }
 
@@ -101,9 +111,11 @@ func (s *Select) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 	focused := ctx != nil && ctx.FocusedID == s.id
 
-	st := ctx.Theme.Base
+	var st style.Style
 	if focused {
-		st = ctx.Theme.Palette.Focus
+		st = resolveStyle(s.stFocused, ctx.Theme.Palette.Focus)
+	} else {
+		st = resolveStyle(s.stNormal, ctx.Theme.Base)
 	}
 
 	p.Fill(r, ' ', st)

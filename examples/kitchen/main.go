@@ -143,7 +143,7 @@ func (s *state) buildUI() tui.View {
 	return &rootView{
 		id:    tui.NewID(),
 		app:   s.app,
-		child: ring,
+		View:  ring,
 		state: s,
 	}
 }
@@ -567,23 +567,22 @@ func (s *state) setStatus(ctx *tui.Ctx, msg string) {
 
 // rootView wraps the view tree with global action handling.
 type rootView struct {
+	tui.View
+
 	id    tui.ID
 	app   *tui.App
-	child tui.View
 	rect  geom.Rect
 	state *state
 }
 
 func (r *rootView) ID() tui.ID           { return r.id }
-func (r *rootView) Rect() geom.Rect      { return r.rect }
-func (r *rootView) MinSize() geom.Size   { return r.child.MinSize() }
 func (r *rootView) Focusable() bool      { return false }
-func (r *rootView) Children() []tui.View { return []tui.View{r.child} }
+func (r *rootView) Children() []tui.View { return []tui.View{r.View} }
 
 func (r *rootView) Layout(rect geom.Rect) {
 	r.rect = rect
 	// Status bar at top (1 row)
-	r.child.Layout(geom.Rect{X: rect.X, Y: rect.Y + 1, W: rect.W, H: rect.H - 1})
+	r.View.Layout(geom.Rect{X: rect.X, Y: rect.Y + 1, W: rect.W, H: rect.H - 1})
 }
 
 func (r *rootView) Paint(p *tui.Painter, ctx *tui.Ctx) {
@@ -596,7 +595,7 @@ func (r *rootView) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	r.state.status.Layout(geom.Rect{X: r.rect.X + 1, Y: r.rect.Y, W: r.rect.W - 2, H: 1})
 	r.state.status.Paint(p, ctx)
 
-	r.child.Paint(p, ctx)
+	r.View.Paint(p, ctx)
 }
 
 func (r *rootView) Handle(e tui.Event, ctx *tui.Ctx) bool {
@@ -611,7 +610,7 @@ func (r *rootView) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		return true
 	}
 
-	return r.child.Handle(e, ctx)
+	return r.View.Handle(e, ctx)
 }
 
 func (r *rootView) HandleAction(act int, ctx *tui.Ctx) bool {

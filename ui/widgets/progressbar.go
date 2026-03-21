@@ -11,6 +11,11 @@ type ProgressBarOpts struct {
 	ID    tui.ID
 	Value float64 // 0.0 to 1.0
 	Width int     // preferred width; 0 defaults to 20
+
+	// Optional style overrides. When non-nil, the style replaces the
+	// palette-derived style for that state completely (no merging).
+	StyleFilled *style.Style
+	StyleEmpty  *style.Style
 }
 
 // ProgressBar is a display-only horizontal progress indicator.
@@ -20,6 +25,9 @@ type ProgressBar struct {
 	rect  tui.Rect
 	value float64 // clamped to [0, 1]
 	width int
+
+	stFilled *style.Style
+	stEmpty  *style.Style
 }
 
 func NewProgressBar() *ProgressBar {
@@ -38,9 +46,11 @@ func NewProgressBarOpts(opts ProgressBarOpts) *ProgressBar {
 	}
 
 	return &ProgressBar{
-		id:    id,
-		value: clampf(opts.Value),
-		width: w,
+		id:       id,
+		value:    clampf(opts.Value),
+		width:    w,
+		stFilled: opts.StyleFilled,
+		stEmpty:  opts.StyleEmpty,
 	}
 }
 
@@ -80,15 +90,19 @@ func (b *ProgressBar) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 	y := r.Y + r.H/2
 
-	filledSt := ctx.Theme.Palette.Accent
-	if filledSt == (style.Style{}) {
-		filledSt = ctx.Theme.Base.WithAttr(style.AttrReverse)
+	filledFallback := ctx.Theme.Palette.Accent
+	if filledFallback == (style.Style{}) {
+		filledFallback = ctx.Theme.Base.WithAttr(style.AttrReverse)
 	}
 
-	emptySt := ctx.Theme.Palette.SurfaceMuted
-	if emptySt == (style.Style{}) {
-		emptySt = ctx.Theme.Base
+	filledSt := resolveStyle(b.stFilled, filledFallback)
+
+	emptyFallback := ctx.Theme.Palette.SurfaceMuted
+	if emptyFallback == (style.Style{}) {
+		emptyFallback = ctx.Theme.Base
 	}
+
+	emptySt := resolveStyle(b.stEmpty, emptyFallback)
 
 	for x := r.X; x < r.X+filled; x++ {
 		p.SetCell(x, y, '█', filledSt)

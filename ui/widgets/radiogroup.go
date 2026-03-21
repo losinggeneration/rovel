@@ -15,6 +15,12 @@ type RadioGroupOpts struct {
 	Selected int // index of initially selected item, -1 for none
 	Disabled bool
 	OnChange func(index int, ctx *tui.Ctx)
+
+	// Optional style overrides. When non-nil, the style replaces the
+	// palette-derived style for that state completely (no merging).
+	StyleNormal   *style.Style
+	StyleFocused  *style.Style
+	StyleDisabled *style.Style
 }
 
 // RadioGroup is a group of mutually exclusive options.
@@ -27,6 +33,10 @@ type RadioGroup struct {
 	focused  int // which item has internal focus (for arrow key nav)
 	disabled bool
 	onChange func(index int, ctx *tui.Ctx)
+
+	stNormal   *style.Style
+	stFocused  *style.Style
+	stDisabled *style.Style
 }
 
 func NewRadioGroup(items []string) *RadioGroup {
@@ -45,12 +55,15 @@ func NewRadioGroupOpts(opts RadioGroupOpts) *RadioGroup {
 	}
 
 	return &RadioGroup{
-		id:       id,
-		items:    opts.Items,
-		selected: sel,
-		focused:  max(sel, 0),
-		disabled: opts.Disabled,
-		onChange: opts.OnChange,
+		id:         id,
+		items:      opts.Items,
+		selected:   sel,
+		focused:    max(sel, 0),
+		disabled:   opts.Disabled,
+		onChange:   opts.OnChange,
+		stNormal:   opts.StyleNormal,
+		stFocused:  opts.StyleFocused,
+		stDisabled: opts.StyleDisabled,
 	}
 }
 
@@ -232,12 +245,12 @@ func (r *RadioGroup) itemStyle(ctx *tui.Ctx, focused bool) style.Style {
 	}
 
 	if r.disabled {
-		return ctx.Theme.Palette.Disabled
+		return resolveStyle(r.stDisabled, ctx.Theme.Palette.Disabled)
 	}
 
 	if focused {
-		return ctx.Theme.Palette.Focus
+		return resolveStyle(r.stFocused, ctx.Theme.Palette.Focus)
 	}
 
-	return ctx.Theme.Base
+	return resolveStyle(r.stNormal, ctx.Theme.Base)
 }

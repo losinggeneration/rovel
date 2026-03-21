@@ -9,6 +9,17 @@ import (
 	"github.com/losinggeneration/tui/ui"
 )
 
+// TextInputOpts holds options for creating a TextInput.
+type TextInputOpts struct {
+	ID tui.ID
+
+	// Optional style overrides. When non-nil, the style replaces the
+	// palette-derived style for that state completely (no merging).
+	StyleNormal    *style.Style
+	StyleFocused   *style.Style
+	StyleSelection *style.Style
+}
+
 // TextInput is a single-line text input widget with cursor navigation.
 type TextInput struct {
 	id      tui.ID
@@ -17,12 +28,28 @@ type TextInput struct {
 	scrollX int // horizontal scroll in cells
 	rect    tui.Rect
 	anchor  int // selection anchor; -1 = no selection
+
+	stNormal    *style.Style
+	stFocused   *style.Style
+	stSelection *style.Style
 }
 
 func NewTextInput() *TextInput {
+	return NewTextInputOpts(TextInputOpts{})
+}
+
+func NewTextInputOpts(opts TextInputOpts) *TextInput {
+	id := opts.ID
+	if id == 0 {
+		id = tui.NewID()
+	}
+
 	return &TextInput{
-		id:     tui.NewID(),
-		anchor: -1,
+		id:          id,
+		anchor:      -1,
+		stNormal:    opts.StyleNormal,
+		stFocused:   opts.StyleFocused,
+		stSelection: opts.StyleSelection,
 	}
 }
 
@@ -87,7 +114,7 @@ func (t *TextInput) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 	if startRight != startLeft {
 		// We're in the middle of a wide cluster; leave a blank cell.
-		p.SetCell(x, y, ' ', ctx.Theme.Base)
+		p.SetCell(x, y, ' ', resolveStyle(t.stNormal, ctx.Theme.Base))
 
 		x++
 		availableW--
@@ -109,11 +136,11 @@ func (t *TextInput) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 		var st style.Style
 		if cursorHere {
-			st = ctx.Theme.Palette.Focus
+			st = resolveStyle(t.stFocused, ctx.Theme.Palette.Focus)
 		} else if inSelection {
-			st = ctx.Theme.Palette.Selection
+			st = resolveStyle(t.stSelection, ctx.Theme.Palette.Selection)
 		} else {
-			st = ctx.Theme.Base
+			st = resolveStyle(t.stNormal, ctx.Theme.Base)
 		}
 
 		// Paint the cluster rune-by-rune. For some clusters (e.g. flags), this
@@ -141,15 +168,16 @@ func (t *TextInput) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 	// Draw cursor at end of text if positioned there (not during selection)
 	if focused && !t.hasSelection() && t.cursor == len(t.text) && availableW > 0 {
-		p.SetCell(x, y, ' ', ctx.Theme.Palette.Focus)
+		p.SetCell(x, y, ' ', resolveStyle(t.stFocused, ctx.Theme.Palette.Focus))
 
 		x++
 		availableW--
 	}
 
 	// Fill remaining space with base style
+	normalSt := resolveStyle(t.stNormal, ctx.Theme.Base)
 	for availableW > 0 {
-		p.SetCell(x, y, ' ', ctx.Theme.Base)
+		p.SetCell(x, y, ' ', normalSt)
 
 		x++
 		availableW--

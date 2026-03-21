@@ -11,6 +11,17 @@ import (
 	"github.com/losinggeneration/tui/ui"
 )
 
+// TextAreaOpts holds options for creating a TextArea.
+type TextAreaOpts struct {
+	ID tui.ID
+
+	// Optional style overrides. When non-nil, the style replaces the
+	// palette-derived style for that state completely (no merging).
+	StyleNormal    *style.Style
+	StyleFocused   *style.Style
+	StyleSelection *style.Style
+}
+
 // TextArea is a multi-line text editing widget with cursor navigation.
 type TextArea struct {
 	id   tui.ID
@@ -28,6 +39,10 @@ type TextArea struct {
 	readOnly bool
 
 	anchor int // -1 = no selection (used in Gap 4)
+
+	stNormal    *style.Style
+	stFocused   *style.Style
+	stSelection *style.Style
 }
 
 // lineEntry tracks byte offsets for a single logical line.
@@ -37,10 +52,22 @@ type lineEntry struct {
 }
 
 func NewTextArea() *TextArea {
+	return NewTextAreaOpts(TextAreaOpts{})
+}
+
+func NewTextAreaOpts(opts TextAreaOpts) *TextArea {
+	id := opts.ID
+	if id == 0 {
+		id = tui.NewID()
+	}
+
 	ta := &TextArea{
-		id:         tui.NewID(),
-		desiredCol: -1,
-		anchor:     -1,
+		id:          id,
+		desiredCol:  -1,
+		anchor:      -1,
+		stNormal:    opts.StyleNormal,
+		stFocused:   opts.StyleFocused,
+		stSelection: opts.StyleSelection,
 	}
 	ta.rebuildLineIndex()
 
@@ -187,8 +214,9 @@ func (ta *TextArea) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 		if lineIdx >= len(ta.lines) {
 			// Fill empty rows
+			normalSt := resolveStyle(ta.stNormal, ctx.Theme.Base)
 			for availW > 0 {
-				p.SetCell(x, y, ' ', ctx.Theme.Base)
+				p.SetCell(x, y, ' ', normalSt)
 
 				x++
 				availW--
@@ -224,11 +252,11 @@ func (ta *TextArea) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 			var st style.Style
 			if cursorHere {
-				st = ctx.Theme.Palette.Focus
+				st = resolveStyle(ta.stFocused, ctx.Theme.Palette.Focus)
 			} else if inSel {
-				st = ctx.Theme.Palette.Selection
+				st = resolveStyle(ta.stSelection, ctx.Theme.Palette.Selection)
 			} else {
-				st = ctx.Theme.Base
+				st = resolveStyle(ta.stNormal, ctx.Theme.Base)
 			}
 
 			cluster := lineText[byteOff:next]
@@ -254,15 +282,16 @@ func (ta *TextArea) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 		// Draw cursor at end of line if positioned there (not during selection)
 		if focused && !hasSel && lineIdx == curLine && ta.cursor == ln.endByte && availW > 0 {
-			p.SetCell(x, y, ' ', ctx.Theme.Palette.Focus)
+			p.SetCell(x, y, ' ', resolveStyle(ta.stFocused, ctx.Theme.Palette.Focus))
 
 			x++
 			availW--
 		}
 
 		// Fill remaining space
+		normalSt := resolveStyle(ta.stNormal, ctx.Theme.Base)
 		for availW > 0 {
-			p.SetCell(x, y, ' ', ctx.Theme.Base)
+			p.SetCell(x, y, ' ', normalSt)
 
 			x++
 			availW--

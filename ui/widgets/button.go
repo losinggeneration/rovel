@@ -23,13 +23,12 @@ type ButtonOpts struct {
 	// If zero, the button chooses based on the theme aesthetic.
 	Chrome ButtonChrome
 
-	// Optional styles. If left as zero values, these defaults are used:
-	// - Normal:   default fg/bg, no attrs
-	// - Focused:  Normal + AttrReverse
-	// - Disabled: Normal + AttrUnderline
-	StyleNormal   style.Style
-	StyleFocused  style.Style
-	StyleDisabled style.Style
+	// Optional style overrides. When non-nil, the style replaces the
+	// palette-derived style for that state completely (no merging).
+	// When nil, the widget falls back to the theme palette.
+	StyleNormal   *style.Style
+	StyleFocused  *style.Style
+	StyleDisabled *style.Style
 }
 
 // Button is a clickable button widget.
@@ -40,10 +39,9 @@ type Button struct {
 	disabled bool
 	onPress  func(ctx *tui.Ctx)
 
-	stNormal   style.Style
-	stFocused  style.Style
-	stDisabled style.Style
-	useTheme   bool // Use theme-based styles
+	stNormal   *style.Style
+	stFocused  *style.Style
+	stDisabled *style.Style
 
 	chrome ButtonChrome
 }
@@ -67,43 +65,14 @@ func NewButtonOpts(opts ButtonOpts) *Button {
 		id = tui.NewID()
 	}
 
-	normal := opts.StyleNormal
-	focused := opts.StyleFocused
-	disabled := opts.StyleDisabled
-
-	// If styles are zero, use theme-based derivation
-	useTheme := normal == (style.Style{}) && focused == (style.Style{}) && disabled == (style.Style{})
-
-	// Set default styles if not using theme
-	if !useTheme {
-		if normal == (style.Style{}) {
-			normal = style.Style{
-				FG:   style.ColorDefault,
-				BG:   style.ColorDefault,
-				Attr: 0,
-			}
-		}
-
-		if focused == (style.Style{}) {
-			focused = normal
-			focused.Attr |= style.AttrReverse
-		}
-
-		if disabled == (style.Style{}) {
-			disabled = normal
-			disabled.Attr |= style.AttrUnderline
-		}
-	}
-
 	return &Button{
 		id:         id,
 		label:      opts.Label,
 		disabled:   opts.Disabled,
 		onPress:    opts.OnPress,
-		stNormal:   normal,
-		stFocused:  focused,
-		stDisabled: disabled,
-		useTheme:   useTheme,
+		stNormal:   opts.StyleNormal,
+		stFocused:  opts.StyleFocused,
+		stDisabled: opts.StyleDisabled,
 		chrome:     opts.Chrome,
 	}
 }
@@ -181,28 +150,27 @@ func (b *Button) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 	var st style.Style
 
-	if b.useTheme {
-		// Derive from theme roles
-		if b.disabled {
-			st = ctx.Theme.Palette.Disabled
-		} else if focused {
-			st = ctx.Theme.Palette.Focus
-		} else {
-			st = ctx.Theme.Palette.Surface
+	if b.disabled {
+		fallback := ctx.Theme.Palette.Disabled
+		if fallback == (style.Style{}) {
+			fallback = ctx.Theme.Base
 		}
 
-		// Ensure non-zero style
-		if st == (style.Style{}) {
-			st = ctx.Theme.Base
+		st = resolveStyle(b.stDisabled, fallback)
+	} else if focused {
+		fallback := ctx.Theme.Palette.Focus
+		if fallback == (style.Style{}) {
+			fallback = ctx.Theme.Base
 		}
+
+		st = resolveStyle(b.stFocused, fallback)
 	} else {
-		// Use explicit styles
-		st = b.stNormal
-		if b.disabled {
-			st = b.stDisabled
-		} else if focused {
-			st = b.stFocused
+		fallback := ctx.Theme.Palette.Surface
+		if fallback == (style.Style{}) {
+			fallback = ctx.Theme.Base
 		}
+
+		st = resolveStyle(b.stNormal, fallback)
 	}
 
 	// Paint full rect (Paint Contract A already clears damaged spans, but this
@@ -307,6 +275,15 @@ func (b *Button) HandleAction(act int, ctx *tui.Ctx) bool {
 
 func (b *Button) Focusable() bool {
 	return true
+}
+
+// resolveStyle returns the override style if non-nil, otherwise the fallback.
+func resolveStyle(override *style.Style, fallback style.Style) style.Style {
+	if override != nil {
+		return *override
+	}
+
+	return fallback
 }
 
 func (b *Button) renderText(maxW int, chrome ButtonChrome) string {

@@ -21,6 +21,11 @@ type DialogOpts struct {
 	Message string
 	Buttons []DialogButton
 	Width   int // preferred width; 0 defaults to fit content
+
+	// Optional style overrides. When non-nil, the style replaces the
+	// palette-derived style for that state completely (no merging).
+	StyleSurface *style.Style
+	StyleBorder  *style.Style
 }
 
 // Dialog is a modal overlay panel with a title, message, and button row.
@@ -36,6 +41,9 @@ type Dialog struct {
 	buttons []DialogButton
 	focused int // which button has focus
 	prefW   int
+
+	stSurface *style.Style
+	stBorder  *style.Style
 }
 
 func NewDialog(opts DialogOpts) *Dialog {
@@ -71,11 +79,13 @@ func NewDialog(opts DialogOpts) *Dialog {
 	}
 
 	return &Dialog{
-		id:      id,
-		title:   opts.Title,
-		message: opts.Message,
-		buttons: opts.Buttons,
-		prefW:   w,
+		id:        id,
+		title:     opts.Title,
+		message:   opts.Message,
+		buttons:   opts.Buttons,
+		prefW:     w,
+		stSurface: opts.StyleSurface,
+		stBorder:  opts.StyleBorder,
 	}
 }
 
@@ -102,15 +112,19 @@ func (d *Dialog) Paint(p *tui.Painter, ctx *tui.Ctx) {
 		return
 	}
 
-	surfSt := ctx.Theme.Palette.Surface
-	if surfSt == (style.Style{}) {
-		surfSt = ctx.Theme.Base
+	surfFallback := ctx.Theme.Palette.Surface
+	if surfFallback == (style.Style{}) {
+		surfFallback = ctx.Theme.Base
 	}
 
-	borderSt := ctx.Theme.Palette.Border
-	if borderSt == (style.Style{}) {
-		borderSt = surfSt
+	surfSt := resolveStyle(d.stSurface, surfFallback)
+
+	borderFallback := ctx.Theme.Palette.Border
+	if borderFallback == (style.Style{}) {
+		borderFallback = surfSt
 	}
+
+	borderSt := resolveStyle(d.stBorder, borderFallback)
 
 	// Clear and draw border
 	p.Fill(r, ' ', surfSt)

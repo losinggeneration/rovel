@@ -27,6 +27,10 @@ func (themeKeymap) Resolve(ctx ui.KeyContext, k ui.Keystroke) (ui.Action, bool) 
 	switch k.Key {
 	case event.KeyEsc, event.KeyCtrlC:
 		return ActionQuit, true
+	case event.KeyLeft, event.KeyShiftTab:
+		return ui.ActionFocusPrev, true
+	case event.KeyRight, event.KeyTab:
+		return ui.ActionFocusNext, true
 	}
 
 	if ctx == ui.KeyCtxTextInput {
@@ -75,6 +79,13 @@ type appState struct {
 	buttonWarning   tui.View
 	buttonDanger    tui.View
 	buttonDisabled  tui.View
+
+	// Mutable styles for semantic buttons — updated on theme switch.
+	// Buttons hold pointers to these, so in-place updates take effect at paint.
+	accentNormal, accentFocused   style.Style
+	successNormal, successFocused style.Style
+	warningNormal, warningFocused style.Style
+	dangerNormal, dangerFocused   style.Style
 }
 
 func main() {
@@ -133,34 +144,35 @@ func main() {
 		invalidateIfNeeded(ctx)
 	}, false)
 
-	state.buttonAccent = createSemanticButton("Accent", func(t *tui.Theme) style.Style {
-		return t.Palette.Accent
-	}, func(ctx *tui.Ctx) {
-		state.buttonsClicked++
-		state.updateStatus("Accent button clicked!", "info")
-		invalidateIfNeeded(ctx)
-	})
+	// Demonstrate per-widget style overrides using ButtonOpts.
+	// Buttons hold pointers into state's mutable style fields, which are
+	// updated on theme switch so the buttons track the current theme.
+	state.updateButtonStyles()
 
-	state.buttonSuccess = createSemanticButton("Success", func(t *tui.Theme) style.Style {
-		return t.Palette.Success
-	}, func(ctx *tui.Ctx) {
-		state.updateStatus("Success operation completed!", "success")
-		invalidateIfNeeded(ctx)
-	})
+	state.buttonAccent = createStyledButton("Accent",
+		&state.accentNormal, &state.accentFocused, func(ctx *tui.Ctx) {
+			state.buttonsClicked++
+			state.updateStatus("Accent button clicked!", "info")
+			invalidateIfNeeded(ctx)
+		})
 
-	state.buttonWarning = createSemanticButton("Warning", func(t *tui.Theme) style.Style {
-		return t.Palette.Warning
-	}, func(ctx *tui.Ctx) {
-		state.updateStatus("Warning: Check your inputs!", "warning")
-		invalidateIfNeeded(ctx)
-	})
+	state.buttonSuccess = createStyledButton("Success",
+		&state.successNormal, &state.successFocused, func(ctx *tui.Ctx) {
+			state.updateStatus("Success operation completed!", "success")
+			invalidateIfNeeded(ctx)
+		})
 
-	state.buttonDanger = createSemanticButton("Danger", func(t *tui.Theme) style.Style {
-		return t.Palette.Danger
-	}, func(ctx *tui.Ctx) {
-		state.updateStatus("Critical error occurred!", "danger")
-		invalidateIfNeeded(ctx)
-	})
+	state.buttonWarning = createStyledButton("Warning",
+		&state.warningNormal, &state.warningFocused, func(ctx *tui.Ctx) {
+			state.updateStatus("Warning: Check your inputs!", "warning")
+			invalidateIfNeeded(ctx)
+		})
+
+	state.buttonDanger = createStyledButton("Danger",
+		&state.dangerNormal, &state.dangerFocused, func(ctx *tui.Ctx) {
+			state.updateStatus("Critical error occurred!", "danger")
+			invalidateIfNeeded(ctx)
+		})
 
 	state.buttonDisabled = widgets.NewButtonOpts(widgets.ButtonOpts{
 		Label:    "Disabled",
@@ -281,14 +293,15 @@ func createMouseAwareButton(label string, onPress func(*tui.Ctx), disabled bool)
 	return &widgets.Clickable{View: btn, OnClick: onPress}
 }
 
-func createSemanticButton(label string, roleFunc func(*tui.Theme) style.Style, onPress func(*tui.Ctx)) tui.View {
+func createStyledButton(label string, normalSt, focusedSt *style.Style, onPress func(*tui.Ctx)) tui.View {
 	btn := widgets.NewButtonOpts(widgets.ButtonOpts{
-		Label:   label,
-		OnPress: onPress,
+		Label:        label,
+		OnPress:      onPress,
+		StyleNormal:  normalSt,
+		StyleFocused: focusedSt,
 	})
-	sb := &semanticButton{Button: btn, semanticRole: roleFunc}
 
-	return &widgets.Clickable{View: sb, OnClick: onPress}
+	return &widgets.Clickable{View: btn, OnClick: onPress}
 }
 
 func buildInputSection(state *appState) tui.View {
@@ -355,6 +368,34 @@ func buildStatusBar(state *appState) tui.View {
 	return wrapper
 }
 
+// deriveButtonStyles produces normal and focused styles from a palette role.
+// For color themes, the semantic color becomes the BG (solid button look).
+// For monochrome themes (ColorDefault FG/BG), attrs are preserved as-is.
+func deriveButtonStyles(role style.Style) (normal, focused style.Style) {
+	isMonochrome := role.FG == style.ColorDefault && role.BG == style.ColorDefault
+
+	if isMonochrome {
+		// Monochrome: keep attrs, use reverse for focus.
+		normal = role
+		focused = role.WithAttr(style.AttrReverse)
+	} else {
+		// Color: put the semantic FG color as BG for a solid button look.
+		normal = style.Style{FG: role.BG, BG: role.FG, Attr: role.Attr}
+		focused = style.Style{FG: role.FG, BG: role.BG, Attr: role.Attr}
+	}
+
+	return normal, focused
+}
+
+// updateButtonStyles refreshes the mutable style values from the current theme.
+func (s *appState) updateButtonStyles() {
+	p := s.themes[s.currentThemeIndex].theme.Palette
+	s.accentNormal, s.accentFocused = deriveButtonStyles(p.Accent)
+	s.successNormal, s.successFocused = deriveButtonStyles(p.Success)
+	s.warningNormal, s.warningFocused = deriveButtonStyles(p.Warning)
+	s.dangerNormal, s.dangerFocused = deriveButtonStyles(p.Danger)
+}
+
 func (s *appState) switchTheme(ctx *tui.Ctx, index int) {
 	// Validate index
 	if index < 0 || index >= len(s.themes) {
@@ -368,6 +409,9 @@ func (s *appState) switchTheme(ctx *tui.Ctx, index int) {
 	if s.updateStatus != nil {
 		s.updateStatus(s.statusMessage, s.statusType)
 	}
+
+	// Update semantic button styles for the new theme
+	s.updateButtonStyles()
 
 	// Update theme labels
 	s.updateLabels()
@@ -626,41 +670,4 @@ func (w *focusBlockWrapper) Children() []tui.View {
 	}
 
 	return nil
-}
-
-// semanticButton wraps a Button and applies theme semantic colors.
-// This demonstrates a workaround for semantic color variants until
-// the theme system supports proper semantic roles (see doc/styling_theming.md).
-type semanticButton struct {
-	*widgets.Button
-	semanticRole func(*tui.Theme) style.Style
-}
-
-func (b *semanticButton) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	if ctx == nil {
-		b.Button.Paint(p, ctx)
-
-		return
-	}
-
-	// Temporarily override the theme with semantic colors
-	originalTheme := ctx.Theme
-	semanticStyle := b.semanticRole(&originalTheme)
-
-	// Create a modified context with the semantic color applied
-	modifiedCtx := *ctx
-	// Surface = semantic color for normal state
-	modifiedCtx.Theme.Palette.Surface = semanticStyle
-	// Focus = inverted FG/BG for highlighted state
-	modifiedCtx.Theme.Palette.Focus = style.Style{
-		FG: semanticStyle.BG,
-		BG: semanticStyle.FG,
-	}
-	// Disabled = grayed out
-	modifiedCtx.Theme.Palette.Disabled = style.Style{
-		FG: style.ColorBasic(8),
-		BG: style.ColorBasic(0),
-	}
-
-	b.Button.Paint(p, &modifiedCtx)
 }

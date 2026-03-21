@@ -3,6 +3,7 @@ package widgets
 import (
 	"github.com/losinggeneration/tui"
 	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/tui/style"
 )
 
 // ScrollbarOpts holds options for creating a Scrollbar.
@@ -12,6 +13,11 @@ type ScrollbarOpts struct {
 	ViewSize    int
 	Position    int
 	OnScroll    func(pos int, ctx *tui.Ctx)
+
+	// Optional style overrides. When non-nil, the style replaces the
+	// palette-derived style for that state completely (no merging).
+	StyleThumb *style.Style
+	StyleTrack *style.Style
 }
 
 // Scrollbar is a standalone vertical scroll indicator. It can be used
@@ -26,6 +32,9 @@ type Scrollbar struct {
 	dragging     bool
 	dragStartY   int
 	dragStartPos int
+
+	stThumb *style.Style
+	stTrack *style.Style
 }
 
 func NewScrollbar(opts ScrollbarOpts) *Scrollbar {
@@ -40,6 +49,8 @@ func NewScrollbar(opts ScrollbarOpts) *Scrollbar {
 		viewSize:    opts.ViewSize,
 		position:    opts.Position,
 		onScroll:    opts.OnScroll,
+		stThumb:     opts.StyleThumb,
+		stTrack:     opts.StyleTrack,
 	}
 }
 
@@ -114,8 +125,8 @@ func (s *Scrollbar) Paint(p *tui.Painter, ctx *tui.Ctx) {
 		return
 	}
 
-	trackSt := ctx.Theme.Palette.BorderMuted
-	thumbSt := ctx.Theme.Palette.Border
+	trackSt := resolveStyle(s.stTrack, ctx.Theme.Palette.BorderMuted)
+	thumbSt := resolveStyle(s.stThumb, ctx.Theme.Palette.Border)
 
 	thumbH, thumbY := s.thumbGeometry()
 
