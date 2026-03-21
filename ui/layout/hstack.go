@@ -15,8 +15,7 @@ type HStack struct {
 
 func NewHStack() *HStack {
 	return &HStack{
-		id:       tui.NewID(),
-		children: make([]Child, 0),
+		id: tui.NewID(),
 	}
 }
 

@@ -22,15 +22,13 @@ type ProgressBar struct {
 	width int
 }
 
-// NewProgressBar creates a new progress bar.
 func NewProgressBar() *ProgressBar {
 	return NewProgressBarOpts(ProgressBarOpts{})
 }
 
-// NewProgressBarOpts creates a new progress bar with options.
 func NewProgressBarOpts(opts ProgressBarOpts) *ProgressBar {
 	id := opts.ID
-	if isZeroID(id) {
+	if id == 0 {
 		id = tui.NewID()
 	}
 
@@ -51,10 +49,8 @@ func (b *ProgressBar) Rect() tui.Rect    { return b.rect }
 func (b *ProgressBar) Layout(r tui.Rect) { b.rect = r }
 func (b *ProgressBar) Focusable() bool   { return false }
 
-// Value returns the current progress (0.0 to 1.0).
 func (b *ProgressBar) Value() float64 { return b.value }
 
-// SetValue sets the progress value and invalidates.
 func (b *ProgressBar) SetValue(ctx *tui.Ctx, v float64) {
 	v = clampf(v)
 	if b.value == v {
@@ -108,13 +104,5 @@ func (b *ProgressBar) Handle(_ tui.Event, _ *tui.Ctx) bool {
 }
 
 func clampf(v float64) float64 {
-	if v < 0 {
-		return 0
-	}
-
-	if v > 1 {
-		return 1
-	}
-
-	return v
+	return max(0.0, min(1.0, v))
 }

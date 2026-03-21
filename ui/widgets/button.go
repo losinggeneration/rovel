@@ -57,16 +57,13 @@ const (
 	ButtonChromeSolid
 )
 
-// NewButton creates a new button with the given label.
-// For more control, use NewButtonOpts.
 func NewButton(label string) *Button {
 	return NewButtonOpts(ButtonOpts{Label: label})
 }
 
-// NewButtonOpts creates a new button with options.
 func NewButtonOpts(opts ButtonOpts) *Button {
 	id := opts.ID
-	if id == (tui.ID(0)) {
+	if id == 0 {
 		id = tui.NewID()
 	}
 
@@ -134,7 +131,6 @@ func (b *Button) PreferredSize() geom.Size {
 	return b.MinSize()
 }
 
-// SetLabel sets the button's label and invalidates the rect.
 func (b *Button) SetLabel(ctx *tui.Ctx, s string) {
 	if b.label == s {
 		return
@@ -146,7 +142,6 @@ func (b *Button) SetLabel(ctx *tui.Ctx, s string) {
 	}
 }
 
-// SetDisabled sets the disabled state and invalidates the rect.
 func (b *Button) SetDisabled(ctx *tui.Ctx, v bool) {
 	if b.disabled == v {
 		return
@@ -158,7 +153,6 @@ func (b *Button) SetDisabled(ctx *tui.Ctx, v bool) {
 	}
 }
 
-// SetOnPress sets the callback function for when the button is pressed.
 func (b *Button) SetOnPress(fn func(ctx *tui.Ctx)) {
 	b.onPress = fn
 }
@@ -196,6 +190,7 @@ func (b *Button) Paint(p *tui.Painter, ctx *tui.Ctx) {
 		} else {
 			st = ctx.Theme.Palette.Surface
 		}
+
 		// Ensure non-zero style
 		if st == (style.Style{}) {
 			st = ctx.Theme.Base
@@ -216,14 +211,14 @@ func (b *Button) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 	y := r.Y + r.H/2
 
-	text := b.renderText(r.W, chrome)
+	label := b.renderText(r.W, chrome)
 
-	x := r.X + (r.W-approxWidth(text))/2
+	x := r.X + (r.W-text.Width(label))/2
 	if x < r.X {
 		x = r.X
 	}
 
-	p.Text(x, y, text, st)
+	p.Text(x, y, label, st)
 }
 
 func (b *Button) Handle(e tui.Event, ctx *tui.Ctx) bool {
@@ -295,8 +290,7 @@ func (b *Button) HandleAction(act int, ctx *tui.Ctx) bool {
 		return false
 	}
 
-	switch ui.Action(act) {
-	case ui.ActionActivate:
+	if ui.Action(act) == ui.ActionActivate {
 		if b.onPress != nil {
 			b.onPress(ctx)
 		}
@@ -311,7 +305,6 @@ func (b *Button) HandleAction(act int, ctx *tui.Ctx) bool {
 	return false
 }
 
-// Focusable returns true - buttons can receive focus.
 func (b *Button) Focusable() bool {
 	return true
 }
@@ -325,12 +318,12 @@ func (b *Button) renderText(maxW int, chrome ButtonChrome) string {
 	case ButtonChromeSolid:
 		// Prefer a little padding when there is room.
 		if maxW >= 3 {
-			lbl := truncateRunes(b.label, maxW-2)
+			lbl := text.Truncate(b.label, maxW-2, false)
 
 			return " " + lbl + " "
 		}
 
-		return truncateRunes(b.label, maxW)
+		return text.Truncate(b.label, maxW, false)
 
 	default:
 		// Desired: "[ " + label + " ]"
@@ -352,20 +345,8 @@ func (b *Button) renderText(maxW int, chrome ButtonChrome) string {
 		}
 
 		maxLabel := maxW - 4
-		lbl := truncateRunes(b.label, maxLabel)
+		lbl := text.Truncate(b.label, maxLabel, false)
 
 		return "[ " + lbl + " ]"
 	}
-}
-
-func truncateRunes(s string, max int) string {
-	if max <= 0 || s == "" {
-		return ""
-	}
-
-	return text.Truncate(s, max, false)
-}
-
-func approxWidth(s string) int {
-	return text.Width(s)
 }

@@ -41,7 +41,7 @@ type ScrollView struct {
 
 func NewScrollView(opts ScrollViewOpts) *ScrollView {
 	id := opts.ID
-	if isZeroID(id) {
+	if id == 0 {
 		id = tui.NewID()
 	}
 

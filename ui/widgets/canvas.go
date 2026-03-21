@@ -34,57 +34,50 @@ type Canvas struct {
 	focusable bool
 }
 
-// NewCanvas creates a new canvas with default options.
 func NewCanvas() *Canvas {
 	return NewCanvasOpts(CanvasOpts{})
 }
 
-// NewCanvasOpts creates a new canvas with the given options.
 func NewCanvasOpts(opts CanvasOpts) *Canvas {
 	id := opts.ID
-	if isZeroID(id) {
+	if id == 0 {
 		id = tui.NewID()
 	}
 
-	min := opts.MinSize
-	if min.W <= 0 {
-		min.W = 10
+	minSize := opts.MinSize
+	if minSize.W <= 0 {
+		minSize.W = 10
 	}
 
-	if min.H <= 0 {
-		min.H = 10
+	if minSize.H <= 0 {
+		minSize.H = 10
 	}
 
 	return &Canvas{
 		id:        id,
 		paint:     opts.Paint,
 		handle:    opts.Handle,
-		minSize:   min,
+		minSize:   minSize,
 		focusable: opts.Focusable,
 	}
 }
 
-// ID returns the canvas's unique ID.
 func (c *Canvas) ID() tui.ID {
 	return c.id
 }
 
-// Rect returns the canvas's current rect.
 func (c *Canvas) Rect() geom.Rect {
 	return c.rect
 }
 
-// Layout positions the canvas within the given rect.
 func (c *Canvas) Layout(r geom.Rect) {
 	c.rect = r
 }
 
-// MinSize returns the minimum size needed for the canvas.
 func (c *Canvas) MinSize() geom.Size {
 	return c.minSize
 }
 
-// Focusable returns true if the canvas can receive focus.
 func (c *Canvas) Focusable() bool {
 	return c.focusable
 }
@@ -101,7 +94,6 @@ func (c *Canvas) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	})
 }
 
-// Handle processes events using the handle callback.
 func (c *Canvas) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	if c.handle == nil {
 		return false
@@ -110,17 +102,14 @@ func (c *Canvas) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	return c.handle(e, ctx)
 }
 
-// SetPaintCallback sets the paint callback.
 func (c *Canvas) SetPaintCallback(cb PaintCallback) {
 	c.paint = cb
 }
 
-// SetHandleCallback sets the handle callback.
 func (c *Canvas) SetHandleCallback(cb HandleCallback) {
 	c.handle = cb
 }
 
-// SetMinSize sets the minimum size and triggers layout invalidation.
 func (c *Canvas) SetMinSize(ctx *tui.Ctx, sz geom.Size) {
 	if sz.W <= 0 {
 		sz.W = 1
@@ -141,7 +130,6 @@ func (c *Canvas) SetMinSize(ctx *tui.Ctx, sz geom.Size) {
 	}
 }
 
-// SetFocusable sets whether the canvas can receive focus.
 func (c *Canvas) SetFocusable(v bool) {
 	c.focusable = v
 }
@@ -182,7 +170,7 @@ func (c *Canvas) InvalidateRect(ctx *tui.Ctx, r geom.Rect) {
 		H: r.H,
 	}
 
-	abs = intersectRect(abs, c.rect)
+	abs = abs.Intersect(c.rect)
 	if abs.W <= 0 || abs.H <= 0 {
 		return
 	}
@@ -208,46 +196,4 @@ func (c *Canvas) InvalidateRows(ctx *tui.Ctx, start, count int) {
 		W: c.rect.W,
 		H: count,
 	})
-}
-
-// intersectRect returns the intersection of two rectangles.
-func intersectRect(a, b geom.Rect) geom.Rect {
-	x0 := maxInt(a.X, b.X)
-	y0 := maxInt(a.Y, b.Y)
-	x1 := minInt(a.X+a.W, b.X+b.W)
-	y1 := minInt(a.Y+a.H, b.Y+b.H)
-
-	if x1 <= x0 || y1 <= y0 {
-		return geom.Rect{}
-	}
-
-	return geom.Rect{
-		X: x0,
-		Y: y0,
-		W: x1 - x0,
-		H: y1 - y0,
-	}
-}
-
-// isZeroID returns true if the ID is the zero value.
-func isZeroID(id tui.ID) bool {
-	var zero tui.ID
-
-	return id == zero
-}
-
-func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-
-	return b
-}
-
-func maxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-
-	return b
 }

@@ -19,18 +19,13 @@ type TextInput struct {
 	anchor  int // selection anchor; -1 = no selection
 }
 
-// NewTextInput creates a new text input.
 func NewTextInput() *TextInput {
 	return &TextInput{
-		id:      tui.NewID(),
-		text:    "",
-		cursor:  0,
-		scrollX: 0,
-		anchor:  -1,
+		id:     tui.NewID(),
+		anchor: -1,
 	}
 }
 
-// SetText sets the input text and moves cursor to end.
 func (t *TextInput) SetText(ctx *tui.Ctx, s string) {
 	t.text = text.Sanitize(s)
 	t.cursor = len(t.text)
@@ -42,27 +37,22 @@ func (t *TextInput) SetText(ctx *tui.Ctx, s string) {
 	}
 }
 
-// Text returns the current text.
 func (t *TextInput) Text() string {
 	return t.text
 }
 
-// ID returns the text input's unique ID.
 func (t *TextInput) ID() tui.ID {
 	return t.id
 }
 
-// Rect returns the text input's current rect.
 func (t *TextInput) Rect() tui.Rect {
 	return t.rect
 }
 
-// Layout positions the text input within the given rect.
 func (t *TextInput) Layout(r tui.Rect) {
 	t.rect = r
 }
 
-// MinSize returns the minimum size needed for the text input.
 func (t *TextInput) MinSize() geom.Size {
 	return geom.Size{W: 10, H: 1}
 }
@@ -438,7 +428,6 @@ func (t *TextInput) IsTextInputMode() bool {
 	return true
 }
 
-// Focusable returns true - text inputs can receive focus.
 func (t *TextInput) Focusable() bool {
 	return true
 }

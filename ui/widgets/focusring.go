@@ -14,7 +14,6 @@ type FocusRing struct {
 	rect  tui.Rect
 }
 
-// NewFocusRing creates a new focus ring wrapping the given child.
 func NewFocusRing(child tui.View) *FocusRing {
 	return &FocusRing{
 		id:    tui.NewID(),
@@ -22,18 +21,14 @@ func NewFocusRing(child tui.View) *FocusRing {
 	}
 }
 
-// ID returns the focus ring's unique ID.
 func (f *FocusRing) ID() tui.ID {
 	return f.id
 }
 
-// Rect returns the focus ring's current rect.
 func (f *FocusRing) Rect() tui.Rect {
 	return f.rect
 }
 
-// Layout positions the focus ring within the given rect.
-// The focus ring owns its own rect and allocates an inset rect to the child.
 func (f *FocusRing) Layout(r tui.Rect) {
 	f.rect = r
 	// Inset by 1 on all sides for the border
@@ -41,7 +36,6 @@ func (f *FocusRing) Layout(r tui.Rect) {
 	f.child.Layout(inner)
 }
 
-// MinSize returns the minimum size needed for the focus ring.
 func (f *FocusRing) MinSize() tui.Size {
 	childMin := f.child.MinSize()
 
@@ -74,12 +68,10 @@ func (f *FocusRing) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	})
 }
 
-// Handle processes events - delegates to child.
 func (f *FocusRing) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	return f.child.Handle(e, ctx)
 }
 
-// Focusable returns false - focus rings are decorators, not focus targets.
 func (f *FocusRing) Focusable() bool {
 	return false
 }

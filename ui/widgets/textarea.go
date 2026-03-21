@@ -36,7 +36,6 @@ type lineEntry struct {
 	endByte   int // exclusive, before \n
 }
 
-// NewTextArea creates a new multi-line text area.
 func NewTextArea() *TextArea {
 	ta := &TextArea{
 		id:         tui.NewID(),
@@ -48,7 +47,6 @@ func NewTextArea() *TextArea {
 	return ta
 }
 
-// SetText sets the text content and moves cursor to end.
 func (ta *TextArea) SetText(ctx *tui.Ctx, s string) {
 	ta.text = text.Sanitize(s)
 	ta.rebuildLineIndex()
@@ -63,35 +61,23 @@ func (ta *TextArea) SetText(ctx *tui.Ctx, s string) {
 	}
 }
 
-// Text returns the current text content.
 func (ta *TextArea) Text() string {
 	return ta.text
 }
 
-// SetWordWrap enables or disables word wrapping.
 func (ta *TextArea) SetWordWrap(enabled bool) {
 	ta.wordWrap = enabled
 }
 
-// SetReadOnly enables or disables read-only mode.
 func (ta *TextArea) SetReadOnly(ro bool) {
 	ta.readOnly = ro
 }
 
-// ID returns the unique identifier.
-func (ta *TextArea) ID() tui.ID { return ta.id }
-
-// Rect returns the current rect.
-func (ta *TextArea) Rect() tui.Rect { return ta.rect }
-
-// Layout positions the text area within the given rect.
-func (ta *TextArea) Layout(r tui.Rect) { ta.rect = r }
-
-// MinSize returns the minimum size needed.
+func (ta *TextArea) ID() tui.ID         { return ta.id }
+func (ta *TextArea) Rect() tui.Rect     { return ta.rect }
+func (ta *TextArea) Layout(r tui.Rect)  { ta.rect = r }
 func (ta *TextArea) MinSize() geom.Size { return geom.Size{W: 10, H: 3} }
-
-// Focusable returns true.
-func (ta *TextArea) Focusable() bool { return true }
+func (ta *TextArea) Focusable() bool    { return true }
 
 // IsTextInputMode returns true when the text area is not read-only.
 func (ta *TextArea) IsTextInputMode() bool { return !ta.readOnly }
@@ -138,7 +124,6 @@ func (ta *TextArea) ScrollY() int { return ta.scrollY }
 // LineCount returns the number of lines in the text.
 func (ta *TextArea) LineCount() int { return len(ta.lines) }
 
-// SetScrollY sets the vertical scroll offset and invalidates.
 func (ta *TextArea) SetScrollY(ctx *tui.Ctx, y int) {
 	old := ta.scrollY
 	ta.scrollY = y
@@ -344,8 +329,7 @@ func (ta *TextArea) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		return false
 	}
 
-	switch ke.Key {
-	case tui.KeyRune:
+	if ke.Key == tui.KeyRune {
 		if ta.readOnly {
 			return false
 		}

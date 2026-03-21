@@ -31,15 +31,13 @@ type Select struct {
 	overlayID   tui.ID // non-zero when dropdown is open
 }
 
-// NewSelect creates a new Select widget.
 func NewSelect(items []string) *Select {
 	return NewSelectOpts(SelectOpts{Items: items, Selected: -1})
 }
 
-// NewSelectOpts creates a new Select widget with options.
 func NewSelectOpts(opts SelectOpts) *Select {
 	id := opts.ID
-	if isZeroID(id) {
+	if id == 0 {
 		id = tui.NewID()
 	}
 
@@ -67,10 +65,8 @@ func (s *Select) Rect() tui.Rect    { return s.rect }
 func (s *Select) Layout(r tui.Rect) { s.rect = r }
 func (s *Select) Focusable() bool   { return true }
 
-// Selected returns the current selection index, or -1.
 func (s *Select) Selected() int { return s.selected }
 
-// SetSelected changes the selection.
 func (s *Select) SetSelected(ctx *tui.Ctx, idx int) {
 	if idx < -1 || idx >= len(s.items) || idx == s.selected {
 		return
@@ -82,7 +78,6 @@ func (s *Select) SetSelected(ctx *tui.Ctx, idx int) {
 	}
 }
 
-// SetOnChange sets the change callback.
 func (s *Select) SetOnChange(fn func(int, *tui.Ctx)) { s.onChange = fn }
 
 func (s *Select) MinSize() geom.Size {

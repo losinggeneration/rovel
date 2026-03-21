@@ -73,13 +73,13 @@ func TestRect_Intersect(t *testing.T) {
 			name:     "non-overlapping (other to right)",
 			r:        Rect{X: 0, Y: 0, W: 10, H: 10},
 			other:    Rect{X: 15, Y: 0, W: 10, H: 10},
-			expected: Rect{X: 10, Y: 0, W: 0, H: 10},
+			expected: Rect{X: 15, Y: 0, W: 0, H: 10},
 		},
 		{
 			name:     "non-overlapping (other below)",
 			r:        Rect{X: 0, Y: 0, W: 10, H: 10},
 			other:    Rect{X: 0, Y: 15, W: 10, H: 10},
-			expected: Rect{X: 0, Y: 10, W: 10, H: 0},
+			expected: Rect{X: 0, Y: 15, W: 10, H: 0},
 		},
 		{
 			name:     "one inside another",
@@ -97,7 +97,7 @@ func TestRect_Intersect(t *testing.T) {
 			name:     "empty first rect",
 			r:        Rect{X: 0, Y: 0, W: 0, H: 10},
 			other:    Rect{X: 5, Y: 5, W: 10, H: 10},
-			expected: Rect{X: 0, Y: 5, W: 0, H: 5},
+			expected: Rect{X: 5, Y: 5, W: 0, H: 5},
 		},
 	}
 

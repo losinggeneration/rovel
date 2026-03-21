@@ -28,10 +28,9 @@ type Scrollbar struct {
 	dragStartPos int
 }
 
-// NewScrollbar creates a new scrollbar widget.
 func NewScrollbar(opts ScrollbarOpts) *Scrollbar {
 	id := opts.ID
-	if isZeroID(id) {
+	if id == 0 {
 		id = tui.NewID()
 	}
 
@@ -63,7 +62,6 @@ func (s *Scrollbar) SetState(contentSize, viewSize, position int) {
 	s.position = position
 }
 
-// Position returns the current scroll position.
 func (s *Scrollbar) Position() int {
 	return s.position
 }

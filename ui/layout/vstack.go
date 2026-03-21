@@ -15,8 +15,7 @@ type VStack struct {
 
 func NewVStack() *VStack {
 	return &VStack{
-		id:       tui.NewID(),
-		children: make([]Child, 0),
+		id: tui.NewID(),
 	}
 }
 

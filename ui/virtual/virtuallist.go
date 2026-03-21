@@ -38,7 +38,6 @@ type VirtualList struct {
 	selectedIndex int // -1 = no selection
 }
 
-// NewVirtualList creates a new virtual list with the given options.
 // Panics if Count, RenderRow are nil or RowHeight <= 0.
 func NewVirtualList(opts VirtualListOpts) *VirtualList {
 	if opts.Count == nil {
@@ -54,7 +53,7 @@ func NewVirtualList(opts VirtualListOpts) *VirtualList {
 	}
 
 	id := opts.ID
-	if isZeroID(id) {
+	if id == 0 {
 		id = tui.NewID()
 	}
 
@@ -68,24 +67,20 @@ func NewVirtualList(opts VirtualListOpts) *VirtualList {
 	}
 }
 
-// ID returns the list's unique ID.
 func (v *VirtualList) ID() tui.ID {
 	return v.id
 }
 
-// Rect returns the list's current rect.
 func (v *VirtualList) Rect() geom.Rect {
 	return v.rect
 }
 
-// Layout positions the list within the given rect.
 func (v *VirtualList) Layout(r geom.Rect) {
 	v.rect = r
 	v.clampScroll()
 	v.clampSelection()
 }
 
-// MinSize returns the minimum size needed for the list.
 func (v *VirtualList) MinSize() geom.Size {
 	return geom.Size{
 		W: 1,
@@ -93,7 +88,6 @@ func (v *VirtualList) MinSize() geom.Size {
 	}
 }
 
-// Focusable returns true - lists can receive focus.
 func (v *VirtualList) Focusable() bool {
 	return true
 }
@@ -119,7 +113,7 @@ func (v *VirtualList) Paint(p *tui.Painter, ctx *tui.Ctx) {
 		return
 	}
 
-	end := minInt(n, v.scrollItem+visible)
+	end := min(n, v.scrollItem+visible)
 	focused := ctx != nil && ctx.FocusedID == v.id
 
 	p.WithClip(v.rect, func(cp *tui.Painter) {
@@ -127,7 +121,7 @@ func (v *VirtualList) Paint(p *tui.Painter, ctx *tui.Ctx) {
 			rowOffset := (i - v.scrollItem) * v.rowHeight
 			rowY := v.rect.Y + rowOffset
 
-			rowH := minInt(v.rowHeight, v.rect.Y+v.rect.H-rowY)
+			rowH := min(v.rowHeight, v.rect.Y+v.rect.H-rowY)
 			if rowH <= 0 {
 				break
 			}
@@ -285,7 +279,7 @@ func (v *VirtualList) ScrollTop(ctx *tui.Ctx) {
 func (v *VirtualList) ScrollBottom(ctx *tui.Ctx) {
 	n := v.safeCount()
 	visible := v.visibleItems()
-	v.ScrollTo(ctx, maxInt(0, n-visible))
+	v.ScrollTo(ctx, max(0, n-visible))
 }
 
 // ScrollItem returns the current scroll position (item index).
@@ -403,7 +397,7 @@ func (v *VirtualList) clampScroll() {
 	n := v.safeCount()
 	visible := v.visibleItems()
 
-	maxScroll := maxInt(0, n-visible)
+	maxScroll := max(0, n-visible)
 	v.scrollItem = clamp(v.scrollItem, 0, maxScroll)
 }
 
@@ -465,28 +459,13 @@ func (v *VirtualList) invalidate(ctx *tui.Ctx) {
 	ctx.Invalidate(v.rect)
 }
 
-// isZeroID returns true if the ID is the zero value.
-func isZeroID(id tui.ID) bool {
-	var zero tui.ID
-
-	return id == zero
-}
-
 // clamp clamps v between lo and hi.
 func clamp(v, lo, hi int) int {
 	if hi < lo {
 		return lo
 	}
 
-	if v < lo {
-		return lo
-	}
-
-	if v > hi {
-		return hi
-	}
-
-	return v
+	return max(lo, min(hi, v))
 }
 
 // ceilDiv returns ceil(a / b).
@@ -496,20 +475,4 @@ func ceilDiv(a, b int) int {
 	}
 
 	return (a + b - 1) / b
-}
-
-func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-
-	return b
-}
-
-func maxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-
-	return b
 }

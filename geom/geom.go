@@ -30,35 +30,12 @@ func (r Rect) Contains(p Point) bool {
 // Intersect returns the intersection of two rectangles.
 // The result may be an empty rectangle.
 func (r Rect) Intersect(other Rect) Rect {
-	x0 := r.X
-	if other.X > x0 {
-		x0 = other.X
-	}
+	x0 := max(r.X, other.X)
+	x1 := min(r.X+r.W, other.X+other.W)
+	y0 := max(r.Y, other.Y)
+	y1 := min(r.Y+r.H, other.Y+other.H)
 
-	x1 := r.X + r.W
-	if other.X+other.W < x1 {
-		x1 = other.X + other.W
-	}
-
-	y0 := r.Y
-	if other.Y > y0 {
-		y0 = other.Y
-	}
-
-	y1 := r.Y + r.H
-	if other.Y+other.H < y1 {
-		y1 = other.Y + other.H
-	}
-
-	if x0 > x1 {
-		x0 = x1
-	}
-
-	if y0 > y1 {
-		y0 = y1
-	}
-
-	return Rect{X: x0, Y: y0, W: x1 - x0, H: y1 - y0}
+	return Rect{X: x0, Y: y0, W: max(0, x1-x0), H: max(0, y1-y0)}
 }
 
 // Empty returns true if the rectangle has zero or negative area.

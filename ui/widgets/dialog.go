@@ -38,10 +38,9 @@ type Dialog struct {
 	prefW   int
 }
 
-// NewDialog creates a new dialog.
 func NewDialog(opts DialogOpts) *Dialog {
 	id := opts.ID
-	if isZeroID(id) {
+	if id == 0 {
 		id = tui.NewID()
 	}
 

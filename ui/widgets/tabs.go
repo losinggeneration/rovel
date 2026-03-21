@@ -31,15 +31,13 @@ type Tabs struct {
 	onTab    func(index int, ctx *tui.Ctx)
 }
 
-// NewTabs creates a new Tabs widget.
 func NewTabs(tabs []Tab) *Tabs {
 	return NewTabsOpts(TabsOpts{Tabs: tabs})
 }
 
-// NewTabsOpts creates a new Tabs widget with options.
 func NewTabsOpts(opts TabsOpts) *Tabs {
 	id := opts.ID
-	if isZeroID(id) {
+	if id == 0 {
 		id = tui.NewID()
 	}
 
@@ -54,10 +52,8 @@ func (t *Tabs) ID() tui.ID      { return t.id }
 func (t *Tabs) Rect() tui.Rect  { return t.rect }
 func (t *Tabs) Focusable() bool { return len(t.tabs) > 0 }
 
-// Selected returns the index of the selected tab.
 func (t *Tabs) Selected() int { return t.selected }
 
-// SetSelected switches to a different tab.
 func (t *Tabs) SetSelected(ctx *tui.Ctx, idx int) {
 	if idx < 0 || idx >= len(t.tabs) || idx == t.selected {
 		return

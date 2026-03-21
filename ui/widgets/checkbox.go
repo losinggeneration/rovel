@@ -27,15 +27,13 @@ type Checkbox struct {
 	onChange func(checked bool, ctx *tui.Ctx)
 }
 
-// NewCheckbox creates a new checkbox with the given label.
 func NewCheckbox(label string) *Checkbox {
 	return NewCheckboxOpts(CheckboxOpts{Label: label})
 }
 
-// NewCheckboxOpts creates a new checkbox with options.
 func NewCheckboxOpts(opts CheckboxOpts) *Checkbox {
 	id := opts.ID
-	if isZeroID(id) {
+	if id == 0 {
 		id = tui.NewID()
 	}
 
@@ -53,10 +51,8 @@ func (c *Checkbox) Rect() tui.Rect    { return c.rect }
 func (c *Checkbox) Layout(r tui.Rect) { c.rect = r }
 func (c *Checkbox) Focusable() bool   { return !c.disabled }
 
-// Checked returns the current state.
 func (c *Checkbox) Checked() bool { return c.checked }
 
-// SetChecked sets the checked state.
 func (c *Checkbox) SetChecked(ctx *tui.Ctx, v bool) {
 	if c.checked == v {
 		return
@@ -68,7 +64,6 @@ func (c *Checkbox) SetChecked(ctx *tui.Ctx, v bool) {
 	}
 }
 
-// SetLabel sets the label text.
 func (c *Checkbox) SetLabel(ctx *tui.Ctx, s string) {
 	if c.label == s {
 		return
@@ -80,7 +75,6 @@ func (c *Checkbox) SetLabel(ctx *tui.Ctx, s string) {
 	}
 }
 
-// SetOnChange sets the change callback.
 func (c *Checkbox) SetOnChange(fn func(bool, *tui.Ctx)) { c.onChange = fn }
 
 func (c *Checkbox) MinSize() geom.Size {

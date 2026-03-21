@@ -17,16 +17,13 @@ type Label struct {
 	st   style.Style
 }
 
-// NewLabel creates a new label with the given text.
 func NewLabel(text string) *Label {
 	return &Label{
 		id:   tui.NewID(),
 		text: text,
-		st:   style.Style{},
 	}
 }
 
-// SetText sets the label's text and invalidates the rect.
 func (l *Label) SetText(ctx *tui.Ctx, text string) {
 	if l.text == text {
 		return
@@ -38,7 +35,6 @@ func (l *Label) SetText(ctx *tui.Ctx, text string) {
 	}
 }
 
-// SetStyle sets the label's style and invalidates the rect.
 func (l *Label) SetStyle(ctx *tui.Ctx, st style.Style) {
 	if l.st == st {
 		return
@@ -50,22 +46,18 @@ func (l *Label) SetStyle(ctx *tui.Ctx, st style.Style) {
 	}
 }
 
-// ID returns the label's unique ID.
 func (l *Label) ID() tui.ID {
 	return l.id
 }
 
-// Rect returns the label's current rect.
 func (l *Label) Rect() tui.Rect {
 	return l.rect
 }
 
-// Layout positions the label within the given rect.
 func (l *Label) Layout(r tui.Rect) {
 	l.rect = r
 }
 
-// MinSize returns the minimum size needed for the label.
 func (l *Label) MinSize() geom.Size {
 	maxW := 0
 
@@ -84,7 +76,6 @@ func (l *Label) PreferredSize() geom.Size {
 	return l.MinSize()
 }
 
-// Paint renders the label.
 func (l *Label) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	x := l.rect.X
 	y := l.rect.Y
@@ -107,12 +98,10 @@ func (l *Label) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	}
 }
 
-// Handle processes events - label doesn't handle any.
 func (l *Label) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	return false
 }
 
-// Focusable returns false - labels don't receive focus.
 func (l *Label) Focusable() bool {
 	return false
 }

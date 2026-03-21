@@ -1,18 +1,14 @@
 package text
 
 import (
-	"unicode/utf8"
-
 	cellwidth "github.com/losinggeneration/tui/internal/width"
 )
 
 func Width(s string) int {
 	width := 0
 
-	for i := 0; i < len(s); {
-		r, size := utf8.DecodeRuneInString(s[i:])
+	for _, r := range s {
 		width += cellwidth.RuneWidth(r)
-		i += size
 	}
 
 	return width

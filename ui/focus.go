@@ -11,13 +11,6 @@ const (
 	FocusLast
 )
 
-// FocusCycle is implemented by containers that handle focus navigation.
-// It is defined but not used in M4 - containers handle Tab traversal
-// directly in their Handle method. Reserved for future expansion.
-type FocusCycle interface {
-	FocusAction(act FocusAction, ctx *Ctx) bool
-}
-
 // Focusable is implemented by views that can receive focus.
 // Containers check this interface to determine traversal targets.
 // Note: Does NOT embed View - cleaner for adapters/wrappers.

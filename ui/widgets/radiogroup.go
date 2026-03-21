@@ -29,15 +29,13 @@ type RadioGroup struct {
 	onChange func(index int, ctx *tui.Ctx)
 }
 
-// NewRadioGroup creates a new radio group with the given items.
 func NewRadioGroup(items []string) *RadioGroup {
 	return NewRadioGroupOpts(RadioGroupOpts{Items: items, Selected: -1})
 }
 
-// NewRadioGroupOpts creates a new radio group with options.
 func NewRadioGroupOpts(opts RadioGroupOpts) *RadioGroup {
 	id := opts.ID
-	if isZeroID(id) {
+	if id == 0 {
 		id = tui.NewID()
 	}
 
@@ -61,10 +59,8 @@ func (r *RadioGroup) Rect() tui.Rect     { return r.rect }
 func (r *RadioGroup) Layout(rr tui.Rect) { r.rect = rr }
 func (r *RadioGroup) Focusable() bool    { return !r.disabled && len(r.items) > 0 }
 
-// Selected returns the index of the selected item, or -1.
 func (r *RadioGroup) Selected() int { return r.selected }
 
-// SetSelected sets the selected index.
 func (r *RadioGroup) SetSelected(ctx *tui.Ctx, idx int) {
 	if idx < -1 || idx >= len(r.items) {
 		return
@@ -80,7 +76,6 @@ func (r *RadioGroup) SetSelected(ctx *tui.Ctx, idx int) {
 	}
 }
 
-// SetOnChange sets the change callback.
 func (r *RadioGroup) SetOnChange(fn func(int, *tui.Ctx)) { r.onChange = fn }
 
 func (r *RadioGroup) MinSize() geom.Size {

@@ -9,6 +9,7 @@ import (
 // it requests focus on the wrapped view and calls OnClick.
 type Clickable struct {
 	tui.View
+
 	OnClick func(ctx *tui.Ctx)
 }
 
