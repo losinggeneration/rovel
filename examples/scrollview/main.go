@@ -5,12 +5,39 @@ import (
 
 	"github.com/losinggeneration/tui"
 	"github.com/losinggeneration/tui/event"
+	"github.com/losinggeneration/tui/ui"
 	"github.com/losinggeneration/tui/ui/layout"
 	"github.com/losinggeneration/tui/ui/widgets"
 )
 
+const ActionQuit ui.Action = iota + 100
+
+type quitKeymap struct{}
+
+func (quitKeymap) Resolve(_ ui.KeyContext, k ui.Keystroke) (ui.Action, bool) {
+	if k.Key == event.KeyRune && k.Rune == 'q' {
+		return ActionQuit, true
+	}
+
+	return ui.ActionNone, false
+}
+
+type Root struct {
+	*widgets.FocusRing
+}
+
+func (r *Root) HandleAction(act int, ctx *tui.Ctx) bool {
+	if ui.Action(act) == ActionQuit {
+		ctx.Quit()
+
+		return true
+	}
+
+	return false
+}
+
 func main() {
-	app, err := tui.New(tui.DefaultAppOpts())
+	app, err := tui.New(tui.AppOpts{ResolveAction: ui.NewResolver(quitKeymap{})})
 	if err != nil {
 		fmt.Printf("Failed to create app: %v\n", err)
 
@@ -42,13 +69,7 @@ func main() {
 
 	focusRing := widgets.NewFocusRing(split)
 
-	quitHandler := &QuitHandler{
-		app:      app,
-		mainView: focusRing,
-		id:       tui.NewID(),
-	}
-
-	app.SetRoot(quitHandler)
+	app.SetRoot(&Root{focusRing})
 
 	if err := app.Enable(); err != nil {
 		fmt.Printf("Failed to enable app: %v\n", err)
@@ -118,50 +139,4 @@ func (s *StatusView) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 func (s *StatusView) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	return false
-}
-
-type QuitHandler struct {
-	app      *tui.App
-	mainView tui.View
-	id       tui.ID
-	rect     tui.Rect
-}
-
-func (q *QuitHandler) ID() tui.ID     { return q.id }
-func (q *QuitHandler) Rect() tui.Rect { return q.rect }
-
-func (q *QuitHandler) Layout(r tui.Rect) {
-	q.rect = r
-	q.mainView.Layout(r)
-}
-
-func (q *QuitHandler) MinSize() tui.Size {
-	return q.mainView.MinSize()
-}
-
-func (q *QuitHandler) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	q.mainView.Paint(p, ctx)
-}
-
-func (q *QuitHandler) Handle(e tui.Event, ctx *tui.Ctx) bool {
-	ke, ok := e.(event.KeyEvent)
-	if !ok {
-		return q.mainView.Handle(e, ctx)
-	}
-
-	if ke.Key == event.KeyRune && ke.Rune == 'q' {
-		q.app.Quit()
-
-		return true
-	}
-
-	return q.mainView.Handle(e, ctx)
-}
-
-func (q *QuitHandler) Focusable() bool {
-	return false
-}
-
-func (q *QuitHandler) Children() []tui.View {
-	return []tui.View{q.mainView}
 }

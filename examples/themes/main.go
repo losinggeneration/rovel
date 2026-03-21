@@ -21,15 +21,19 @@ const (
 	ActionQuit
 )
 
-// themeKeymap implements ui.Keymap to provide application-specific key bindings.
-// This demonstrates the pattern to have
-// physical key events -> semantic actions -> handlers
 type themeKeymap struct{}
 
 func (themeKeymap) Resolve(ctx ui.KeyContext, k ui.Keystroke) (ui.Action, bool) {
 	switch k.Key {
-	case event.KeyRune:
-		// Number keys 1-3 switch themes
+	case event.KeyEsc, event.KeyCtrlC:
+		return ActionQuit, true
+	}
+
+	if ctx == ui.KeyCtxTextInput {
+		return ui.ActionNone, false
+	}
+
+	if k.Key == event.KeyRune {
 		switch k.Rune {
 		case '1':
 			return ActionTheme1, true
@@ -38,12 +42,6 @@ func (themeKeymap) Resolve(ctx ui.KeyContext, k ui.Keystroke) (ui.Action, bool) 
 		case '3':
 			return ActionTheme3, true
 		}
-	case event.KeyEsc:
-		// Escape quits the application
-		return ActionQuit, true
-	case event.KeyCtrlC:
-		// Ctrl-C also quits (common TUI convention)
-		return ActionQuit, true
 	}
 
 	return ui.ActionNone, false
@@ -218,18 +216,10 @@ func main() {
 	// Status at bottom with fixed height
 	mainLayout.Add(statusBar)
 
-	// Wrap in focus ring
+	// Wrap in focus ring and root handler
 	focusRing := widgets.NewFocusRing(mainLayout)
 
-	// Wrap root with event handler for semantic actions
-	root := &eventHandler{
-		id:       tui.NewID(),
-		app:      app,
-		state:    state,
-		rootView: focusRing,
-	}
-
-	// Set root and run
+	root := &Root{FocusRing: focusRing, app: app, state: state}
 	app.SetRoot(root)
 
 	// Request focus on the theme selector
@@ -542,59 +532,25 @@ func (w *statusWrapper) FocusScope() bool {
 	return true
 }
 
-// eventHandler wraps the root and handles global keyboard shortcuts.
-// This demonstrates handling app-global actions (quit, theme switching) that
-// are not tied to any specific focused widget.
-//
-// Note: The framework's semantic action system (HandleAction) is designed for
-// focused view actions. For app-global shortcuts, handle them directly in the
-// root view's Handle() method.
-type eventHandler struct {
-	id       tui.ID
-	app      *tui.App
-	state    *appState
-	rootView tui.View
+// Root embeds FocusRing and handles app-level semantic actions.
+type Root struct {
+	*widgets.FocusRing
+	app   *tui.App
+	state *appState
 }
 
-func (h *eventHandler) ID() tui.ID {
-	return h.id
-}
-
-func (h *eventHandler) MinSize() geom.Size {
-	return h.rootView.MinSize()
-}
-
-func (h *eventHandler) Layout(r geom.Rect) {
-	h.rootView.Layout(r)
-}
-
-func (h *eventHandler) Rect() tui.Rect {
-	return h.rootView.Rect()
-}
-
-func (h *eventHandler) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	h.rootView.Paint(p, ctx)
-}
-
-// HandleAction is provided for documentation purposes to demonstrate how
-// semantic actions would be handled. It is not currently called by the
-// framework because the framework's action resolver only checks the focused
-// view, not the root view.
-//
-// For app-global shortcuts like quit and theme switching, we handle them
-// directly in Handle() instead.
-func (h *eventHandler) HandleAction(act int, ctx *tui.Ctx) bool {
+func (r *Root) HandleAction(act int, ctx *tui.Ctx) bool {
 	switch ui.Action(act) {
 	case ActionTheme1:
-		h.state.switchTheme(ctx, 0)
+		r.state.switchTheme(ctx, 0)
 
 		return true
 	case ActionTheme2:
-		h.state.switchTheme(ctx, 1)
+		r.state.switchTheme(ctx, 1)
 
 		return true
 	case ActionTheme3:
-		h.state.switchTheme(ctx, 2)
+		r.state.switchTheme(ctx, 2)
 
 		return true
 	case ActionQuit:
@@ -606,56 +562,6 @@ func (h *eventHandler) HandleAction(act int, ctx *tui.Ctx) bool {
 	}
 
 	return false
-}
-
-// Handle processes events and delegates to the root view.
-// For key events, it also checks for global actions like quit and theme switching.
-// This ensures that app-wide actions work even when no focused view handles them.
-func (h *eventHandler) Handle(e tui.Event, ctx *tui.Ctx) bool {
-	// Check for keyboard events that might be global actions
-	if ke, ok := e.(tui.KeyEvent); ok {
-		// Handle quit keys globally
-		if ke.Key == tui.KeyEsc || ke.Key == tui.KeyCtrlC {
-			if ctx != nil && ctx.Quit != nil {
-				ctx.Quit()
-			}
-
-			return true
-		}
-
-		// Handle theme switching keys (1/2/3)
-		if ke.Key == tui.KeyRune {
-			switch ke.Rune {
-			case '1':
-				h.state.switchTheme(ctx, 0)
-
-				return true
-			case '2':
-				h.state.switchTheme(ctx, 1)
-
-				return true
-			case '3':
-				h.state.switchTheme(ctx, 2)
-
-				return true
-			}
-		}
-	}
-
-	// Pass all other events to the root view
-	return h.rootView.Handle(e, ctx)
-}
-
-func (h *eventHandler) Focusable() bool {
-	return false
-}
-
-func (h *eventHandler) Children() []tui.View {
-	if c, ok := h.rootView.(interface{ Children() []tui.View }); ok {
-		return c.Children()
-	}
-
-	return nil
 }
 
 // readOnlyTextInput wraps a TextInput to make it read-only (display-only)

@@ -5,13 +5,35 @@ import (
 	"os"
 
 	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/tui/ui"
 	"github.com/losinggeneration/tui/ui/layout"
 	"github.com/losinggeneration/tui/ui/widgets"
 )
 
+const ActionQuit ui.Action = iota + 100
+
+type quitKeymap struct{}
+
+func (quitKeymap) Resolve(_ ui.KeyContext, _ ui.Keystroke) (ui.Action, bool) {
+	return ActionQuit, true
+}
+
+type Root struct {
+	*layout.HStack
+}
+
+func (r *Root) HandleAction(act int, ctx *tui.Ctx) bool {
+	if ui.Action(act) == ActionQuit {
+		ctx.Quit()
+
+		return true
+	}
+
+	return false
+}
+
 func main() {
-	app, err := tui.New(tui.AppOpts{})
+	app, err := tui.New(tui.AppOpts{ResolveAction: ui.NewResolver(quitKeymap{})})
 	if err != nil {
 		panic(err)
 	}
@@ -22,7 +44,7 @@ func main() {
 	root := layout.NewHStack()
 	root.AddChild(layout.AlignChild(border, layout.AlignCenter, layout.AlignCenter))
 
-	app.SetRoot(&quitWrapper{id: tui.NewID(), root: root})
+	app.SetRoot(&Root{root})
 
 	if err := app.Enable(); err != nil {
 		panic(err)
@@ -38,32 +60,3 @@ func main() {
 		panic(err)
 	}
 }
-
-type quitWrapper struct {
-	id   tui.ID
-	root tui.View
-}
-
-func (w *quitWrapper) ID() tui.ID         { return w.id }
-func (w *quitWrapper) MinSize() geom.Size { return w.root.MinSize() }
-func (w *quitWrapper) Layout(r geom.Rect) { w.root.Layout(r) }
-func (w *quitWrapper) Rect() geom.Rect    { return w.root.Rect() }
-func (w *quitWrapper) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	w.root.Paint(p, ctx)
-}
-
-func (w *quitWrapper) Handle(e tui.Event, ctx *tui.Ctx) bool {
-	if w.root.Handle(e, ctx) {
-		return true
-	}
-
-	if _, ok := e.(tui.KeyEvent); ok {
-		ctx.Quit()
-
-		return true
-	}
-
-	return false
-}
-
-func (w *quitWrapper) Focusable() bool { return false }

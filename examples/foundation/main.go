@@ -5,12 +5,41 @@ import (
 	"os"
 
 	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/tui/event"
 	"github.com/losinggeneration/tui/geom"
 	"github.com/losinggeneration/tui/style"
 	"github.com/losinggeneration/tui/text"
+	"github.com/losinggeneration/tui/ui"
 	"github.com/losinggeneration/tui/ui/layout"
 	"github.com/losinggeneration/tui/ui/widgets"
 )
+
+const ActionQuit ui.Action = iota + 100
+
+type quitKeymap struct{}
+
+func (quitKeymap) Resolve(_ ui.KeyContext, k ui.Keystroke) (ui.Action, bool) {
+	switch k.Key {
+	case event.KeyEsc, event.KeyCtrlC:
+		return ActionQuit, true
+	}
+
+	return ui.ActionNone, false
+}
+
+type Root struct {
+	*layout.VStack
+}
+
+func (r *Root) HandleAction(act int, ctx *tui.Ctx) bool {
+	if ui.Action(act) == ActionQuit {
+		ctx.Quit()
+
+		return true
+	}
+
+	return false
+}
 
 func main() {
 	app, err := tui.New(tui.AppOpts{
@@ -28,6 +57,7 @@ func main() {
 				},
 			},
 		},
+		ResolveAction: ui.NewResolver(quitKeymap{}),
 	})
 	if err != nil {
 		panic(err)
@@ -51,7 +81,7 @@ func main() {
 	}
 }
 
-func buildRoot() tui.View {
+func buildRoot() *Root {
 	root := layout.NewVStack()
 
 	header := buildHeader()
@@ -60,7 +90,7 @@ func buildRoot() tui.View {
 	content := buildContent()
 	root.AddChild(layout.GrowChild(content, 1, 1))
 
-	return &quitWrapper{id: tui.NewID(), root: root}
+	return &Root{root}
 }
 
 func buildHeader() tui.View {
@@ -301,57 +331,4 @@ func buildBoxLayoutDemo() tui.View {
 	stack.AddChild(layout.GrowChild(v2Border, 1, 1))
 
 	return stack
-}
-
-type quitWrapper struct {
-	id   tui.ID
-	root tui.View
-}
-
-func (w *quitWrapper) ID() tui.ID {
-	return w.id
-}
-
-func (w *quitWrapper) MinSize() geom.Size {
-	return w.root.MinSize()
-}
-
-func (w *quitWrapper) Layout(r geom.Rect) {
-	w.root.Layout(r)
-}
-
-func (w *quitWrapper) Rect() geom.Rect {
-	return w.root.Rect()
-}
-
-func (w *quitWrapper) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	w.root.Paint(p, ctx)
-}
-
-func (w *quitWrapper) Handle(e tui.Event, ctx *tui.Ctx) bool {
-	if w.root.Handle(e, ctx) {
-		return true
-	}
-
-	if ke, ok := e.(tui.KeyEvent); ok {
-		if ke.Key == tui.KeyEsc || ke.Key == tui.KeyCtrlC {
-			ctx.Quit()
-
-			return true
-		}
-	}
-
-	return false
-}
-
-func (w *quitWrapper) Focusable() bool {
-	return false
-}
-
-func (w *quitWrapper) Children() []tui.View {
-	if c, ok := w.root.(interface{ Children() []tui.View }); ok {
-		return c.Children()
-	}
-
-	return nil
 }

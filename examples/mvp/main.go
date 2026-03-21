@@ -17,12 +17,71 @@ import (
 	"time"
 
 	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/tui/event"
 	"github.com/losinggeneration/tui/geom"
 	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/tui/ui"
 	"github.com/losinggeneration/tui/ui/layout"
 	"github.com/losinggeneration/tui/ui/virtual"
 	"github.com/losinggeneration/tui/ui/widgets"
 )
+
+const (
+	ActionQuit ui.Action = iota + 100
+	ActionPerfToggle
+)
+
+type appKeymap struct{}
+
+func (appKeymap) Resolve(ctx ui.KeyContext, k ui.Keystroke) (ui.Action, bool) {
+	if ctx == ui.KeyCtxTextInput {
+		switch k.Key {
+		case event.KeyEsc, event.KeyCtrlC:
+			return ActionQuit, true
+		}
+
+		return ui.ActionNone, false
+	}
+
+	switch k.Key {
+	case event.KeyEsc, event.KeyCtrlC:
+		return ActionQuit, true
+	}
+
+	if k.Key == event.KeyRune && (k.Rune == 'P' || k.Rune == 'p') {
+		return ActionPerfToggle, true
+	}
+
+	return ui.ActionNone, false
+}
+
+// Root embeds the main layout and handles app-level actions.
+type Root struct {
+	*layout.VStack
+	state *appState
+	app   *tui.App
+}
+
+func (r *Root) HandleAction(act int, ctx *tui.Ctx) bool {
+	switch ui.Action(act) {
+	case ActionQuit:
+		r.app.Quit()
+
+		return true
+	case ActionPerfToggle:
+		if r.state.perfEnabled && r.state.perfMonitor != nil {
+			r.state.status = r.state.perfMonitor.Summary()
+
+			if ctx != nil && ctx.InvalidateAll != nil {
+				ctx.InvalidateAll()
+			}
+
+			return true
+		}
+	}
+
+	return false
+}
 
 type appState struct {
 	status string
@@ -86,6 +145,7 @@ func main() {
 				},
 			},
 		},
+		ResolveAction: ui.NewResolver(appKeymap{}),
 	})
 	if err != nil {
 		panic(err)
@@ -583,7 +643,7 @@ func buildStatusBar(st *appState) tui.View {
 }
 
 // buildRoot creates the root layout with status bar and 3-pane main area.
-func buildRoot(st *appState, app *tui.App, status tui.View, form tui.View, editor tui.View, history tui.View) tui.View {
+func buildRoot(st *appState, app *tui.App, status tui.View, form tui.View, editor tui.View, history tui.View) *Root {
 	root := layout.NewVStack()
 
 	// Add status bar
@@ -607,79 +667,5 @@ func buildRoot(st *appState, app *tui.App, status tui.View, form tui.View, edito
 	root.Add(hpanes)
 	root.Add(historyBorder)
 
-	// Wrap root in a container that handles Esc and Ctrl+C for quit
-	return &quitWrapper{id: tui.NewID(), root: root, state: st, app: app}
-}
-
-// quitWrapper wraps the root view to handle quit key events.
-type quitWrapper struct {
-	id    tui.ID
-	root  tui.View
-	state *appState
-	app   *tui.App
-}
-
-func (w *quitWrapper) ID() tui.ID {
-	return w.id
-}
-
-func (w *quitWrapper) MinSize() geom.Size {
-	return w.root.MinSize()
-}
-
-func (w *quitWrapper) Layout(r geom.Rect) {
-	w.root.Layout(r)
-}
-
-func (w *quitWrapper) Rect() geom.Rect {
-	return w.root.Rect()
-}
-
-func (w *quitWrapper) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	w.root.Paint(p, ctx)
-}
-
-func (w *quitWrapper) Handle(e tui.Event, ctx *tui.Ctx) bool {
-	// Delegate to children first - they get first chance to handle events
-	if w.root.Handle(e, ctx) {
-		return true
-	}
-
-	// Handle global key events
-	ke, ok := e.(tui.KeyEvent)
-	if ok {
-		// Performance report toggle
-		if w.state.perfEnabled && w.state.perfMonitor != nil {
-			if ke.Key == tui.KeyRune && (ke.Rune == 'P' || ke.Rune == 'p') {
-				w.state.status = w.state.perfMonitor.Summary()
-
-				if ctx != nil && ctx.InvalidateAll != nil {
-					ctx.InvalidateAll()
-				}
-
-				return true
-			}
-		}
-
-		// Quit keys
-		if ke.Key == tui.KeyEsc || ke.Key == tui.KeyCtrlC {
-			w.app.Quit()
-
-			return true
-		}
-	}
-
-	return false
-}
-
-func (w *quitWrapper) Focusable() bool {
-	return false
-}
-
-func (w *quitWrapper) Children() []tui.View {
-	if c, ok := w.root.(interface{ Children() []tui.View }); ok {
-		return c.Children()
-	}
-
-	return nil
+	return &Root{VStack: root, state: st, app: app}
 }

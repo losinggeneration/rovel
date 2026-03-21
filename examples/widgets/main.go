@@ -5,13 +5,25 @@ import (
 
 	"github.com/losinggeneration/tui"
 	"github.com/losinggeneration/tui/event"
+	"github.com/losinggeneration/tui/ui"
 	"github.com/losinggeneration/tui/ui/layout"
 	"github.com/losinggeneration/tui/ui/widgets"
 )
 
+const ActionQuit ui.Action = iota + 100
+
+type quitKeymap struct{}
+
+func (quitKeymap) Resolve(_ ui.KeyContext, k ui.Keystroke) (ui.Action, bool) {
+	if k.Key == event.KeyEsc {
+		return ActionQuit, true
+	}
+
+	return ui.ActionNone, false
+}
+
 func main() {
-	// Create app with default theme
-	app, err := tui.New(tui.DefaultAppOpts())
+	app, err := tui.New(tui.AppOpts{ResolveAction: ui.NewResolver(quitKeymap{})})
 	if err != nil {
 		fmt.Printf("Failed to create app: %v\n", err)
 
@@ -46,12 +58,8 @@ func main() {
 	}
 
 	// Wire up button callbacks to update wrapper state
-	button1.SetOnPress(func(ctx *tui.Ctx) {
-		quitHandler.OnButton1(ctx)
-	})
-	button2.SetOnPress(func(ctx *tui.Ctx) {
-		quitHandler.OnButton2(ctx)
-	})
+	button1.SetOnPress(quitHandler.OnButton(1))
+	button2.SetOnPress(quitHandler.OnButton(2))
 
 	// Set root and run
 	app.SetRoot(quitHandler)
@@ -126,48 +134,33 @@ func (q *QuitHandler) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	})
 }
 
-func (q *QuitHandler) Handle(e tui.Event, ctx *tui.Ctx) bool {
-	ke, ok := e.(event.KeyEvent)
-	if !ok {
-		return q.mainView.Handle(e, ctx)
-	}
-
-	// Check for 'q' to quit
-	if ke.Key == event.KeyRune && ke.Rune == 'q' {
+func (q *QuitHandler) HandleAction(act int, ctx *tui.Ctx) bool {
+	if ui.Action(act) == ActionQuit {
 		q.app.Quit()
 
 		return true
 	}
 
-	// Route all other events to main view
+	return false
+}
+
+func (q *QuitHandler) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	return q.mainView.Handle(e, ctx)
 }
 
-// OnButton1 handles Button 1 press - toggles status message.
-func (q *QuitHandler) OnButton1(ctx *tui.Ctx) {
-	if q.status == "Button 1 pressed - press again to clear" {
-		q.status = "Tab to navigate, Enter to press buttons, 'q' to quit"
-	} else {
-		q.status = "Button 1 pressed - press again to clear"
-	}
+func (q *QuitHandler) OnButton(btn int) func(ctx *tui.Ctx) {
+	return func(ctx *tui.Ctx) {
+		msg := fmt.Sprintf("Button %d pressed - press again to clear", btn)
+		if q.status == msg {
+			q.status = "Tab to navigate, Enter to press buttons, Esc to quit"
+		} else {
+			q.status = msg
+		}
 
-	if ctx != nil {
-		statusRect := tui.Rect{X: q.rect.X, Y: q.rect.Y, W: q.rect.W, H: 1}
-		ctx.Invalidate(statusRect)
-	}
-}
-
-// OnButton2 handles Button 2 press - toggles status message.
-func (q *QuitHandler) OnButton2(ctx *tui.Ctx) {
-	if q.status == "Button 2 pressed - press again to clear" {
-		q.status = "Tab to navigate, Enter to press buttons, 'q' to quit"
-	} else {
-		q.status = "Button 2 pressed - press again to clear"
-	}
-
-	if ctx != nil {
-		statusRect := tui.Rect{X: q.rect.X, Y: q.rect.Y, W: q.rect.W, H: 1}
-		ctx.Invalidate(statusRect)
+		if ctx != nil {
+			statusRect := tui.Rect{X: q.rect.X, Y: q.rect.Y, W: q.rect.W, H: 1}
+			ctx.Invalidate(statusRect)
+		}
 	}
 }
 
