@@ -9,9 +9,10 @@ import (
 // FocusRing is a decorator that draws a focus border around its child
 // when the child or any of its descendants is focused.
 type FocusRing struct {
-	id    tui.ID
-	child tui.View
-	rect  tui.Rect
+	id          tui.ID
+	child       tui.View
+	rect        tui.Rect
+	lastFocused bool
 }
 
 func NewFocusRing(child tui.View) *FocusRing {
@@ -48,6 +49,13 @@ func (f *FocusRing) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 	// Check if focused (directly or in subtree)
 	focused := f.isFocused(ctx.FocusedID)
+
+	// If focus state changed since last paint, schedule a
+	// follow-up invalidation so the border repaints.
+	if focused != f.lastFocused {
+		ctx.Invalidate(f.rect)
+		f.lastFocused = focused
+	}
 
 	// Draw focus border if focused
 	if focused {

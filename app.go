@@ -1030,6 +1030,25 @@ func (a *App) render() {
 	// Paint intersecting views
 	a.paintViews()
 
+	// Views may call Invalidate during Paint (e.g. FocusRing detecting a
+	// focus-state change). Process follow-up invalidations so the update
+	// lands in the same frame. Cap iterations to guard against loops.
+	for range 2 {
+		if len(a.invalidRects) == 0 {
+			break
+		}
+
+		for _, r := range a.invalidRects {
+			a.damage.AddRect(r)
+		}
+
+		a.invalidRects = a.invalidRects[:0]
+
+		// Clear only the newly damaged spans, then repaint
+		a.clearDamagedSpans()
+		a.paintViews()
+	}
+
 	// Diff and flush
 	a.flush()
 }
