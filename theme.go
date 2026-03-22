@@ -122,7 +122,7 @@ func DefaultThemeClassic() Theme {
 			TextMuted:    base.WithFG(gray),
 			Border:       base.WithFG(brightWhite),
 			BorderMuted:  base.WithFG(white),
-			Focus:        base.WithAttr(style.AttrReverse),
+			Focus:        base.WithFG(brightWhite).WithBG(black),
 			Selection:    base.WithFG(black).WithBG(white),
 			Accent:       base.WithFG(style.ColorBasic(14)), // Cyan (distinct from danger)
 			Placeholder:  base.WithFG(gray),

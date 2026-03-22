@@ -179,7 +179,7 @@ func TestThemeChrome_Defaults(t *testing.T) {
 	classic := DefaultThemeClassic()
 
 	ec := classic.Chrome.Border.Effective(classic)
-	if ec.Glyphs != BoxGlyphsASCII {
+	if ec.Glyphs != BoxGlyphsLight {
 		t.Errorf("DefaultThemeClassic() Border glyphs = %+v, want ASCII", ec.Glyphs)
 	}
 
