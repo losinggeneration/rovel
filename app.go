@@ -234,6 +234,11 @@ func (a *App) Enable() error {
 	// Initial layout
 	a.layout()
 
+	// Auto-focus the first focusable widget if nothing is focused yet.
+	if a.focusedID == 0 && a.root != nil {
+		a.focusFirstIn(a.root)
+	}
+
 	// Initial paint and flush
 	a.doInitialPaint()
 
@@ -1228,6 +1233,12 @@ func (a *App) focusFirstIn(v View) {
 		return false
 	}
 	walk(v)
+}
+
+// Focus sets the keyboard focus to the view with the given ID.
+// Must be called from the app loop goroutine (e.g., via App.Post).
+func (a *App) Focus(id ID) {
+	a.setRequestFocus(id)
 }
 
 // SetTheme changes the application theme at runtime.

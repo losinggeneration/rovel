@@ -268,6 +268,19 @@ func TestUpdateCtx_RequestFocus(t *testing.T) {
 	}
 }
 
+func TestFocus(t *testing.T) {
+	app, _ := New(AppOpts{})
+	app.nodes[ID(1)] = &nodeEntry{id: ID(1), rect: geom.Rect{X: 0, Y: 0, W: 10, H: 1}}
+	app.nodes[ID(2)] = &nodeEntry{id: ID(2), rect: geom.Rect{X: 0, Y: 1, W: 10, H: 1}}
+	app.focusedID = ID(1)
+
+	app.Focus(ID(2))
+
+	if app.focusedID != ID(2) {
+		t.Errorf("Expected focusedID=2, got %d", app.focusedID)
+	}
+}
+
 func TestPost_BoundedBatch(t *testing.T) {
 	app, _ := New(AppOpts{})
 
