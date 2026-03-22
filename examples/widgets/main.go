@@ -47,12 +47,10 @@ func main() {
 	vstack.Add(hstack)
 	vstack.Add(border)
 
-	focusRing := widgets.NewFocusRing(vstack)
-
 	// Create a wrapper that handles quit and button status
 	quitHandler := &QuitHandler{
 		app:      app,
-		mainView: focusRing,
+		mainView: vstack,
 		id:       tui.NewID(),
 		status:   "Tab to navigate, Enter to press buttons, 'q' to quit",
 	}

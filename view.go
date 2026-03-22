@@ -28,6 +28,11 @@ type View interface {
 	Handle(e Event, ctx *Ctx) bool
 }
 
+type CompositeView interface {
+	View
+	Children() []View
+}
+
 // Ctx provides context methods for views during Paint and Handle.
 type Ctx struct {
 	// Theme is the app-wide theme.

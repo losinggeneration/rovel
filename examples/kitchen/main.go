@@ -15,7 +15,6 @@
 //   - Dialog (modal overlay)
 //   - Label (static text)
 //   - Clickable (mouse click wrapper)
-//   - FocusRing (focus border decorator)
 //   - Border, HStack, VStack, Split, Padding (layout containers)
 package main
 
@@ -138,12 +137,10 @@ func (s *state) buildUI() tui.View {
 	mainVStack.AddChild(layout.NewChild(s.status))
 	mainVStack.AddChild(layout.GrowChild(split, 1, 1))
 
-	ring := widgets.NewFocusRing(mainVStack)
-
 	return &rootView{
 		id:    tui.NewID(),
 		app:   s.app,
-		View:  ring,
+		View:  mainVStack,
 		state: s,
 	}
 }
@@ -154,8 +151,12 @@ func (s *state) buildLeftColumn() tui.View {
 	col := layout.NewVStack()
 	col.SetGap(1)
 
-	col.AddChild(layout.NewChild(s.buildButtonSection()))
-	col.AddChild(layout.NewChild(s.buildTextInputSection()))
+	ringCol := layout.NewVStack()
+	ringCol.AddChild(layout.NewChild(s.buildButtonSection()))
+	ringCol.AddChild(layout.NewChild(s.buildTextInputSection()))
+
+	ring := widgets.NewFocusRing(ringCol)
+	col.AddChild(layout.NewChild(ring))
 	col.AddChild(layout.NewChild(s.buildCheckboxSection()))
 	col.AddChild(layout.NewChild(s.buildRadioSection()))
 	col.AddChild(layout.NewChild(s.buildOverlaySection()))

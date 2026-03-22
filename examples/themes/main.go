@@ -228,10 +228,7 @@ func main() {
 	// Status at bottom with fixed height
 	mainLayout.Add(statusBar)
 
-	// Wrap in focus ring and root handler
-	focusRing := widgets.NewFocusRing(mainLayout)
-
-	root := &Root{FocusRing: focusRing, app: app, state: state}
+	root := &Root{CompositeView: mainLayout, app: app, state: state}
 	app.SetRoot(root)
 
 	// Request focus on the theme selector
@@ -576,9 +573,9 @@ func (w *statusWrapper) FocusScope() bool {
 	return true
 }
 
-// Root embeds FocusRing and handles app-level semantic actions.
+// Root embeds CompositeView and handles app-level semantic actions.
 type Root struct {
-	*widgets.FocusRing
+	tui.CompositeView
 	app   *tui.App
 	state *appState
 }

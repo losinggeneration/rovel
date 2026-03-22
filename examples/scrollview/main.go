@@ -23,7 +23,7 @@ func (quitKeymap) Resolve(_ ui.KeyContext, k ui.Keystroke) (ui.Action, bool) {
 }
 
 type Root struct {
-	*widgets.FocusRing
+	tui.CompositeView
 }
 
 func (r *Root) HandleAction(act int, ctx *tui.Ctx) bool {
@@ -67,9 +67,7 @@ func main() {
 	split.SetSecond(status)
 	split.SetRatio(0.8) // 80% for scroll view, 20% for status
 
-	focusRing := widgets.NewFocusRing(split)
-
-	app.SetRoot(&Root{focusRing})
+	app.SetRoot(&Root{split})
 
 	if err := app.Enable(); err != nil {
 		fmt.Printf("Failed to enable app: %v\n", err)
