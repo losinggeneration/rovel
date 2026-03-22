@@ -13,6 +13,10 @@ type Clickable struct {
 	OnClick func(ctx *tui.Ctx)
 }
 
+type actionHandler interface {
+	HandleAction(act int, ctx *tui.Ctx) bool
+}
+
 func (c *Clickable) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	if me, ok := e.(tui.MouseEvent); ok {
 		if me.Button == tui.MouseButtonLeft && me.Action == tui.MousePress {
@@ -40,6 +44,22 @@ func (c *Clickable) Handle(e tui.Event, ctx *tui.Ctx) bool {
 // MouseOpaque marks Clickable as opaque to hit-testing so it always receives
 // clicks even when wrapping a composite view.
 func (c *Clickable) MouseOpaque() {}
+
+func (c *Clickable) Focusable() bool {
+	if f, ok := c.View.(interface{ Focusable() bool }); ok {
+		return f.Focusable()
+	}
+
+	return false
+}
+
+func (c *Clickable) HandleAction(act int, ctx *tui.Ctx) bool {
+	if ah, ok := c.View.(actionHandler); ok {
+		return ah.HandleAction(act, ctx)
+	}
+
+	return false
+}
 
 // Children delegates to the wrapped view if it implements the Children interface.
 // This preserves hit-test traversal for composite views.

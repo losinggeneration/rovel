@@ -23,6 +23,7 @@
 package tui
 
 import (
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -119,6 +120,10 @@ type viewFocusable interface {
 // backendWriter adapts a backend.Backend to io.Writer.
 type backendWriter struct {
 	b backend.Backend
+}
+
+type actionHandler interface {
+	HandleAction(act int, ctx *Ctx) bool
 }
 
 func (w *backendWriter) Write(p []byte) (int, error) {
@@ -622,10 +627,6 @@ func (a *App) findViewInTree(v View, id ID) View {
 // dispatchAction routes a semantic action through the view tree: focused view
 // first, then ancestors up to the root. Returns true if any handler consumed it.
 func (a *App) dispatchAction(action int, ctx *Ctx) bool {
-	type actionHandler interface {
-		HandleAction(act int, ctx *Ctx) bool
-	}
-
 	// Try focused view first.
 	focused := a.findFocusedView()
 	if focused != nil {
@@ -667,10 +668,8 @@ func (a *App) dispatchAction(action int, ctx *Ctx) bool {
 		}
 
 		if c, ok := v.(viewChildren); ok {
-			for _, child := range c.Children() {
-				if walk(child) {
-					return true
-				}
+			if slices.ContainsFunc(c.Children(), walk) {
+				return true
 			}
 		}
 
