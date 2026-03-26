@@ -12,6 +12,10 @@ import (
 
 const ActionQuit ui.Action = iota + 100
 
+var appOpts = tui.AppOpts{
+	ResolveAction: ui.NewResolver(quitKeymap{}),
+}
+
 type quitKeymap struct{}
 
 func (quitKeymap) Resolve(_ ui.KeyContext, _ ui.Keystroke) (ui.Action, bool) {
@@ -33,7 +37,7 @@ func (r *Root) HandleAction(act int, ctx *tui.Ctx) bool {
 }
 
 func main() {
-	app, err := tui.New(tui.AppOpts{ResolveAction: ui.NewResolver(quitKeymap{})})
+	app, err := tui.New(appOpts)
 	if err != nil {
 		panic(err)
 	}

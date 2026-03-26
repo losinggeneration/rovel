@@ -200,7 +200,7 @@ func (s *HStack) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	p.WithClip(s.rect, func(p *tui.Painter) {
 		for _, c := range s.children {
 			p.WithClip(c.View.Rect(), func(p *tui.Painter) {
-				c.View.Paint(p, ctx)
+				tui.PaintView(c.View, p, ctx)
 			})
 		}
 	})

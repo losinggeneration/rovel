@@ -28,9 +28,28 @@ type View interface {
 	Handle(e Event, ctx *Ctx) bool
 }
 
+// DrawerPaintable is an optional interface for views that can paint directly
+// against the Drawer abstraction. The runtime prefers this path when available
+// while preserving compatibility with the legacy Painter-based Paint method.
+type DrawerPaintable interface {
+	PaintDrawer(d Drawer, ctx *Ctx)
+}
+
 type CompositeView interface {
 	View
 	Children() []View
+}
+
+// PaintView paints a view through Drawer when available, falling back to the
+// legacy Painter-based Paint method otherwise. It is a compatibility helper
+// for container views during the paint API transition.
+func PaintView(v View, p *Painter, ctx *Ctx) {
+	if dp, ok := v.(DrawerPaintable); ok {
+		dp.PaintDrawer(NewDrawer(p), ctx)
+		return
+	}
+
+	v.Paint(p, ctx)
 }
 
 // Ctx provides context methods for views during Paint and Handle.

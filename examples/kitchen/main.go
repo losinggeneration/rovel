@@ -33,6 +33,7 @@ import (
 	"github.com/losinggeneration/tui/ui/overlay"
 	"github.com/losinggeneration/tui/ui/virtual"
 	"github.com/losinggeneration/tui/ui/widgets"
+	cellwidgets "github.com/losinggeneration/tui/ui/widgets/cell"
 )
 
 // Custom actions for this app.
@@ -77,6 +78,20 @@ type state struct {
 	listItems []string
 }
 
+var appOpts = tui.AppOpts{
+	Theme: tui.DefaultThemeModern(),
+	Input: tui.InputOpts{
+		Mouse:          true,
+		BracketedPaste: true,
+	},
+	ResolveAction: ui.NewResolver(ui.CompositeKeymap{
+		Keymaps: []ui.Keymap{
+			appKeymap{},
+			ui.DefaultKeymap{},
+		},
+	}),
+}
+
 func main() {
 	s := &state{}
 
@@ -86,19 +101,7 @@ func main() {
 		s.listItems[i] = fmt.Sprintf("Item %d — virtual list row", i+1)
 	}
 
-	app, err := tui.New(tui.AppOpts{
-		Theme: tui.DefaultThemeModern(),
-		Input: tui.InputOpts{
-			Mouse:          true,
-			BracketedPaste: true,
-		},
-		ResolveAction: ui.NewResolver(ui.CompositeKeymap{
-			Keymaps: []ui.Keymap{
-				appKeymap{},
-				ui.DefaultKeymap{},
-			},
-		}),
-	})
+	app, err := tui.New(appOpts)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
@@ -283,7 +286,7 @@ func (s *state) buildOverlaySection() tui.View {
 
 func (s *state) buildCanvasSection() tui.View {
 	// Canvas: custom paint escape hatch — draws a simple bar chart.
-	canvas := widgets.NewCanvasOpts(widgets.CanvasOpts{
+	canvas := cellwidgets.NewCanvasOpts(cellwidgets.CanvasOpts{
 		MinSize: geom.Size{W: 20, H: 3},
 		Paint: func(p *tui.Painter, r geom.Rect, ctx *tui.Ctx) {
 			if r.W <= 0 || r.H <= 0 {

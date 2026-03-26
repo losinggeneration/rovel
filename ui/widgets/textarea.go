@@ -199,7 +199,16 @@ func (ta *TextArea) scrollToCursor() {
 
 // Paint renders the text area.
 func (ta *TextArea) Paint(p *tui.Painter, ctx *tui.Ctx) {
+	ta.PaintDrawer(tui.NewDrawer(p), ctx)
+}
+
+func (ta *TextArea) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 	if ta.rect.W <= 0 || ta.rect.H <= 0 {
+		return
+	}
+
+	cd, ok := tui.CellDrawerOf(d)
+	if !ok {
 		return
 	}
 
@@ -216,7 +225,7 @@ func (ta *TextArea) Paint(p *tui.Painter, ctx *tui.Ctx) {
 			// Fill empty rows
 			normalSt := resolveStyle(ta.stNormal, ctx.Theme.Base)
 			for availW > 0 {
-				p.SetCell(x, y, ' ', normalSt)
+				cd.SetCell(x, y, ' ', normalSt)
 
 				x++
 				availW--
@@ -272,7 +281,7 @@ func (ta *TextArea) Paint(p *tui.Painter, ctx *tui.Ctx) {
 					break
 				}
 
-				p.SetCell(x, y, r, st)
+				cd.SetCell(x, y, r, st)
 				x += rw
 				availW -= rw
 			}
@@ -282,7 +291,7 @@ func (ta *TextArea) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 		// Draw cursor at end of line if positioned there (not during selection)
 		if focused && !hasSel && lineIdx == curLine && ta.cursor == ln.endByte && availW > 0 {
-			p.SetCell(x, y, ' ', resolveStyle(ta.stFocused, ctx.Theme.Palette.Focus))
+			cd.SetCell(x, y, ' ', resolveStyle(ta.stFocused, ctx.Theme.Palette.Focus))
 
 			x++
 			availW--
@@ -291,7 +300,7 @@ func (ta *TextArea) Paint(p *tui.Painter, ctx *tui.Ctx) {
 		// Fill remaining space
 		normalSt := resolveStyle(ta.stNormal, ctx.Theme.Base)
 		for availW > 0 {
-			p.SetCell(x, y, ' ', normalSt)
+			cd.SetCell(x, y, ' ', normalSt)
 
 			x++
 			availW--

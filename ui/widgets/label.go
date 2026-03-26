@@ -77,6 +77,10 @@ func (l *Label) PreferredSize() geom.Size {
 }
 
 func (l *Label) Paint(p *tui.Painter, ctx *tui.Ctx) {
+	l.PaintDrawer(tui.NewDrawer(p), ctx)
+}
+
+func (l *Label) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 	x := l.rect.X
 	y := l.rect.Y
 
@@ -93,7 +97,7 @@ func (l *Label) Paint(p *tui.Painter, ctx *tui.Ctx) {
 			continue
 		}
 
-		p.Text(x, y, string(r), st)
+		d.DrawText(tui.Point{X: x, Y: y}, string(r), st)
 		x += tui.RuneWidth(r)
 	}
 }

@@ -6,6 +6,8 @@ import (
 	"github.com/losinggeneration/tui"
 	"github.com/losinggeneration/tui/event"
 	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/tui/render"
+	"github.com/losinggeneration/tui/style"
 )
 
 type mockView struct {
@@ -282,6 +284,54 @@ func TestScrollView_ScrollTopBottom(t *testing.T) {
 
 	if sv.scrollY != 40 {
 		t.Errorf("expected scrollY 40, got %d", sv.scrollY)
+	}
+}
+
+type paintRowsView struct {
+	id   tui.ID
+	rect geom.Rect
+}
+
+func (v *paintRowsView) ID() tui.ID         { return v.id }
+func (v *paintRowsView) Rect() geom.Rect    { return v.rect }
+func (v *paintRowsView) MinSize() geom.Size { return geom.Size{W: 1, H: 4} }
+func (v *paintRowsView) Layout(r geom.Rect) { v.rect = r }
+func (v *paintRowsView) Handle(tui.Event, *tui.Ctx) bool {
+	return false
+}
+func (v *paintRowsView) Paint(p *tui.Painter, _ *tui.Ctx) {
+	for i, ch := range []rune{'0', '1', '2', '3'} {
+		p.Text(v.rect.X, v.rect.Y+i, string(ch), style.Style{})
+	}
+}
+
+func TestScrollViewPaint_DrawerAdapterOffsetAndClip(t *testing.T) {
+	child := &paintRowsView{id: tui.NewID()}
+	sv := NewScrollView(ScrollViewOpts{
+		Child:     child,
+		Scrollbar: ScrollbarHidden,
+	})
+	sv.Layout(geom.Rect{X: 0, Y: 0, W: 3, H: 2})
+	sv.scrollY = 1
+
+	base := style.Style{}
+	buf := render.NewBuffer(3, 2)
+	buf.Clear(render.Cell{R: ' ', Style: base})
+	rp := render.NewPainter(buf, geom.Rect{X: 0, Y: 0, W: 3, H: 2}, base)
+	p := tui.NewPainter(rp, base)
+
+	sv.Paint(p, &tui.Ctx{Theme: tui.DefaultTheme()})
+
+	if got := buf.At(0, 0).R; got != '1' {
+		t.Fatalf("row 0 = %q, want %q", got, '1')
+	}
+
+	if got := buf.At(0, 1).R; got != '2' {
+		t.Fatalf("row 1 = %q, want %q", got, '2')
+	}
+
+	if got := buf.At(1, 0).R; got != ' ' {
+		t.Fatalf("unexpected write outside text width at (1,0): %q", got)
 	}
 }
 

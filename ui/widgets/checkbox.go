@@ -96,6 +96,10 @@ func (c *Checkbox) MinSize() geom.Size {
 }
 
 func (c *Checkbox) Paint(p *tui.Painter, ctx *tui.Ctx) {
+	c.PaintDrawer(tui.NewDrawer(p), ctx)
+}
+
+func (c *Checkbox) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 	r := c.rect
 	if r.W <= 0 || r.H <= 0 {
 		return
@@ -104,7 +108,7 @@ func (c *Checkbox) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	focused := ctx != nil && ctx.FocusedID == c.id
 	st := c.style(ctx, focused)
 
-	p.Fill(r, ' ', st)
+	d.FillRect(r, st)
 
 	indicator := "[ ] "
 	if c.checked {
@@ -113,12 +117,12 @@ func (c *Checkbox) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 	y := r.Y + r.H/2
 	x := r.X
-	p.Text(x, y, indicator, st)
+	d.DrawText(tui.Point{X: x, Y: y}, indicator, st)
 	x += text.Width(indicator)
 
 	if x < r.X+r.W {
 		lbl := text.Truncate(c.label, r.W-4, false)
-		p.Text(x, y, lbl, st)
+		d.DrawText(tui.Point{X: x, Y: y}, lbl, st)
 	}
 }
 

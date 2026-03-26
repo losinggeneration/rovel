@@ -7,11 +7,21 @@ import (
 
 	"github.com/losinggeneration/tui"
 	"github.com/losinggeneration/tui/backend/headless"
+	"github.com/losinggeneration/tui/backend/memory"
 	"github.com/losinggeneration/tui/event"
 	"github.com/losinggeneration/tui/geom"
 	"github.com/losinggeneration/tui/style"
 	"github.com/losinggeneration/tui/ui"
+	"github.com/losinggeneration/tui/ui/widgets"
 )
+
+type fixedPlacement struct {
+	rect geom.Rect
+}
+
+func (p fixedPlacement) Resolve(root tui.View, screenSize geom.Size) geom.Rect {
+	return p.rect
+}
 
 // integrationView is a test view that tracks paint calls and handles focus/input.
 type integrationView struct {
@@ -205,5 +215,202 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 	err = app.Post(func(ctx *tui.UpdateCtx) {})
 	if err != tui.ErrClosed {
 		t.Errorf("Post after shutdown: got %v, want ErrClosed", err)
+	}
+}
+
+func TestIntegration_MemoryBackendCapturesLogicalFrames(t *testing.T) {
+	be := memory.New(geom.Size{W: 12, H: 4})
+	cap := style.Capability{HasBasic: true}
+
+	app, err := tui.New(tui.AppOpts{
+		Backend:    be,
+		Capability: &cap,
+		Theme:      tui.DefaultTheme(),
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	label := widgets.NewLabel("hello")
+	app.SetRoot(label)
+
+	if err := app.Enable(); err != nil {
+		t.Fatalf("Enable: %v", err)
+	}
+
+	frame, ok := be.LastFrame()
+	if !ok {
+		t.Fatal("expected an initial logical frame")
+	}
+
+	if frame.W != 12 || frame.H != 4 {
+		t.Fatalf("frame size = %dx%d, want 12x4", frame.W, frame.H)
+	}
+
+	got := make([]rune, 5)
+	for i := range got {
+		got[i] = frame.Cells[i].R
+	}
+
+	if string(got) != "hello" {
+		t.Fatalf("top row prefix = %q, want %q", string(got), "hello")
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- app.Run() }()
+
+	waitFor := func(name string, check func() bool) {
+		t.Helper()
+
+		deadline := time.After(2 * time.Second)
+
+		for {
+			if check() {
+				return
+			}
+
+			select {
+			case <-deadline:
+				t.Fatalf("timeout waiting for %s", name)
+			default:
+				time.Sleep(5 * time.Millisecond)
+			}
+		}
+	}
+
+	initialFrames := be.FrameCount()
+	be.SendResize(14, 5)
+	waitFor("memory resize frame", func() bool {
+		return be.FrameCount() > initialFrames
+	})
+
+	frame, ok = be.LastFrame()
+	if !ok {
+		t.Fatal("expected frame after resize")
+	}
+
+	if frame.W != 14 || frame.H != 5 {
+		t.Fatalf("resized frame size = %dx%d, want 14x5", frame.W, frame.H)
+	}
+
+	app.Quit()
+	be.Close()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Run returned error: %v", err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("timeout waiting for Run to return")
+	}
+}
+
+func TestIntegration_MemoryBackendCapturesPostedUpdatesAndOverlays(t *testing.T) {
+	be := memory.New(geom.Size{W: 16, H: 6})
+	cap := style.Capability{HasBasic: true}
+
+	app, err := tui.New(tui.AppOpts{
+		Backend:    be,
+		Capability: &cap,
+		Theme:      tui.DefaultTheme(),
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	label := widgets.NewLabel("base")
+	app.SetRoot(label)
+
+	if err := app.Enable(); err != nil {
+		t.Fatalf("Enable: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- app.Run() }()
+
+	waitFor := func(name string, check func() bool) {
+		t.Helper()
+
+		deadline := time.After(2 * time.Second)
+
+		for {
+			if check() {
+				return
+			}
+
+			select {
+			case <-deadline:
+				t.Fatalf("timeout waiting for %s", name)
+			default:
+				time.Sleep(5 * time.Millisecond)
+			}
+		}
+	}
+
+	initialFrames := be.FrameCount()
+	err = app.Post(func(ctx *tui.UpdateCtx) {
+		label.SetText(nil, "updated")
+		ctx.Invalidate(label.Rect())
+	})
+	if err != nil {
+		t.Fatalf("Post update: %v", err)
+	}
+
+	waitFor("posted update frame", func() bool {
+		return be.FrameCount() > initialFrames
+	})
+
+	frame, ok := be.LastFrame()
+	if !ok {
+		t.Fatal("expected frame after posted update")
+	}
+
+	if got := string(frame.RowRunes(0)[:7]); got != "updated" {
+		t.Fatalf("updated top row prefix = %q, want %q", got, "updated")
+	}
+
+	framesBeforeOverlay := be.FrameCount()
+	err = app.Post(func(ctx *tui.UpdateCtx) {
+		o := app.ShowOverlay(tui.OverlayOpts{
+			Root:  widgets.NewLabel("OVR"),
+			Modal: false,
+			Place: fixedPlacement{rect: geom.Rect{X: 2, Y: 2, W: 3, H: 1}},
+		})
+		if o != nil {
+			ctx.Invalidate(o.Rect())
+		}
+	})
+	if err != nil {
+		t.Fatalf("Post overlay: %v", err)
+	}
+
+	waitFor("overlay frame", func() bool {
+		return be.FrameCount() > framesBeforeOverlay
+	})
+
+	frame, ok = be.LastFrame()
+	if !ok {
+		t.Fatal("expected frame after overlay")
+	}
+
+	if got := string(frame.RowRunes(2)[2:5]); got != "OVR" {
+		t.Fatalf("overlay row segment = %q, want %q", got, "OVR")
+	}
+
+	if got := string(frame.RowRunes(0)[:7]); got != "updated" {
+		t.Fatalf("base content after overlay = %q, want %q", got, "updated")
+	}
+
+	app.Quit()
+	be.Close()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Run returned error: %v", err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("timeout waiting for Run to return")
 	}
 }

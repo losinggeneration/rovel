@@ -24,6 +24,7 @@ import (
 	"github.com/losinggeneration/tui/ui/layout"
 	"github.com/losinggeneration/tui/ui/virtual"
 	"github.com/losinggeneration/tui/ui/widgets"
+	cellwidgets "github.com/losinggeneration/tui/ui/widgets/cell"
 )
 
 const (
@@ -152,9 +153,9 @@ func main() {
 	}
 
 	// Create editor canvas
-	var editor *widgets.Canvas
+	var editor *cellwidgets.Canvas
 
-	editor = widgets.NewCanvasOpts(widgets.CanvasOpts{
+	editor = cellwidgets.NewCanvasOpts(cellwidgets.CanvasOpts{
 		Focusable: true,
 		MinSize:   geom.Size{W: 20, H: 10},
 		Paint: func(p *tui.Painter, rect geom.Rect, ctx *tui.Ctx) {
@@ -247,7 +248,7 @@ func main() {
 }
 
 type editorRef struct {
-	canvas *widgets.Canvas
+	canvas *cellwidgets.Canvas
 }
 
 // paintEditor renders the editor canvas.
@@ -358,7 +359,7 @@ func handleEditor(
 
 // invalidateCursorMove invalidates rows affected by cursor movement.
 func invalidateCursorMove(
-	c *widgets.Canvas,
+	c *cellwidgets.Canvas,
 	ctx *tui.Ctx,
 	oldRow int,
 	newRow int,
@@ -622,7 +623,7 @@ func buildFormPane(st *appState) tui.View {
 
 // buildStatusBar creates the status bar at the top.
 func buildStatusBar(st *appState) tui.View {
-	statusCanvas := widgets.NewCanvasOpts(widgets.CanvasOpts{
+	statusCanvas := cellwidgets.NewCanvasOpts(cellwidgets.CanvasOpts{
 		MinSize: geom.Size{W: 1, H: 1},
 		Paint: func(p *tui.Painter, rect geom.Rect, ctx *tui.Ctx) {
 			if rect.W <= 0 || rect.H <= 0 {

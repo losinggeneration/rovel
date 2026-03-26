@@ -32,20 +32,17 @@ import (
 	"github.com/losinggeneration/tui/event"
 	"github.com/losinggeneration/tui/geom"
 	"github.com/losinggeneration/tui/internal/errbuf"
-	"github.com/losinggeneration/tui/render"
 	"github.com/losinggeneration/tui/style"
 )
 
 // App represents a TUI application.
 type App struct {
-	opts    AppOpts
-	backend backend.Backend
-	size    geom.Size
+	opts AppOpts
+	host runtimeHost
+	size geom.Size
 
-	backBuf  *render.Buffer
-	frontBuf *render.Buffer
-	damage   *render.Damage
-	flusher  *render.ANSIFlusher
+	renderer  runtimeRenderer
+	presenter runtimePresenter
 
 	errs *errbuf.ErrorBuffer
 
@@ -70,8 +67,6 @@ type App struct {
 	running atomic.Bool
 	closed  bool
 	closeMu sync.RWMutex
-
-	backendWriter *backendWriter
 
 	mouse mouseState
 
@@ -137,9 +132,8 @@ func New(opts AppOpts) (*App, error) {
 	app := &App{
 		opts:        opts,
 		size:        size,
-		backBuf:     render.NewBuffer(size.W, size.H),
-		frontBuf:    render.NewBuffer(size.W, size.H),
-		damage:      render.NewDamage(size.W, size.H),
+		renderer:    newCellRenderer(size),
+		presenter:   newANSIPresenter(),
 		nodes:       make(map[ID]*nodeEntry),
 		scopeMemory: make(map[ID]*scopeState),
 		eventCh:     make(chan Event, 16),
@@ -147,9 +141,6 @@ func New(opts AppOpts) (*App, error) {
 		wakeCh:      make(chan struct{}, 1),
 		errs:        errbuf.New(50),
 	}
-
-	// Create flusher - will be set to backend writer on Enable
-	app.flusher = render.NewANSIFlusher(nil)
 
 	return app, nil
 }
@@ -173,10 +164,10 @@ func (a *App) Enable() error {
 		a.opts.Backend = b
 	}
 
-	a.backend = a.opts.Backend
+	a.host = newAppHost(a.opts.Backend)
 
 	// Enable the backend
-	size, err := a.backend.Enable()
+	size, err := a.host.Enable()
 	if err != nil {
 		return err
 	}
@@ -193,19 +184,15 @@ func (a *App) Enable() error {
 	a.capability = *cap
 
 	// Query backend capabilities
-	if cr, ok := a.backend.(backend.CapabilityReporter); ok {
-		a.inputCaps = cr.InputCapabilities()
-	}
+	a.inputCaps = a.host.InputCapabilities()
 
 	// Enable requested input features
-	if fe, ok := a.backend.(backend.InputFeatureEnabler); ok {
-		features := backend.InputFeatures{
-			Mouse:          a.opts.Input.Mouse && a.inputCaps.Mouse,
-			BracketedPaste: a.opts.Input.BracketedPaste && a.inputCaps.BracketedPaste,
-		}
-		if err := fe.SetInputFeatures(features); err != nil {
-			return err
-		}
+	features := backend.InputFeatures{
+		Mouse:          a.opts.Input.Mouse && a.inputCaps.Mouse,
+		BracketedPaste: a.opts.Input.BracketedPaste && a.inputCaps.BracketedPaste,
+	}
+	if err := a.host.SetInputFeatures(features); err != nil {
+		return err
 	}
 
 	// Resolve theme for capability
@@ -214,20 +201,10 @@ func (a *App) Enable() error {
 	// Resize buffers to terminal size
 	a.resizeBuffers(size.W, size.H)
 
-	// Create backend writer adapter and flusher
-	a.backendWriter = &backendWriter{b: a.backend}
-	a.flusher = render.NewANSIFlusher(a.backendWriter)
-
-	// Clear screen and hide cursor
-	if err := a.flusher.ClearScreen(); err != nil {
-		return err
-	}
-
-	if err := a.flusher.HideCursor(); err != nil {
-		return err
-	}
-
-	if err := a.flusher.Flush(); err != nil {
+	// Choose and attach the presenter for the concrete backend.
+	a.presenter = presenterForBackend(a.host.Backend())
+	a.presenter.Attach(a.host.Backend())
+	if err := a.presenter.InitScreen(); err != nil {
 		return err
 	}
 
@@ -247,17 +224,12 @@ func (a *App) Enable() error {
 
 // Restore restores the terminal to its original state.
 func (a *App) Restore() error {
-	// Show cursor before restoring
-	if err := a.flusher.ShowCursor(); err != nil {
+	if err := a.presenter.RestoreScreen(); err != nil {
 		return err
 	}
 
-	if err := a.flusher.Flush(); err != nil {
-		return err
-	}
-
-	if a.backend != nil {
-		return a.backend.Restore()
+	if a.host != nil {
+		return a.host.Restore()
 	}
 
 	return nil
@@ -273,17 +245,10 @@ func (a *App) doInitialPaint() {
 	// Buffers are already zero-initialized, so we just need to make sure they're the right size.
 
 	// Mark entire screen as dirty
-	a.damage.Clear()
-	a.damage.AddRect(geom.Rect{X: 0, Y: 0, W: a.size.W, H: a.size.H})
-
-	// Clear damaged spans to theme base (Paint Contract A)
-	a.clearDamagedSpans()
-
-	// Paint the root view
-	a.paintViews()
-
-	// Flush everything
-	a.flush()
+	if a.beginFrame([]geom.Rect{{X: 0, Y: 0, W: a.size.W, H: a.size.H}}) {
+		a.paintFramePass()
+		a.presentFrame()
+	}
 
 	// Initial paint is a full-frame flush; discard any layout-driven invalidation
 	// accumulated during startup so it doesn't trigger redundant repaints.
@@ -292,9 +257,7 @@ func (a *App) doInitialPaint() {
 
 // resizeBuffers resizes the render buffers when the terminal size changes.
 func (a *App) resizeBuffers(w, h int) {
-	a.backBuf.Resize(w, h)
-	a.frontBuf.Resize(w, h)
-	a.damage.Reset(w, h)
+	a.renderer.Resize(w, h)
 	a.size = geom.Size{W: w, H: h}
 }
 
@@ -397,6 +360,7 @@ func (a *App) Run() (err error) {
 		const maxPostsPerIteration = 64
 
 		ctx := a.mkUpdateCtx()
+		processedPosts := false
 
 		for range maxPostsPerIteration {
 			a.postMu.Lock()
@@ -412,12 +376,21 @@ func (a *App) Run() (err error) {
 			a.postMu.Unlock()
 
 			fn(ctx)
+			processedPosts = true
 
 			if !a.running.Load() {
 				a.setClosed()
 
 				return nil
 			}
+		}
+
+		// Posted callbacks run on the app loop and may invalidate, relayout,
+		// or change overlay/focus state. Render that work before blocking for
+		// the next external wake/event so Post-driven updates are not delayed
+		// by loop timing.
+		if processedPosts {
+			a.render()
 		}
 
 		select {
@@ -480,7 +453,7 @@ func (a *App) readEvents() {
 	defer close(a.eventCh)
 
 	for a.running.Load() {
-		e := a.backend.ReadEvent()
+		e := a.host.ReadEvent()
 		if e == nil {
 			// Backend shutdown/EOF.
 			// Contract: Backend.ReadEvent() returns nil only on shutdown/EOF.
@@ -869,8 +842,8 @@ func (a *App) handleResizeEvent(e ResizeEvent) {
 	// Clear front buffer so every cell diffs as changed, forcing full redraw.
 	// The terminal garbles content during resize (reflow), so the front buffer
 	// no longer reflects what's actually on screen.
-	a.frontBuf.Clear(render.Cell{})
-	a.flusher.ResetCursor()
+	a.renderer.ResetFrontBuffer()
+	a.presenter.ResetCursor()
 
 	// Full layout pass
 	a.layout()
@@ -909,12 +882,16 @@ func (a *App) mkCtx(v View) *Ctx {
 		ShowOverlay:      func(opts OverlayOpts) *Overlay { return a.ShowOverlay(opts) },
 		DismissOverlay:   func() *Overlay { return a.DismissOverlay() },
 	}
-	if cb, ok := a.backend.(backend.ClipboardBackend); ok {
-		ctx.ClipboardWrite = func(s string) { _ = cb.ClipboardWrite(s) }
+	if a.host != nil {
+		ctx.ClipboardWrite = func(s string) {
+			_ = a.host.ClipboardWrite(s)
+		}
 	}
 
-	if ar, ok := a.backend.(backend.ClipboardAsyncReader); ok && a.inputCaps.ClipboardRead {
-		ctx.ClipboardRead = func() { _ = ar.ClipboardReadRequest() }
+	if a.host != nil && a.inputCaps.ClipboardRead && a.host.CanClipboardReadAsync() {
+		ctx.ClipboardRead = func() {
+			_ = a.host.ClipboardReadRequest()
+		}
 	}
 
 	return ctx
@@ -1011,24 +988,15 @@ func (a *App) render() {
 	}
 
 	// Coalesce invalidations into damage
-	a.damage.Clear()
-
-	for _, r := range a.invalidRects {
-		a.damage.AddRect(r)
-	}
-
+	frameRects := a.invalidRects
 	a.invalidRects = a.invalidRects[:0]
 
 	// If still no damage, nothing to do
-	if a.damage.IsEmpty() {
+	if !a.beginFrame(frameRects) {
 		return
 	}
 
-	// Paint Contract A: Clear damaged spans to theme base
-	a.clearDamagedSpans()
-
-	// Paint intersecting views
-	a.paintViews()
+	a.paintFramePass()
 
 	// Views may call Invalidate during Paint (e.g. FocusRing detecting a
 	// focus-state change). Process follow-up invalidations so the update
@@ -1038,71 +1006,14 @@ func (a *App) render() {
 			break
 		}
 
-		for _, r := range a.invalidRects {
-			a.damage.AddRect(r)
-		}
-
+		a.renderer.AddDamageRects(a.invalidRects)
 		a.invalidRects = a.invalidRects[:0]
 
 		// Clear only the newly damaged spans, then repaint
-		a.clearDamagedSpans()
-		a.paintViews()
+		a.paintFramePass()
 	}
 
-	// Diff and flush
-	a.flush()
-}
-
-// clearDamagedSpans implements Paint Contract A by clearing damaged regions
-// to the theme's base style before painting.
-func (a *App) clearDamagedSpans() {
-	baseCell := render.Cell{
-		R:     ' ',
-		Style: a.resolvedTheme.Base,
-		Wide:  false,
-	}
-
-	for y := range a.damage.H {
-		spans := a.damage.Rows[y]
-		for _, sp := range spans {
-			for x := sp.X0; x < sp.X1; x++ {
-				cell := a.backBuf.At(x, y)
-				*cell = baseCell
-			}
-		}
-	}
-}
-
-// paintViews paints all views that intersect with damaged regions.
-func (a *App) paintViews() {
-	if a.root == nil {
-		return
-	}
-
-	ctx := a.mkCtx(a.root)
-
-	// Create a painter for each damaged region
-	// For now, we'll create one painter with full clip and let views paint
-	// The clipping will happen in the render.Painter
-	clip := geom.Rect{X: 0, Y: 0, W: a.size.W, H: a.size.H}
-	rp := render.NewPainter(a.backBuf, clip, a.resolvedTheme.Base)
-	p := NewPainter(rp, a.resolvedTheme.Base)
-
-	// Paint the root (which will paint its children)
-	a.root.Paint(p, ctx)
-
-	// Paint overlays above the main tree, in z-order (bottom to top)
-	a.overlays.paintOverlays(p, ctx)
-}
-
-// flush diffs the buffers and flushes changes to the terminal.
-func (a *App) flush() {
-	runs := render.DiffRuns(a.backBuf, a.frontBuf, a.damage)
-	if len(runs) > 0 {
-		a.errs.Add(a.flusher.FlushRuns(a.backBuf, a.frontBuf, runs))
-	}
-
-	a.errs.Add(a.backend.Flush())
+	a.presentFrame()
 }
 
 // Errors returns the accumulated errors from terminal operations.
@@ -1266,6 +1177,6 @@ func (a *App) Focus(id ID) {
 func (a *App) SetTheme(theme Theme) {
 	a.opts.Theme = theme
 	a.resolvedTheme = theme.Resolved(a.capability)
-	a.flusher.ResetStyle() // Force re-emission of all SGR codes with new theme
+	a.presenter.ResetStyle() // Force re-emission of all SGR codes with new theme
 	a.InvalidateAll()
 }

@@ -107,6 +107,10 @@ func (d *Dialog) PreferredSize() geom.Size {
 }
 
 func (d *Dialog) Paint(p *tui.Painter, ctx *tui.Ctx) {
+	d.PaintDrawer(tui.NewDrawer(p), ctx)
+}
+
+func (d *Dialog) PaintDrawer(dr tui.Drawer, ctx *tui.Ctx) {
 	r := d.rect
 	if r.W <= 0 || r.H <= 0 {
 		return
@@ -127,8 +131,12 @@ func (d *Dialog) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	borderSt := resolveStyle(d.stBorder, borderFallback)
 
 	// Clear and draw border
-	p.Fill(r, ' ', surfSt)
-	p.Box(r, borderSt)
+	dr.FillRect(r, surfSt)
+	dr.DrawBorder(r, tui.BoxStyle{
+		Glyphs: tui.BoxGlyphsLight,
+		Edges:  tui.BoxEdgesAll,
+		Style:  borderSt,
+	})
 
 	inner := geom.Rect{X: r.X + 1, Y: r.Y + 1, W: r.W - 2, H: r.H - 2}
 	if inner.W <= 0 || inner.H <= 0 {
@@ -144,7 +152,7 @@ func (d *Dialog) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 		title := text.Truncate(d.title, inner.W, false)
 		tx := inner.X + (inner.W-text.Width(title))/2
-		p.Text(tx, inner.Y, title, titleSt)
+		dr.DrawText(tui.Point{X: tx, Y: inner.Y}, title, titleSt)
 	}
 
 	// Message
@@ -157,7 +165,7 @@ func (d *Dialog) Paint(p *tui.Painter, ctx *tui.Ctx) {
 		}
 
 		l := text.Truncate(line, inner.W, false)
-		p.Text(inner.X, msgY+i, l, surfSt)
+		dr.DrawText(tui.Point{X: inner.X, Y: msgY + i}, l, surfSt)
 	}
 
 	// Button row at bottom of inner area
@@ -183,7 +191,7 @@ func (d *Dialog) Paint(p *tui.Painter, ctx *tui.Ctx) {
 			st = surfSt
 		}
 
-		p.Text(btnX, btnY, label, st)
+		dr.DrawText(tui.Point{X: btnX, Y: btnY}, label, st)
 		btnX += w + 1
 	}
 }

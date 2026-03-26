@@ -132,26 +132,32 @@ func (t *Tabs) MinSize() geom.Size {
 }
 
 func (t *Tabs) Paint(p *tui.Painter, ctx *tui.Ctx) {
+	t.PaintDrawer(tui.NewDrawer(p), ctx)
+}
+
+func (t *Tabs) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 	r := t.rect
 	if r.W <= 0 || r.H <= 0 || len(t.tabs) == 0 {
 		return
 	}
 
 	focused := ctx != nil && ctx.FocusedID == t.id
-	t.paintTabBar(p, ctx, focused)
+	t.paintTabBar(d, ctx, focused)
 
 	// Paint content
 	cr := t.contentRect()
 	if cr.H > 0 && t.selected >= 0 && t.selected < len(t.tabs) {
 		if content := t.tabs[t.selected].Content; content != nil {
-			p.WithClip(cr, func(cp *tui.Painter) {
-				content.Paint(cp, ctx)
-			})
+			if p := tui.PainterFromDrawer(d); p != nil {
+				p.WithClip(cr, func(cp *tui.Painter) {
+					tui.PaintView(content, cp, ctx)
+				})
+			}
 		}
 	}
 }
 
-func (t *Tabs) paintTabBar(p *tui.Painter, ctx *tui.Ctx, focused bool) {
+func (t *Tabs) paintTabBar(d tui.Drawer, ctx *tui.Ctx, focused bool) {
 	r := t.rect
 
 	barFallback := ctx.Theme.Palette.Surface
@@ -162,7 +168,7 @@ func (t *Tabs) paintTabBar(p *tui.Painter, ctx *tui.Ctx, focused bool) {
 	barSt := resolveStyle(t.stBar, barFallback)
 
 	// Clear bar
-	p.Fill(geom.Rect{X: r.X, Y: r.Y, W: r.W, H: 1}, ' ', barSt)
+	d.FillRect(geom.Rect{X: r.X, Y: r.Y, W: r.W, H: 1}, barSt)
 
 	x := r.X
 	for i, tab := range t.tabs {
@@ -186,7 +192,7 @@ func (t *Tabs) paintTabBar(p *tui.Painter, ctx *tui.Ctx, focused bool) {
 		}
 
 		lbl := text.Truncate(label, r.X+r.W-x, false)
-		p.Text(x, r.Y, lbl, st)
+		d.DrawText(tui.Point{X: x, Y: r.Y}, lbl, st)
 		x += w
 	}
 }

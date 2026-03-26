@@ -12,6 +12,7 @@ import (
 	"github.com/losinggeneration/tui/ui"
 	"github.com/losinggeneration/tui/ui/layout"
 	"github.com/losinggeneration/tui/ui/widgets"
+	cellwidgets "github.com/losinggeneration/tui/ui/widgets/cell"
 )
 
 const ActionQuit ui.Action = iota + 100
@@ -94,7 +95,7 @@ func buildRoot() *Root {
 }
 
 func buildHeader() tui.View {
-	return widgets.NewCanvasOpts(widgets.CanvasOpts{
+	return cellwidgets.NewCanvasOpts(cellwidgets.CanvasOpts{
 		MinSize: geom.Size{W: 1, H: 2},
 		Paint: func(p *tui.Painter, rect geom.Rect, ctx *tui.Ctx) {
 			if rect.H < 2 {
@@ -143,7 +144,7 @@ func buildTextDemo() tui.View {
 	stack.Add(widgets.NewLabel(""))
 	stack.Add(widgets.NewLabel("FitPrefix demo:"))
 
-	canvas := widgets.NewCanvasOpts(widgets.CanvasOpts{
+	canvas := cellwidgets.NewCanvasOpts(cellwidgets.CanvasOpts{
 		MinSize: geom.Size{W: 20, H: 8},
 		Paint: func(p *tui.Painter, rect geom.Rect, ctx *tui.Ctx) {
 			y := rect.Y
@@ -178,7 +179,7 @@ func buildTextDemo() tui.View {
 	stack.Add(widgets.NewLabel(""))
 	stack.Add(widgets.NewLabel("Wrap demo:"))
 
-	wrapCanvas := widgets.NewCanvasOpts(widgets.CanvasOpts{
+	wrapCanvas := cellwidgets.NewCanvasOpts(cellwidgets.CanvasOpts{
 		MinSize: geom.Size{W: 20, H: 6},
 		Paint: func(p *tui.Painter, rect geom.Rect, ctx *tui.Ctx) {
 			y := rect.Y
@@ -244,7 +245,7 @@ func buildSizePolicyDemo() tui.View {
 	stack.Add(widgets.NewLabel(""))
 
 	h3 := layout.NewHStack()
-	tall1 := widgets.NewCanvasOpts(widgets.CanvasOpts{
+	tall1 := cellwidgets.NewCanvasOpts(cellwidgets.CanvasOpts{
 		MinSize: geom.Size{W: 8, H: 3},
 		Paint: func(p *tui.Painter, rect geom.Rect, ctx *tui.Ctx) {
 			p.Fill(rect, ' ', tui.Style{BG: style.ColorGreen})
@@ -252,7 +253,7 @@ func buildSizePolicyDemo() tui.View {
 		},
 		Handle: func(e tui.Event, ctx *tui.Ctx) bool { return false },
 	})
-	tall2 := widgets.NewCanvasOpts(widgets.CanvasOpts{
+	tall2 := cellwidgets.NewCanvasOpts(cellwidgets.CanvasOpts{
 		MinSize: geom.Size{W: 8, H: 3},
 		Paint: func(p *tui.Painter, rect geom.Rect, ctx *tui.Ctx) {
 			p.Fill(rect, ' ', tui.Style{BG: style.ColorYellow})
@@ -260,7 +261,7 @@ func buildSizePolicyDemo() tui.View {
 		},
 		Handle: func(e tui.Event, ctx *tui.Ctx) bool { return false },
 	})
-	tall3 := widgets.NewCanvasOpts(widgets.CanvasOpts{
+	tall3 := cellwidgets.NewCanvasOpts(cellwidgets.CanvasOpts{
 		MinSize: geom.Size{W: 8, H: 3},
 		Paint: func(p *tui.Painter, rect geom.Rect, ctx *tui.Ctx) {
 			p.Fill(rect, ' ', tui.Style{BG: style.ColorRed})

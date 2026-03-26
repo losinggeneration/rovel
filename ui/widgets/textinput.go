@@ -95,7 +95,16 @@ func (t *TextInput) PreferredSize() geom.Size {
 
 // Paint renders the text input.
 func (t *TextInput) Paint(p *tui.Painter, ctx *tui.Ctx) {
+	t.PaintDrawer(tui.NewDrawer(p), ctx)
+}
+
+func (t *TextInput) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 	if t.rect.W <= 0 {
+		return
+	}
+
+	cd, ok := tui.CellDrawerOf(d)
+	if !ok {
 		return
 	}
 
@@ -114,7 +123,7 @@ func (t *TextInput) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 	if startRight != startLeft {
 		// We're in the middle of a wide cluster; leave a blank cell.
-		p.SetCell(x, y, ' ', resolveStyle(t.stNormal, ctx.Theme.Base))
+		cd.SetCell(x, y, ' ', resolveStyle(t.stNormal, ctx.Theme.Base))
 
 		x++
 		availableW--
@@ -158,7 +167,7 @@ func (t *TextInput) Paint(p *tui.Painter, ctx *tui.Ctx) {
 				break
 			}
 
-			p.SetCell(x, y, r, st)
+			cd.SetCell(x, y, r, st)
 			x += rw
 			availableW -= rw
 		}
@@ -168,7 +177,7 @@ func (t *TextInput) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 	// Draw cursor at end of text if positioned there (not during selection)
 	if focused && !t.hasSelection() && t.cursor == len(t.text) && availableW > 0 {
-		p.SetCell(x, y, ' ', resolveStyle(t.stFocused, ctx.Theme.Palette.Focus))
+		cd.SetCell(x, y, ' ', resolveStyle(t.stFocused, ctx.Theme.Palette.Focus))
 
 		x++
 		availableW--
@@ -177,7 +186,7 @@ func (t *TextInput) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	// Fill remaining space with base style
 	normalSt := resolveStyle(t.stNormal, ctx.Theme.Base)
 	for availableW > 0 {
-		p.SetCell(x, y, ' ', normalSt)
+		cd.SetCell(x, y, ' ', normalSt)
 
 		x++
 		availableW--

@@ -217,13 +217,13 @@ func (s *Split) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	p.WithClip(s.rect, func(p *tui.Painter) {
 		if s.first != nil {
 			p.WithClip(s.first.Rect(), func(p *tui.Painter) {
-				s.first.Paint(p, ctx)
+				tui.PaintView(s.first, p, ctx)
 			})
 		}
 
 		if s.second != nil {
 			p.WithClip(s.second.Rect(), func(p *tui.Painter) {
-				s.second.Paint(p, ctx)
+				tui.PaintView(s.second, p, ctx)
 			})
 		}
 	})

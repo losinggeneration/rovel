@@ -54,12 +54,19 @@ func (b *Border) MinSize() tui.Size {
 
 // Paint renders the border and its child.
 func (b *Border) Paint(p *tui.Painter, ctx *tui.Ctx) {
+	b.PaintDrawer(tui.NewDrawer(p), ctx)
+	inner := InsetRect(b.rect, 1, 1, 1, 1)
+	p.WithClip(inner, func(p *tui.Painter) {
+		tui.PaintView(b.child, p, ctx)
+	})
+}
+
+func (b *Border) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 	r := b.rect
-	inner := InsetRect(r, 1, 1, 1, 1)
 
 	// Only draw box if rect is large enough
 	if r.W >= 2 && r.H >= 2 {
-		p.WithClip(r, func(p *tui.Painter) {
+		d.WithClip(r, func(d tui.Drawer) {
 			// Use theme border style
 			borderStyle := ctx.Theme.Palette.Border
 			if borderStyle == (style.Style{}) {
@@ -67,7 +74,7 @@ func (b *Border) Paint(p *tui.Painter, ctx *tui.Ctx) {
 			}
 
 			chrome := ctx.Theme.Chrome.Border.Effective(ctx.Theme)
-			p.BoxStyled(r, chrome.BoxStyle(borderStyle))
+			d.DrawBorder(r, chrome.BoxStyle(borderStyle))
 
 			// Draw title if provided
 			if b.title != "" && r.W > 4 && (chrome.Edges&tui.BoxEdgeTop) != 0 {
@@ -85,19 +92,20 @@ func (b *Border) Paint(p *tui.Painter, ctx *tui.Ctx) {
 				truncatedTitle := b.title[:end]
 
 				// Clear title background
-				for i := 0; i < titleW && i < maxTitleW; i++ {
-					p.SetCell(titleX+i, titleY, ' ', borderStyle)
-				}
+				d.FillRect(tui.Rect{X: titleX, Y: titleY, W: min(titleW, maxTitleW), H: 1}, borderStyle)
 
-				p.Text(titleX, titleY, truncatedTitle, textStyle)
+				d.DrawText(tui.Point{X: titleX, Y: titleY}, truncatedTitle, textStyle)
 			}
 		})
 	}
+}
 
-	// Paint child in inner rect
-	p.WithClip(inner, func(p *tui.Painter) {
-		b.child.Paint(p, ctx)
-	})
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+
+	return b
 }
 
 // Handle processes events - delegates to child.

@@ -1,4 +1,4 @@
-package widgets
+package cell
 
 import (
 	"github.com/losinggeneration/tui"
@@ -13,7 +13,7 @@ type PaintCallback func(p *tui.Painter, rect geom.Rect, ctx *tui.Ctx)
 // It receives the event and the render context, returning true if handled.
 type HandleCallback func(e tui.Event, ctx *tui.Ctx) bool
 
-// CanvasOpts holds options for creating a Canvas.
+// CanvasOpts holds options for creating a cell-specific Canvas.
 type CanvasOpts struct {
 	ID        tui.ID
 	Paint     PaintCallback
@@ -22,9 +22,8 @@ type CanvasOpts struct {
 	Focusable bool
 }
 
-// Canvas is a framework escape hatch for application-defined paint and input behavior.
-// It remains a normal tui.View, so it composes naturally inside layout containers
-// and obeys clipping, z-order, focus, and invalidation rules.
+// Canvas is the cell-renderer escape hatch for application-defined paint and
+// input behavior. Its callback contract is intentionally Painter-based.
 type Canvas struct {
 	id        tui.ID
 	rect      geom.Rect
@@ -148,8 +147,6 @@ func (c *Canvas) Invalidate(ctx *tui.Ctx) {
 }
 
 // InvalidateRect marks a relative rect within the canvas as needing repaint.
-// The relative rect is offset by the canvas origin, intersected with the canvas rect,
-// and the result is invalidated.
 func (c *Canvas) InvalidateRect(ctx *tui.Ctx, r geom.Rect) {
 	if ctx == nil || ctx.Invalidate == nil {
 		return

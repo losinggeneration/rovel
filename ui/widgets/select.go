@@ -104,6 +104,10 @@ func (s *Select) MinSize() geom.Size {
 }
 
 func (s *Select) Paint(p *tui.Painter, ctx *tui.Ctx) {
+	s.PaintDrawer(tui.NewDrawer(p), ctx)
+}
+
+func (s *Select) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 	r := s.rect
 	if r.W <= 0 || r.H <= 0 {
 		return
@@ -118,15 +122,15 @@ func (s *Select) Paint(p *tui.Painter, ctx *tui.Ctx) {
 		st = resolveStyle(s.stNormal, ctx.Theme.Base)
 	}
 
-	p.Fill(r, ' ', st)
+	d.FillRect(r, st)
 
 	y := r.Y + r.H/2
 	label := s.displayText()
 	// Show dropdown indicator
 	indicator := "v "
-	p.Text(r.X, y, indicator, st)
+	d.DrawText(tui.Point{X: r.X, Y: y}, indicator, st)
 	lbl := text.Truncate(label, r.W-2, false)
-	p.Text(r.X+2, y, lbl, st)
+	d.DrawText(tui.Point{X: r.X + 2, Y: y}, lbl, st)
 }
 
 func (s *Select) displayText() string {
@@ -261,6 +265,10 @@ func (l *selectList) PreferredSize() geom.Size {
 }
 
 func (l *selectList) Paint(p *tui.Painter, ctx *tui.Ctx) {
+	l.PaintDrawer(tui.NewDrawer(p), ctx)
+}
+
+func (l *selectList) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 	r := l.rect
 	if r.W <= 0 || r.H <= 0 {
 		return
@@ -285,9 +293,9 @@ func (l *selectList) Paint(p *tui.Painter, ctx *tui.Ctx) {
 			st = surfSt
 		}
 
-		p.Fill(geom.Rect{X: r.X, Y: y, W: r.W, H: 1}, ' ', st)
+		d.FillRect(geom.Rect{X: r.X, Y: y, W: r.W, H: 1}, st)
 		lbl := text.Truncate(" "+item, r.W, false)
-		p.Text(r.X, y, lbl, st)
+		d.DrawText(tui.Point{X: r.X, Y: y}, lbl, st)
 	}
 }
 

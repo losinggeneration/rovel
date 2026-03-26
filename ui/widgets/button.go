@@ -127,6 +127,10 @@ func (b *Button) SetOnPress(fn func(ctx *tui.Ctx)) {
 }
 
 func (b *Button) Paint(p *tui.Painter, ctx *tui.Ctx) {
+	b.PaintDrawer(tui.NewDrawer(p), ctx)
+}
+
+func (b *Button) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 	r := b.rect
 	if r.W <= 0 || r.H <= 0 {
 		return
@@ -175,7 +179,7 @@ func (b *Button) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 	// Paint full rect (Paint Contract A already clears damaged spans, but this
 	// keeps the widget visually self-contained when invalidated).
-	p.Fill(r, ' ', st)
+	d.FillRect(r, st)
 
 	y := r.Y + r.H/2
 
@@ -186,7 +190,7 @@ func (b *Button) Paint(p *tui.Painter, ctx *tui.Ctx) {
 		x = r.X
 	}
 
-	p.Text(x, y, label, st)
+	d.DrawText(tui.Point{X: x, Y: y}, label, st)
 }
 
 func (b *Button) Handle(e tui.Event, ctx *tui.Ctx) bool {

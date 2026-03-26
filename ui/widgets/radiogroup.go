@@ -105,6 +105,10 @@ func (r *RadioGroup) MinSize() geom.Size {
 }
 
 func (r *RadioGroup) Paint(p *tui.Painter, ctx *tui.Ctx) {
+	r.PaintDrawer(tui.NewDrawer(p), ctx)
+}
+
+func (r *RadioGroup) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 	rect := r.rect
 	if rect.W <= 0 || rect.H <= 0 || len(r.items) == 0 {
 		return
@@ -122,18 +126,18 @@ func (r *RadioGroup) Paint(p *tui.Painter, ctx *tui.Ctx) {
 		isItemFocused := isFocused && i == r.focused
 		st := r.itemStyle(ctx, isItemFocused)
 
-		p.Fill(geom.Rect{X: rect.X, Y: y, W: rect.W, H: 1}, ' ', st)
+		d.FillRect(geom.Rect{X: rect.X, Y: y, W: rect.W, H: 1}, st)
 
 		indicator := "( ) "
 		if i == r.selected {
 			indicator = "(o) "
 		}
 
-		p.Text(rect.X, y, indicator, st)
+		d.DrawText(tui.Point{X: rect.X, Y: y}, indicator, st)
 
 		if rect.W > 4 {
 			lbl := text.Truncate(item, rect.W-4, false)
-			p.Text(rect.X+4, y, lbl, st)
+			d.DrawText(tui.Point{X: rect.X + 4, Y: y}, lbl, st)
 		}
 	}
 }

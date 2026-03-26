@@ -132,7 +132,7 @@ func (m *OverlayManager) paintOverlays(p *Painter, ctx *Ctx) {
 	for _, o := range m.stack {
 		p.WithClip(o.rect, func(cp *Painter) {
 			cp.Clear(o.rect)
-			o.root.Paint(cp, ctx)
+			PaintView(o.root, cp, ctx)
 		})
 	}
 }

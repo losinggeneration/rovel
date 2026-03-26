@@ -3,6 +3,7 @@ package backend
 import (
 	"github.com/losinggeneration/tui/event"
 	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/tui/style"
 )
 
 // Backend is the interface for terminal backends.
@@ -64,4 +65,24 @@ type ClipboardBackend interface {
 // asynchronously as a ClipboardResponseEvent from ReadEvent.
 type ClipboardAsyncReader interface {
 	ClipboardReadRequest() error
+}
+
+// FrameCell represents a single logical cell in a presented frame.
+type FrameCell struct {
+	R        rune
+	Style    style.Style
+	Wide     bool
+	WideCont bool
+}
+
+// CellFrame is a presented logical cell frame.
+type CellFrame struct {
+	W, H  int
+	Cells []FrameCell
+}
+
+// CellFrameSink is implemented by backends that accept logical cell frames
+// directly instead of terminal byte streams.
+type CellFrameSink interface {
+	PresentCellFrame(frame CellFrame) error
 }

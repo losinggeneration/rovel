@@ -45,6 +45,10 @@ func (f *FocusRing) MinSize() tui.Size {
 
 // Paint renders the focus ring and its child.
 func (f *FocusRing) Paint(p *tui.Painter, ctx *tui.Ctx) {
+	f.PaintDrawer(tui.NewDrawer(p), ctx)
+}
+
+func (f *FocusRing) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 	inner := layout.InsetRect(f.rect, 1, 1, 1, 1)
 
 	// Check if focused (directly or in subtree)
@@ -59,21 +63,23 @@ func (f *FocusRing) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 	// Draw focus border if focused
 	if focused {
-		p.WithClip(f.rect, func(p *tui.Painter) {
+		d.WithClip(f.rect, func(d tui.Drawer) {
 			focusStyle := ctx.Theme.Palette.Focus
 			if focusStyle == (tui.Style{}) {
 				focusStyle = ctx.Theme.Base
 			}
 
 			chrome := ctx.Theme.Chrome.FocusRing.Effective(ctx.Theme)
-			p.BoxStyled(f.rect, chrome.BoxStyle(focusStyle))
+			d.DrawBorder(f.rect, chrome.BoxStyle(focusStyle))
 		})
 	}
 
 	// Paint child in inner rect
-	p.WithClip(inner, func(p *tui.Painter) {
-		f.child.Paint(p, ctx)
-	})
+	if p := tui.PainterFromDrawer(d); p != nil {
+		p.WithClip(inner, func(p *tui.Painter) {
+			tui.PaintView(f.child, p, ctx)
+		})
+	}
 }
 
 func (f *FocusRing) Handle(e tui.Event, ctx *tui.Ctx) bool {

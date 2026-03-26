@@ -78,8 +78,17 @@ func (b *ProgressBar) MinSize() geom.Size {
 }
 
 func (b *ProgressBar) Paint(p *tui.Painter, ctx *tui.Ctx) {
+	b.PaintDrawer(tui.NewDrawer(p), ctx)
+}
+
+func (b *ProgressBar) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 	r := b.rect
 	if r.W <= 0 || r.H <= 0 {
+		return
+	}
+
+	cd, ok := tui.CellDrawerOf(d)
+	if !ok {
 		return
 	}
 
@@ -105,11 +114,11 @@ func (b *ProgressBar) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	emptySt := resolveStyle(b.stEmpty, emptyFallback)
 
 	for x := r.X; x < r.X+filled; x++ {
-		p.SetCell(x, y, '█', filledSt)
+		cd.SetCell(x, y, '█', filledSt)
 	}
 
 	for x := r.X + filled; x < r.X+r.W; x++ {
-		p.SetCell(x, y, '░', emptySt)
+		cd.SetCell(x, y, '░', emptySt)
 	}
 }
 

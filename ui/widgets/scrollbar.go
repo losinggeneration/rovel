@@ -120,8 +120,17 @@ func (s *Scrollbar) thumbGeometry() (thumbH, thumbY int) {
 }
 
 func (s *Scrollbar) Paint(p *tui.Painter, ctx *tui.Ctx) {
+	s.PaintDrawer(tui.NewDrawer(p), ctx)
+}
+
+func (s *Scrollbar) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 	r := s.rect
 	if r.W <= 0 || r.H <= 0 || s.contentSize <= s.viewSize {
+		return
+	}
+
+	cd, ok := tui.CellDrawerOf(d)
+	if !ok {
 		return
 	}
 
@@ -132,9 +141,9 @@ func (s *Scrollbar) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 	for y := range r.H {
 		if y >= thumbY && y < thumbY+thumbH {
-			p.SetCell(r.X, r.Y+y, '█', thumbSt)
+			cd.SetCell(r.X, r.Y+y, '█', thumbSt)
 		} else {
-			p.SetCell(r.X, r.Y+y, '░', trackSt)
+			cd.SetCell(r.X, r.Y+y, '░', trackSt)
 		}
 	}
 }

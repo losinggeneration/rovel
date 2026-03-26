@@ -62,7 +62,7 @@ func (p *Padding) MinSize() tui.Size {
 func (p *Padding) Paint(painter *tui.Painter, ctx *tui.Ctx) {
 	inner := InsetRect(p.rect, p.Left, p.Top, p.Right, p.Bottom)
 	painter.WithClip(inner, func(painter *tui.Painter) {
-		p.child.Paint(painter, ctx)
+		tui.PaintView(p.child, painter, ctx)
 	})
 }
 
