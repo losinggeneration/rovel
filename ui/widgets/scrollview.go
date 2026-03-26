@@ -148,21 +148,14 @@ func (s *ScrollView) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 
 	d.WithClip(clipRect, func(cd tui.Drawer) {
 		cd.WithOffset(0, -s.scrollY, func(od tui.Drawer) {
-			op := tui.PainterFromDrawer(od)
-			if op == nil {
-				return
-			}
-
-			tui.PaintView(s.child, op, ctx)
+			tui.PaintViewDrawer(s.child, od, ctx)
 		})
 	})
 
 	// Paint scrollbar
 	if s.showScrollbar && s.scrollbar != nil {
 		s.scrollbar.SetState(s.contentHeight(), s.rect.H, s.scrollY)
-		if p := tui.PainterFromDrawer(d); p != nil {
-			s.scrollbar.Paint(p, ctx)
-		}
+		tui.PaintViewDrawer(s.scrollbar, d, ctx)
 	}
 }
 
@@ -207,13 +200,18 @@ func (s *ScrollView) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	// Mouse handling — ScrollView is mouseOpaque, so it receives all mouse
 	// events for its rect and must delegate non-wheel events to its child.
 	if me, ok := e.(tui.MouseEvent); ok {
+		wheelLines := 3
+		if me.WheelDelta > 0 {
+			wheelLines *= me.WheelDelta
+		}
+
 		switch me.Button {
 		case tui.MouseButtonWheelUp:
-			s.ScrollBy(ctx, -3)
+			s.ScrollBy(ctx, -wheelLines)
 
 			return true
 		case tui.MouseButtonWheelDown:
-			s.ScrollBy(ctx, 3)
+			s.ScrollBy(ctx, wheelLines)
 
 			return true
 		default:

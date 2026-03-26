@@ -75,11 +75,9 @@ func (f *FocusRing) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 	}
 
 	// Paint child in inner rect
-	if p := tui.PainterFromDrawer(d); p != nil {
-		p.WithClip(inner, func(p *tui.Painter) {
-			tui.PaintView(f.child, p, ctx)
-		})
-	}
+	d.WithClip(inner, func(d tui.Drawer) {
+		tui.PaintViewDrawer(f.child, d, ctx)
+	})
 }
 
 func (f *FocusRing) Handle(e tui.Event, ctx *tui.Ctx) bool {

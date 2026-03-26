@@ -202,6 +202,19 @@ func (c *Core) ResizeWindow(pixelW, pixelH int) event.ResizeEvent {
 	return ev
 }
 
+// Refresh requests a full redraw by re-emitting the current logical size as a
+// resize event. This lets the runtime reuse its existing full-redraw path for
+// surface re-expose/focus-regain situations.
+func (c *Core) Refresh() event.ResizeEvent {
+	c.mu.Lock()
+	ev := event.ResizeEvent{W: c.size.W, H: c.size.H}
+	c.mu.Unlock()
+
+	c.eventCh <- ev
+
+	return ev
+}
+
 // MapMouse maps a pixel-space mouse position into a logical cell mouse event.
 func (c *Core) MapMouse(pixelX, pixelY int, button event.MouseButton, action event.MouseAction, mod event.ModMask) event.MouseEvent {
 	c.mu.Lock()

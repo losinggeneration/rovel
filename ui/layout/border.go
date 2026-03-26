@@ -63,6 +63,7 @@ func (b *Border) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 func (b *Border) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 	r := b.rect
+	inner := InsetRect(r, 1, 1, 1, 1)
 
 	// Only draw box if rect is large enough
 	if r.W >= 2 && r.H >= 2 {
@@ -98,6 +99,10 @@ func (b *Border) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 			}
 		})
 	}
+
+	d.WithClip(inner, func(d tui.Drawer) {
+		tui.PaintViewDrawer(b.child, d, ctx)
+	})
 }
 
 func min(a, b int) int {

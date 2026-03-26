@@ -93,6 +93,15 @@ func (c *Canvas) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	})
 }
 
+// PaintDrawer preserves compatibility with DrawerPaintable container paths on
+// the current cell-family renderer by delegating to the underlying Painter when
+// available. Canvas remains explicitly cell-specific.
+func (c *Canvas) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
+	if p := tui.PainterFromDrawer(d); p != nil {
+		c.Paint(p, ctx)
+	}
+}
+
 func (c *Canvas) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	if c.handle == nil {
 		return false

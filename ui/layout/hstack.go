@@ -206,6 +206,16 @@ func (s *HStack) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	})
 }
 
+func (s *HStack) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
+	d.WithClip(s.rect, func(d tui.Drawer) {
+		for _, c := range s.children {
+			d.WithClip(c.View.Rect(), func(d tui.Drawer) {
+				tui.PaintViewDrawer(c.View, d, ctx)
+			})
+		}
+	})
+}
+
 // HandleAction handles semantic actions for focus navigation.
 func (s *HStack) HandleAction(act int, ctx *tui.Ctx) bool {
 	switch ui.Action(act) {

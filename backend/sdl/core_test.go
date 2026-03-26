@@ -69,3 +69,32 @@ func TestCoreMapMouseAndPresentFrame(t *testing.T) {
 		t.Fatalf("LastFrame = %+v / %q, want 2x1 and OK", got, string(got.RowRunes(0)))
 	}
 }
+
+func TestCoreRefreshEmitsCurrentSize(t *testing.T) {
+	core := NewCore(Options{
+		WindowWidth:  640,
+		WindowHeight: 320,
+		CellWidth:    8,
+		CellHeight:   16,
+	})
+
+	if _, err := core.Enable(); err != nil {
+		t.Fatalf("Enable() error = %v", err)
+	}
+
+	want := core.Size()
+	ev := core.Refresh()
+	if ev.W != want.W || ev.H != want.H {
+		t.Fatalf("Refresh() = %+v, want current size %+v", ev, want)
+	}
+
+	read := core.ReadEvent()
+	re, ok := read.(event.ResizeEvent)
+	if !ok {
+		t.Fatalf("ReadEvent() = %T, want ResizeEvent", read)
+	}
+
+	if re.W != want.W || re.H != want.H {
+		t.Fatalf("ReadEvent refresh = %+v, want %+v", re, want)
+	}
+}

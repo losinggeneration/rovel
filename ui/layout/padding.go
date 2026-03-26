@@ -66,6 +66,13 @@ func (p *Padding) Paint(painter *tui.Painter, ctx *tui.Ctx) {
 	})
 }
 
+func (p *Padding) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
+	inner := InsetRect(p.rect, p.Left, p.Top, p.Right, p.Bottom)
+	d.WithClip(inner, func(d tui.Drawer) {
+		tui.PaintViewDrawer(p.child, d, ctx)
+	})
+}
+
 // Handle processes events - delegates to child.
 func (p *Padding) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	return p.child.Handle(e, ctx)

@@ -4,6 +4,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/losinggeneration/tui/event"
 	"github.com/losinggeneration/tui/geom"
@@ -546,5 +547,132 @@ func TestSetRequestFocus_ClearFocusDoesNotInvalidateAll(t *testing.T) {
 
 	if app.invalidRects[0] != oldRect {
 		t.Fatalf("expected invalid rect %v, got %v", oldRect, app.invalidRects[0])
+	}
+}
+
+func TestDrainWheelEvents_CoalescesNetDelta(t *testing.T) {
+	app, _ := New(AppOpts{})
+
+	app.eventCh <- MouseEvent{
+		Button:     MouseButtonWheelUp,
+		Action:     event.MousePress,
+		WheelDelta: 50,
+	}
+	app.eventCh <- MouseEvent{
+		Button:     MouseButtonWheelDown,
+		Action:     event.MousePress,
+		WheelDelta: 25,
+	}
+	app.eventCh <- KeyEvent{Key: event.KeyTab}
+
+	got, ok, extra := app.drainWheelEvents(MouseEvent{
+		Button:     MouseButtonWheelDown,
+		Action:     event.MousePress,
+		WheelDelta: 100,
+	})
+
+	if !ok {
+		t.Fatal("drainWheelEvents returned ok=false, want true")
+	}
+
+	if got.Button != MouseButtonWheelDown || got.WheelDelta != 75 {
+		t.Fatalf("coalesced = (%v,%d), want (%v,75)", got.Button, got.WheelDelta, MouseButtonWheelDown)
+	}
+
+	if len(extra) != 1 {
+		t.Fatalf("extra len = %d, want 1", len(extra))
+	}
+
+	if ke, ok := extra[0].(KeyEvent); !ok || ke.Key != event.KeyTab {
+		t.Fatalf("extra[0] = %#v, want KeyTab", extra[0])
+	}
+}
+
+func TestDrainWheelEvents_CancelsToZero(t *testing.T) {
+	app, _ := New(AppOpts{})
+
+	app.eventCh <- MouseEvent{
+		Button: MouseButtonWheelDown,
+		Action: event.MousePress,
+	}
+
+	got, ok, extra := app.drainWheelEvents(MouseEvent{
+		Button: MouseButtonWheelUp,
+		Action: event.MousePress,
+	})
+
+	if ok {
+		t.Fatal("drainWheelEvents returned ok=true, want false")
+	}
+
+	if got.WheelDelta != 0 {
+		t.Fatalf("coalesced delta = %d, want 0", got.WheelDelta)
+	}
+
+	if len(extra) != 0 {
+		t.Fatalf("extra len = %d, want 0", len(extra))
+	}
+}
+
+func TestDrainWheelEvents_WaitsForBurst(t *testing.T) {
+	app, _ := New(AppOpts{})
+
+	oldWindow := wheelCoalesceWindow
+	wheelCoalesceWindow = 5 * time.Millisecond
+	defer func() { wheelCoalesceWindow = oldWindow }()
+
+	go func() {
+		time.Sleep(1 * time.Millisecond)
+		app.eventCh <- MouseEvent{
+			Button: MouseButtonWheelUp,
+			Action: event.MousePress,
+		}
+	}()
+
+	got, ok, extra := app.drainWheelEvents(MouseEvent{
+		Button: MouseButtonWheelDown,
+		Action: event.MousePress,
+	})
+
+	if ok {
+		t.Fatal("drainWheelEvents returned ok=true, want false")
+	}
+
+	if got.WheelDelta != 0 {
+		t.Fatalf("coalesced delta = %d, want 0", got.WheelDelta)
+	}
+
+	if len(extra) != 0 {
+		t.Fatalf("extra len = %d, want 0", len(extra))
+	}
+}
+
+func TestCompactEventBatch_NetsQueuedWheelBacklog(t *testing.T) {
+	app, _ := New(AppOpts{})
+
+	batch := []Event{
+		MouseEvent{Button: MouseButtonWheelDown, Action: event.MousePress, WheelDelta: 100},
+		MouseEvent{Button: MouseButtonWheelUp, Action: event.MousePress, WheelDelta: 50},
+		MouseEvent{Button: MouseButtonWheelDown, Action: event.MousePress, WheelDelta: 25},
+		KeyEvent{Key: event.KeyTab},
+	}
+
+	got := app.compactEventBatch(batch)
+	if len(got) != 2 {
+		t.Fatalf("len(compacted) = %d, want 2", len(got))
+	}
+
+	me, ok := got[0].(MouseEvent)
+	if !ok {
+		t.Fatalf("got[0] = %T, want MouseEvent", got[0])
+	}
+
+	if me.Button != MouseButtonWheelDown || me.WheelDelta != 75 {
+		t.Fatalf("compacted wheel = (%v,%d), want (%v,75)", me.Button, me.WheelDelta, MouseButtonWheelDown)
+	}
+
+	ke, ok := got[1].(KeyEvent)
+	if !ok || ke.Key != event.KeyTab {
+		t.Fatalf("got[1] = %#v, want KeyTab", got[1])
 	}
 }

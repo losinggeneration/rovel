@@ -52,6 +52,21 @@ func PaintView(v View, p *Painter, ctx *Ctx) {
 	v.Paint(p, ctx)
 }
 
+// PaintViewDrawer paints a view through Drawer directly when available. It is
+// primarily a compatibility helper for DrawerPaintable container views. Views
+// that only support the legacy Paint method can still be painted when the
+// Drawer is backed by a Painter adapter.
+func PaintViewDrawer(v View, d Drawer, ctx *Ctx) {
+	if dp, ok := v.(DrawerPaintable); ok {
+		dp.PaintDrawer(d, ctx)
+		return
+	}
+
+	if p := PainterFromDrawer(d); p != nil {
+		v.Paint(p, ctx)
+	}
+}
+
 // Ctx provides context methods for views during Paint and Handle.
 type Ctx struct {
 	// Theme is the app-wide theme.

@@ -229,6 +229,22 @@ func (s *Split) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	})
 }
 
+func (s *Split) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
+	d.WithClip(s.rect, func(d tui.Drawer) {
+		if s.first != nil {
+			d.WithClip(s.first.Rect(), func(d tui.Drawer) {
+				tui.PaintViewDrawer(s.first, d, ctx)
+			})
+		}
+
+		if s.second != nil {
+			d.WithClip(s.second.Rect(), func(d tui.Drawer) {
+				tui.PaintViewDrawer(s.second, d, ctx)
+			})
+		}
+	})
+}
+
 // Handle processes events and focus navigation.
 func (s *Split) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	ke, ok := e.(event.KeyEvent)

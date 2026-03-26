@@ -97,6 +97,8 @@ const (
 	actionCancel    = 6
 )
 
+var wheelCoalesceWindow = 8 * time.Millisecond
+
 type viewChildren interface {
 	Children() []View
 }
@@ -401,26 +403,7 @@ func (a *App) Run() (err error) {
 				return nil
 			}
 
-			// Coalesce consecutive motion events — keep only latest position.
-			var extra []Event
-
-			if me, ok := e.(MouseEvent); ok &&
-				(me.Action == event.MouseMove || me.Action == event.MouseDrag) {
-				var coalesced MouseEvent
-
-				coalesced, extra = a.drainMotionEvents(me)
-				e = coalesced
-			}
-
-			a.handleEvent(e)
-
-			if !a.running.Load() {
-				a.setClosed()
-
-				return nil
-			}
-
-			for _, qe := range extra {
+			for _, qe := range a.compactEventBatch(a.collectEventBatch(e)) {
 				a.handleEvent(qe)
 
 				if !a.running.Load() {
@@ -464,6 +447,77 @@ func (a *App) readEvents() {
 	}
 }
 
+func (a *App) collectEventBatch(first Event) []Event {
+	batch := []Event{first}
+
+	for {
+		select {
+		case e, ok := <-a.eventCh:
+			if !ok {
+				return batch
+			}
+
+			batch = append(batch, e)
+		default:
+			return batch
+		}
+	}
+}
+
+func (a *App) compactEventBatch(batch []Event) []Event {
+	out := make([]Event, 0, len(batch))
+
+	for i := 0; i < len(batch); {
+		if me, ok := batch[i].(MouseEvent); ok {
+			switch {
+			case me.Action == event.MouseMove || me.Action == event.MouseDrag:
+				latest := me
+				i++
+
+				for i < len(batch) {
+					next, ok := batch[i].(MouseEvent)
+					if !ok || (next.Action != event.MouseMove && next.Action != event.MouseDrag) {
+						break
+					}
+
+					latest = next
+					i++
+				}
+
+				out = append(out, latest)
+
+				continue
+			case isWheelMouseEvent(me):
+				net := signedWheelDelta(me)
+				latest := me
+				i++
+
+				for i < len(batch) {
+					next, ok := batch[i].(MouseEvent)
+					if !ok || !isWheelMouseEvent(next) {
+						break
+					}
+
+					latest = next
+					net += signedWheelDelta(next)
+					i++
+				}
+
+				if net != 0 {
+					out = append(out, wheelEventFromNet(latest, net))
+				}
+
+				continue
+			}
+		}
+
+		out = append(out, batch[i])
+		i++
+	}
+
+	return out
+}
+
 // handleEvent processes a single event.
 func (a *App) handleEvent(e Event) {
 	switch evt := e.(type) {
@@ -505,6 +559,104 @@ func (a *App) drainMotionEvents(latest MouseEvent) (MouseEvent, []Event) {
 			return latest, queued
 		default:
 			return latest, queued
+		}
+	}
+}
+
+// drainWheelEvents non-blocking drains consecutive wheel events from eventCh,
+// combining them into one net delta. Opposing directions cancel each other
+// out. Stops when a non-wheel event is encountered, which is queued for
+// ordered processing. Returns ok=false when the net delta cancels to zero.
+func (a *App) drainWheelEvents(latest MouseEvent) (MouseEvent, bool, []Event) {
+	var queued []Event
+	net := signedWheelDelta(latest)
+
+	for {
+		select {
+		case e, ok := <-a.eventCh:
+			if !ok {
+				return wheelEventFromNet(latest, net), net != 0, queued
+			}
+
+			me, ok := e.(MouseEvent)
+			if !ok || !isWheelMouseEvent(me) {
+				queued = append(queued, e)
+
+				return wheelEventFromNet(latest, net), net != 0, queued
+			}
+
+			latest = me
+			net += signedWheelDelta(me)
+		default:
+			return a.waitForWheelBurst(latest, net, queued)
+		}
+	}
+}
+
+func isWheelMouseEvent(me MouseEvent) bool {
+	return me.Action == event.MousePress &&
+		(me.Button == event.MouseButtonWheelUp || me.Button == event.MouseButtonWheelDown)
+}
+
+func signedWheelDelta(me MouseEvent) int {
+	delta := me.WheelDelta
+	if delta == 0 {
+		delta = 1
+	}
+
+	if me.Button == event.MouseButtonWheelUp {
+		return -delta
+	}
+
+	return delta
+}
+
+func wheelEventFromNet(base MouseEvent, net int) MouseEvent {
+	if net < 0 {
+		base.Button = event.MouseButtonWheelUp
+		base.WheelDelta = -net
+	} else {
+		base.Button = event.MouseButtonWheelDown
+		base.WheelDelta = net
+	}
+
+	return base
+}
+
+func (a *App) waitForWheelBurst(latest MouseEvent, net int, queued []Event) (MouseEvent, bool, []Event) {
+	if wheelCoalesceWindow <= 0 {
+		return wheelEventFromNet(latest, net), net != 0, queued
+	}
+
+	timer := time.NewTimer(wheelCoalesceWindow)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-timer.C:
+			return wheelEventFromNet(latest, net), net != 0, queued
+		case e, ok := <-a.eventCh:
+			if !ok {
+				return wheelEventFromNet(latest, net), net != 0, queued
+			}
+
+			me, ok := e.(MouseEvent)
+			if !ok || !isWheelMouseEvent(me) {
+				queued = append(queued, e)
+				return wheelEventFromNet(latest, net), net != 0, queued
+			}
+
+			latest = me
+			net += signedWheelDelta(me)
+
+			if !timer.Stop() {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
+
+			timer.Reset(wheelCoalesceWindow)
 		}
 	}
 }

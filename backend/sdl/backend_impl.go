@@ -2,6 +2,7 @@ package sdl
 
 import (
 	"errors"
+	"math"
 	"os"
 	"strings"
 	"sync"
@@ -33,11 +34,12 @@ type Backend struct {
 }
 
 var (
-	_ backend.Backend             = (*Backend)(nil)
-	_ backend.CapabilityReporter  = (*Backend)(nil)
-	_ backend.InputFeatureEnabler = (*Backend)(nil)
-	_ backend.CellFrameSink       = (*Backend)(nil)
-	_ backend.ClipboardBackend    = (*Backend)(nil)
+	_ backend.Backend              = (*Backend)(nil)
+	_ backend.CapabilityReporter   = (*Backend)(nil)
+	_ backend.InputFeatureEnabler  = (*Backend)(nil)
+	_ backend.CellFrameSink        = (*Backend)(nil)
+	_ backend.ClipboardBackend     = (*Backend)(nil)
+	_ backend.ClipboardAsyncReader = (*Backend)(nil)
 )
 
 func newBackend(opts Options) (*Backend, error) {
@@ -170,6 +172,16 @@ func (b *Backend) ClipboardWrite(text string) error {
 
 func (b *Backend) ClipboardRead() (string, error) {
 	return gsdl.GetClipboardText()
+}
+
+func (b *Backend) ClipboardReadRequest() error {
+	text, err := gsdl.GetClipboardText()
+	if err != nil {
+		return err
+	}
+
+	b.SendEvent(tevent.ClipboardResponseEvent{Text: text})
+	return nil
 }
 
 func (b *Backend) drawFrame(frame backend.CellFrame) error {
@@ -316,6 +328,15 @@ func (b *Backend) pollEvents() {
 		case gsdl.WindowEvent:
 			if e.Event == gsdl.WINDOWEVENT_SIZE_CHANGED || e.Event == gsdl.WINDOWEVENT_RESIZED {
 				b.ResizeWindow(int(e.Data1), int(e.Data2))
+				continue
+			}
+
+			switch e.Event {
+			case gsdl.WINDOWEVENT_SHOWN,
+				gsdl.WINDOWEVENT_EXPOSED,
+				gsdl.WINDOWEVENT_FOCUS_GAINED,
+				gsdl.WINDOWEVENT_RESTORED:
+				b.Refresh()
 			}
 		case gsdl.TextInputEvent:
 			for _, r := range e.Text {
@@ -323,6 +344,10 @@ func (b *Backend) pollEvents() {
 			}
 		case gsdl.KeyboardEvent:
 			if e.Type != gsdl.KEYDOWN {
+				continue
+			}
+
+			if b.handleCtrlModifiedKey(e.Keysym.Sym, e.Keysym.Mod) {
 				continue
 			}
 
@@ -338,18 +363,72 @@ func (b *Backend) pollEvents() {
 			}
 			b.SendEvent(b.MapMouse(int(e.X), int(e.Y), mapMouseButton(e.Button), action, 0))
 		case gsdl.MouseWheelEvent:
-			x, y, _ := gsdl.GetMouseState()
-			button := tevent.MouseButtonNone
-			if e.Y > 0 {
-				button = tevent.MouseButtonWheelUp
-			} else if e.Y < 0 {
-				button = tevent.MouseButtonWheelDown
+			x := e.MouseX
+			y := e.MouseY
+			if x == 0 && y == 0 {
+				x, y, _ = gsdl.GetMouseState()
 			}
-			if button != tevent.MouseButtonNone {
-				b.SendEvent(b.MapMouse(int(x), int(y), button, tevent.MousePress, 0))
+
+			steps, button := wheelEventSteps(e)
+			if steps > 0 && button != tevent.MouseButtonNone {
+				me := b.MapMouse(int(x), int(y), button, tevent.MousePress, 0)
+				me.WheelDelta = steps
+				b.SendEvent(me)
 			}
 		}
 	}
+}
+
+func (b *Backend) handleCtrlModifiedKey(sym gsdl.Keycode, mod gsdl.Keymod) bool {
+	if mod&gsdl.KMOD_CTRL == 0 {
+		return false
+	}
+
+	switch sym {
+	case gsdl.K_a, gsdl.K_c, gsdl.K_x:
+		b.SendEvent(tevent.KeyEvent{
+			Key:  tevent.KeyRune,
+			Rune: rune(sym),
+			Mod:  tevent.ModCtrl,
+		})
+		return true
+	case gsdl.K_v:
+		if text, err := gsdl.GetClipboardText(); err == nil {
+			b.SendEvent(tevent.PasteEvent{Text: text})
+		}
+		return true
+	default:
+		return false
+	}
+}
+
+func wheelEventSteps(e gsdl.MouseWheelEvent) (int, tevent.MouseButton) {
+	button := tevent.MouseButtonNone
+	value := int(e.Y)
+	if value > 0 {
+		button = tevent.MouseButtonWheelUp
+	} else if value < 0 {
+		button = tevent.MouseButtonWheelDown
+	}
+
+	steps := value
+	if steps < 0 {
+		steps = -steps
+	}
+	if steps == 0 && e.PreciseY != 0 {
+		if e.PreciseY > 0 {
+			button = tevent.MouseButtonWheelUp
+		} else {
+			button = tevent.MouseButtonWheelDown
+		}
+		steps = int(math.Ceil(math.Abs(float64(e.PreciseY))))
+	}
+
+	if steps <= 0 || button == tevent.MouseButtonNone {
+		return 0, tevent.MouseButtonNone
+	}
+
+	return steps, button
 }
 
 func mapKey(sym gsdl.Keycode, mod gsdl.Keymod) (tevent.Key, bool) {
@@ -359,6 +438,9 @@ func mapKey(sym gsdl.Keycode, mod gsdl.Keymod) (tevent.Key, bool) {
 	case gsdl.K_ESCAPE:
 		return tevent.KeyEsc, true
 	case gsdl.K_TAB:
+		if mod&gsdl.KMOD_SHIFT != 0 {
+			return tevent.KeyShiftTab, true
+		}
 		return tevent.KeyTab, true
 	case gsdl.K_BACKSPACE:
 		return tevent.KeyBackspace, true

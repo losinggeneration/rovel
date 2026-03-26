@@ -30,6 +30,7 @@ type MouseEvent struct {
 	Action     MouseAction
 	Mod        ModMask
 	ClickCount int // 1 = single, 2 = double, 3 = triple, etc.
+	WheelDelta int // wheel step count; 0 means 1 for wheel events
 }
 
 func (MouseEvent) isEvent() {}

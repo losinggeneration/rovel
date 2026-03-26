@@ -312,14 +312,19 @@ func (ta *TextArea) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 func (ta *TextArea) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	// Mouse handling: press, drag, double-click, wheel
 	if me, ok := e.(tui.MouseEvent); ok {
+		wheelLines := 3
+		if me.WheelDelta > 0 {
+			wheelLines *= me.WheelDelta
+		}
+
 		switch {
 		case me.Button == tui.MouseButtonWheelUp:
-			ta.scrollBy(-3)
+			ta.scrollBy(-wheelLines)
 			ctx.Invalidate(ta.rect)
 
 			return true
 		case me.Button == tui.MouseButtonWheelDown:
-			ta.scrollBy(3)
+			ta.scrollBy(wheelLines)
 			ctx.Invalidate(ta.rect)
 
 			return true

@@ -140,11 +140,26 @@ func (v *VirtualList) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	})
 }
 
+// PaintDrawer preserves compatibility with DrawerPaintable container paths on
+// the current cell-family renderer by delegating to the underlying Painter when
+// available. VirtualList remains a cell-shaped API because row rendering is
+// still explicitly Painter-based.
+func (v *VirtualList) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
+	if p := tui.PainterFromDrawer(d); p != nil {
+		v.Paint(p, ctx)
+	}
+}
+
 // Handle processes keyboard and mouse events.
 // Accepts both KeyEvent and *KeyEvent for pipeline compatibility.
 func (v *VirtualList) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	// Mouse click selects the item at the clicked row
 	if me, ok := e.(tui.MouseEvent); ok {
+		wheelItems := 3
+		if me.WheelDelta > 0 {
+			wheelItems *= me.WheelDelta
+		}
+
 		if me.Button == tui.MouseButtonLeft && me.Action == tui.MousePress {
 			if ctx != nil {
 				if ctx.RequestFocus != nil {
@@ -164,11 +179,11 @@ func (v *VirtualList) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		// Mouse wheel scrolling
 		switch me.Button {
 		case tui.MouseButtonWheelUp:
-			v.ScrollBy(ctx, -3)
+			v.ScrollBy(ctx, -wheelItems)
 
 			return true
 		case tui.MouseButtonWheelDown:
-			v.ScrollBy(ctx, 3)
+			v.ScrollBy(ctx, wheelItems)
 
 			return true
 		}
