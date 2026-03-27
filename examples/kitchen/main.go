@@ -191,6 +191,7 @@ func (s *state) buildButtonSection() tui.View {
 		layout.NewChild(btn1),
 		layout.NewChild(btn2),
 		layout.NewChild(btn3),
+		layout.NewChild(widgets.NewLabel("")),
 	}, 1)
 
 	b := layout.NewBorder(row)
@@ -276,6 +277,7 @@ func (s *state) buildOverlaySection() tui.View {
 	row := layout.NewHStackWithGap([]layout.Child{
 		layout.NewChild(btnDialog),
 		layout.NewChild(btnClipRead),
+		layout.NewChild(widgets.NewLabel("")),
 	}, 1)
 
 	b := layout.NewBorder(row)
@@ -382,6 +384,7 @@ func (s *state) buildProgressSection() tui.View {
 	btnRow := layout.NewHStackWithGap([]layout.Child{
 		layout.NewChild(btnLess),
 		layout.NewChild(btnMore),
+		layout.NewChild(widgets.NewLabel("")),
 	}, 1)
 
 	col := layout.NewVStack()
