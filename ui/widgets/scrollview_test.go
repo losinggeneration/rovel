@@ -299,6 +299,7 @@ func (v *paintRowsView) Layout(r geom.Rect) { v.rect = r }
 func (v *paintRowsView) Handle(tui.Event, *tui.Ctx) bool {
 	return false
 }
+
 func (v *paintRowsView) Paint(p *tui.Painter, _ *tui.Ctx) {
 	for i, ch := range []rune{'0', '1', '2', '3'} {
 		p.Text(v.rect.X, v.rect.Y+i, string(ch), style.Style{})

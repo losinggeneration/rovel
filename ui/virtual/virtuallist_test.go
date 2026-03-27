@@ -5,7 +5,39 @@ import (
 
 	"github.com/losinggeneration/tui"
 	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/tui/style"
 )
+
+// mockRenderRow returns a simple RenderRowFunc that renders a numbered prefix.
+func mockRenderRow(prefix string) RenderRowFunc {
+	return func(
+		i int,
+		selected bool,
+		focused bool,
+		p *tui.Painter,
+		r geom.Rect,
+	) {
+		if r.W <= 0 || r.H <= 0 {
+			return
+		}
+
+		var st tui.Style
+		if selected && focused {
+			st = tui.Style{Attr: style.AttrReverse}
+		} else if selected {
+			st = tui.Style{FG: style.ColorWhite, BG: style.ColorBlue}
+		}
+		// Simple text rendering - truncate to fit
+		text := prefix
+
+		maxLen := r.W
+		if len(text) > maxLen {
+			text = text[:maxLen]
+		}
+
+		p.Text(r.X, r.Y, text, st)
+	}
+}
 
 func TestNotifyCountChanged(t *testing.T) {
 	tests := []struct {
