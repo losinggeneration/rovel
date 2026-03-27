@@ -68,7 +68,8 @@ type App struct {
 	closed  bool
 	closeMu sync.RWMutex
 
-	mouse mouseState
+	mouse          mouseState
+	lastRenderTime time.Time
 
 	resolvedTheme Theme
 	capability    style.Capability
@@ -97,7 +98,7 @@ const (
 	actionCancel    = 6
 )
 
-var wheelCoalesceWindow = 8 * time.Millisecond
+const maxFrameInterval = 16 * time.Millisecond
 
 type viewChildren interface {
 	Children() []View
@@ -138,7 +139,7 @@ func New(opts AppOpts) (*App, error) {
 		presenter:   newANSIPresenter(),
 		nodes:       make(map[ID]*nodeEntry),
 		scopeMemory: make(map[ID]*scopeState),
-		eventCh:     make(chan Event, 16),
+		eventCh:     make(chan Event, 256),
 		postQueue:   make([]func(*UpdateCtx), 0, 64),
 		wakeCh:      make(chan struct{}, 1),
 		errs:        errbuf.New(50),
@@ -393,6 +394,7 @@ func (a *App) Run() (err error) {
 		// by loop timing.
 		if processedPosts {
 			a.render()
+			a.lastRenderTime = time.Now()
 		}
 
 		select {
@@ -413,10 +415,16 @@ func (a *App) Run() (err error) {
 				}
 			}
 
+			if a.shouldSkipRender() {
+				continue
+			}
+
 			a.render()
+			a.lastRenderTime = time.Now()
 
 		case <-a.wakeCh:
 			a.render()
+			a.lastRenderTime = time.Now()
 		}
 	}
 
@@ -534,65 +542,6 @@ func (a *App) handleEvent(e Event) {
 	}
 }
 
-// drainMotionEvents non-blocking drains consecutive motion events from eventCh,
-// keeping only the latest position. Stops when a non-motion event is encountered
-// (queued for ordered processing) or the channel is empty.
-func (a *App) drainMotionEvents(latest MouseEvent) (MouseEvent, []Event) {
-	var queued []Event
-
-	for {
-		select {
-		case e, ok := <-a.eventCh:
-			if !ok {
-				return latest, queued
-			}
-
-			if me, ok := e.(MouseEvent); ok &&
-				(me.Action == event.MouseMove || me.Action == event.MouseDrag) {
-				latest = me
-
-				continue
-			}
-
-			queued = append(queued, e)
-
-			return latest, queued
-		default:
-			return latest, queued
-		}
-	}
-}
-
-// drainWheelEvents non-blocking drains consecutive wheel events from eventCh,
-// combining them into one net delta. Opposing directions cancel each other
-// out. Stops when a non-wheel event is encountered, which is queued for
-// ordered processing. Returns ok=false when the net delta cancels to zero.
-func (a *App) drainWheelEvents(latest MouseEvent) (MouseEvent, bool, []Event) {
-	var queued []Event
-	net := signedWheelDelta(latest)
-
-	for {
-		select {
-		case e, ok := <-a.eventCh:
-			if !ok {
-				return wheelEventFromNet(latest, net), net != 0, queued
-			}
-
-			me, ok := e.(MouseEvent)
-			if !ok || !isWheelMouseEvent(me) {
-				queued = append(queued, e)
-
-				return wheelEventFromNet(latest, net), net != 0, queued
-			}
-
-			latest = me
-			net += signedWheelDelta(me)
-		default:
-			return a.waitForWheelBurst(latest, net, queued)
-		}
-	}
-}
-
 func isWheelMouseEvent(me MouseEvent) bool {
 	return me.Action == event.MousePress &&
 		(me.Button == event.MouseButtonWheelUp || me.Button == event.MouseButtonWheelDown)
@@ -621,44 +570,6 @@ func wheelEventFromNet(base MouseEvent, net int) MouseEvent {
 	}
 
 	return base
-}
-
-func (a *App) waitForWheelBurst(latest MouseEvent, net int, queued []Event) (MouseEvent, bool, []Event) {
-	if wheelCoalesceWindow <= 0 {
-		return wheelEventFromNet(latest, net), net != 0, queued
-	}
-
-	timer := time.NewTimer(wheelCoalesceWindow)
-	defer timer.Stop()
-
-	for {
-		select {
-		case <-timer.C:
-			return wheelEventFromNet(latest, net), net != 0, queued
-		case e, ok := <-a.eventCh:
-			if !ok {
-				return wheelEventFromNet(latest, net), net != 0, queued
-			}
-
-			me, ok := e.(MouseEvent)
-			if !ok || !isWheelMouseEvent(me) {
-				queued = append(queued, e)
-				return wheelEventFromNet(latest, net), net != 0, queued
-			}
-
-			latest = me
-			net += signedWheelDelta(me)
-
-			if !timer.Stop() {
-				select {
-				case <-timer.C:
-				default:
-				}
-			}
-
-			timer.Reset(wheelCoalesceWindow)
-		}
-	}
 }
 
 // handleKeyEvent processes a key event by dispatching through the root.
@@ -1125,6 +1036,18 @@ func (a *App) setRequestFocus(id ID) {
 	if unknownNew {
 		a.InvalidateAll()
 	}
+}
+
+// shouldSkipRender returns true when more events are backlogged and we
+// rendered recently enough that deferring this frame won't cause stutter.
+// This lets the event loop drain backlogs at full speed instead of
+// blocking on a render (and potentially vsync) between every small batch.
+func (a *App) shouldSkipRender() bool {
+	if len(a.eventCh) == 0 {
+		return false
+	}
+
+	return time.Since(a.lastRenderTime) < maxFrameInterval
 }
 
 // render performs a single render frame.
