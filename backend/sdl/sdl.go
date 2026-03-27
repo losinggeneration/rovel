@@ -1,3 +1,21 @@
+// Package sdl will provide a windowed cell-surface backend built on SDL.
+//
+// The intended implementation model is:
+//
+//   - SDL owns window lifecycle and event polling
+//   - tui still owns the retained widget/runtime model
+//   - logical cell frames are consumed through backend.CellFrameSink
+//   - backend/cellsurface provides the frame traversal and cell-to-pixel helpers
+//
+// If this backend is implemented, prefer github.com/veandco/go-sdl2 for now.
+// The SDL3 Go bindings are still experimental and should not be the default
+// target yet.
+//
+// This package is under active development and its API is not yet stable.
+//
+// # Unstable API
+//
+// Before v1.0.0, the API may change without notice. Use with caution.
 package sdl
 
 import (
@@ -7,6 +25,7 @@ import (
 	"github.com/losinggeneration/tui/backend/cellsurface"
 	"github.com/losinggeneration/tui/event"
 	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/tui/style"
 )
 
 // Core is the pure-Go state and mapping layer for the future SDL backend.
@@ -29,12 +48,41 @@ type Core struct {
 	features backend.InputFeatures
 }
 
-var (
-	_ backend.Backend             = (*Core)(nil)
-	_ backend.CapabilityReporter  = (*Core)(nil)
-	_ backend.InputFeatureEnabler = (*Core)(nil)
-	_ backend.CellFrameSink       = (*Core)(nil)
-)
+// Options configures the future SDL backend.
+type Options struct {
+	Title string
+
+	// Window size in pixels.
+	WindowWidth  int
+	WindowHeight int
+
+	// Logical cell metrics in pixels.
+	CellWidth  int
+	CellHeight int
+
+	// Font configuration for text rendering.
+	FontPath string
+	FontSize int
+
+	// Surface default colors used when frame styles leave fg/bg as default.
+	DefaultFG style.RGBA
+	DefaultBG style.RGBA
+}
+
+// DefaultOptions returns a conservative default SDL configuration suitable for
+// an initial cell-surface spike.
+func DefaultOptions() Options {
+	return Options{
+		Title:        "tui",
+		WindowWidth:  960,
+		WindowHeight: 640,
+		CellWidth:    8,
+		CellHeight:   16,
+		FontSize:     16,
+		DefaultFG:    style.RGBA{R: 229, G: 229, B: 229, A: 0xFF},
+		DefaultBG:    style.RGBA{R: 0, G: 0, B: 0, A: 0xFF},
+	}
+}
 
 // NewCore creates the dependency-free SDL backend core.
 func NewCore(opts Options) *Core {
