@@ -8,6 +8,15 @@ import (
 	"github.com/veandco/go-sdl2/sdl"
 )
 
+var (
+	_ backend.Backend              = (*Backend)(nil)
+	_ backend.CapabilityReporter   = (*Backend)(nil)
+	_ backend.InputFeatureEnabler  = (*Backend)(nil)
+	_ backend.CellFrameSink        = (*Backend)(nil)
+	_ backend.ClipboardBackend     = (*Backend)(nil)
+	_ backend.ClipboardAsyncReader = (*Backend)(nil)
+)
+
 func TestNew(t *testing.T) {
 	b, err := New(DefaultOptions())
 	if err != nil {

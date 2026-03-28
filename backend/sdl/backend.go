@@ -19,6 +19,8 @@ import (
 	gttf "github.com/veandco/go-sdl2/ttf"
 )
 
+var ErrNoMonospaceFont = errors.New("tui/backend/sdl: no usable monospace font found; set Options.FontPath")
+
 // Backend is the concrete SDL backend.
 type Backend struct {
 	*Core
@@ -32,15 +34,6 @@ type Backend struct {
 	running  atomic.Bool
 	pollDone chan struct{}
 }
-
-var (
-	_ backend.Backend              = (*Backend)(nil)
-	_ backend.CapabilityReporter   = (*Backend)(nil)
-	_ backend.InputFeatureEnabler  = (*Backend)(nil)
-	_ backend.CellFrameSink        = (*Backend)(nil)
-	_ backend.ClipboardBackend     = (*Backend)(nil)
-	_ backend.ClipboardAsyncReader = (*Backend)(nil)
-)
 
 func newBackend(opts Options) (*Backend, error) {
 	return &Backend{
@@ -372,6 +365,7 @@ func (b *Backend) pollEvents() {
 				gsdl.WINDOWEVENT_FOCUS_GAINED,
 				gsdl.WINDOWEVENT_RESTORED:
 				b.Refresh()
+			default:
 			}
 		case gsdl.TextInputEvent:
 			for _, r := range e.Text {
@@ -552,6 +546,7 @@ func mapKey(sym gsdl.Keycode, mod gsdl.Keymod) (tevent.Key, bool) {
 		if mod&gsdl.KMOD_CTRL != 0 {
 			return tevent.KeyCtrlC, true
 		}
+	default:
 	}
 
 	return tevent.KeyNone, false
@@ -582,9 +577,13 @@ func mapMouseButton(btn gsdl.Button) tevent.MouseButton {
 		return tevent.MouseButtonMiddle
 	case gsdl.ButtonRight:
 		return tevent.MouseButtonRight
+	case gsdl.ButtonX1:
+	case gsdl.ButtonX2:
 	default:
 		return tevent.MouseButtonNone
 	}
+
+	return tevent.MouseButtonNone
 }
 
 func rgbaToSDL(c style.RGBA) gsdl.Color {
@@ -769,7 +768,7 @@ func discoverFontPath(explicit string) (string, error) {
 		}
 	}
 
-	return "", errors.New("tui/backend/sdl: no usable monospace font found; set Options.FontPath")
+	return "", ErrNoMonospaceFont
 }
 
 func createRenderer(window *gsdl.Window) (*gsdl.Renderer, error) {

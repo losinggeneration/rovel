@@ -39,6 +39,7 @@ func (appKeymap) Resolve(ctx ui.KeyContext, k ui.Keystroke) (ui.Action, bool) {
 		switch k.Key {
 		case event.KeyEsc, event.KeyCtrlC:
 			return ActionQuit, true
+		default:
 		}
 
 		return ui.ActionNone, false
@@ -47,6 +48,7 @@ func (appKeymap) Resolve(ctx ui.KeyContext, k ui.Keystroke) (ui.Action, bool) {
 	switch k.Key {
 	case event.KeyEsc, event.KeyCtrlC:
 		return ActionQuit, true
+	default:
 	}
 
 	if k.Key == event.KeyRune && (k.Rune == 'P' || k.Rune == 'p') {
@@ -80,6 +82,7 @@ func (r *Root) HandleAction(act int, ctx *tui.Ctx) bool {
 
 			return true
 		}
+	default:
 	}
 
 	return false

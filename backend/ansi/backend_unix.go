@@ -16,6 +16,8 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+var ErrEmitKeyEventsShutdown = errors.New("emitKeyEvents already shutdown")
+
 // Backend implements the backend.Backend interface for Unix terminals using ANSI escape sequences.
 type Backend struct {
 	origTermios *unix.Termios
@@ -254,7 +256,7 @@ func (b *Backend) readEvents() {
 
 		alive := b.emitEvents(evs)
 		if !alive {
-			b.errs.Add(errors.New("emitKeyEvents already shutdown"))
+			b.errs.Add(ErrEmitKeyEventsShutdown)
 		}
 
 		// Stop resize handling if the read loop exits before Restore() runs.
@@ -296,7 +298,7 @@ func (b *Backend) readEvents() {
 
 		_, err := unix.Poll(pollFds, -1) // -1 = block indefinitely
 		if err != nil {
-			if err == unix.EINTR {
+			if errors.Is(err, unix.EINTR) {
 				continue
 			}
 
@@ -408,7 +410,7 @@ func inputReadable(fd int) bool {
 		pollFds := []unix.PollFd{{Fd: int32(fd), Events: unix.POLLIN}}
 
 		n, err := unix.Poll(pollFds, 0)
-		if err == unix.EINTR {
+		if errors.Is(err, unix.EINTR) {
 			continue
 		}
 

@@ -70,8 +70,9 @@ func (s *ScrollView) Layout(r geom.Rect) {
 		s.showScrollbar = false
 	case ScrollbarAlways:
 		s.showScrollbar = true
-	default: // ScrollbarAuto
+	case ScrollbarAuto:
 		s.showScrollbar = s.child != nil && s.child.MinSize().H > r.H
+	default:
 	}
 
 	// Layout child — reduce width if scrollbar is visible
@@ -186,6 +187,7 @@ func (s *ScrollView) HandleAction(act int, ctx *tui.Ctx) bool {
 		s.ScrollTo(ctx, s.maxScrollY())
 
 		return true
+	default:
 	}
 
 	return false
@@ -197,8 +199,6 @@ func (s *ScrollView) HandleAction(act int, ctx *tui.Ctx) bool {
 func (s *ScrollView) MouseOpaque() {}
 
 func (s *ScrollView) Handle(e tui.Event, ctx *tui.Ctx) bool {
-	// Mouse handling — ScrollView is mouseOpaque, so it receives all mouse
-	// events for its rect and must delegate non-wheel events to its child.
 	if me, ok := e.(tui.MouseEvent); ok {
 		wheelLines := 3
 		if me.WheelDelta > 0 {
@@ -214,37 +214,10 @@ func (s *ScrollView) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			s.ScrollBy(ctx, wheelLines)
 
 			return true
+		case tui.MouseButtonNone, tui.MouseButtonLeft, tui.MouseButtonMiddle, tui.MouseButtonRight:
+			return s.handleMouseButton(me, ctx)
 		default:
-			// Delegate to scrollbar if the click is in the scrollbar column
-			if s.showScrollbar && s.scrollbar != nil {
-				sbRect := s.scrollbar.Rect()
-				if me.X >= sbRect.X && me.X < sbRect.X+sbRect.W {
-					return s.scrollbar.Handle(me, ctx)
-				}
-				// Dragging: if scrollbar is in drag mode, delegate regardless of X
-				if s.scrollbar.dragging {
-					return s.scrollbar.Handle(me, ctx)
-				}
-			}
-
-			if s.child != nil {
-				adjusted := me
-
-				adjusted.Y += s.scrollY
-				if s.child.Handle(adjusted, ctx) {
-					return true
-				}
-			}
-
-			if me.Button == tui.MouseButtonLeft && me.Action == tui.MousePress && s.focusable {
-				if ctx != nil && ctx.RequestFocus != nil {
-					ctx.RequestFocus(s.id)
-				}
-
-				return true
-			}
-
-			return false
+			return s.handleMouseButton(me, ctx)
 		}
 	}
 
@@ -278,6 +251,7 @@ func (s *ScrollView) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		s.ScrollTo(ctx, s.maxScrollY())
 
 		return true
+	default:
 	}
 
 	return false
@@ -307,6 +281,38 @@ func (s *ScrollView) ScrollTop(ctx *tui.Ctx) {
 
 func (s *ScrollView) ScrollBottom(ctx *tui.Ctx) {
 	s.ScrollTo(ctx, s.maxScrollY())
+}
+
+func (s *ScrollView) handleMouseButton(me tui.MouseEvent, ctx *tui.Ctx) bool {
+	if s.showScrollbar && s.scrollbar != nil {
+		sbRect := s.scrollbar.Rect()
+		if me.X >= sbRect.X && me.X < sbRect.X+sbRect.W {
+			return s.scrollbar.Handle(me, ctx)
+		}
+
+		if s.scrollbar.dragging {
+			return s.scrollbar.Handle(me, ctx)
+		}
+	}
+
+	if s.child != nil {
+		adjusted := me
+
+		adjusted.Y += s.scrollY
+		if s.child.Handle(adjusted, ctx) {
+			return true
+		}
+	}
+
+	if me.Button == tui.MouseButtonLeft && me.Action == tui.MousePress && s.focusable {
+		if ctx != nil && ctx.RequestFocus != nil {
+			ctx.RequestFocus(s.id)
+		}
+
+		return true
+	}
+
+	return false
 }
 
 func (s *ScrollView) contentHeight() int {

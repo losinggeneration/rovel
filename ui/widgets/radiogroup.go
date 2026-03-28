@@ -191,6 +191,7 @@ func (r *RadioGroup) Handle(e tui.Event, ctx *tui.Ctx) bool {
 
 			return true
 		}
+	default:
 	}
 
 	return false
@@ -221,6 +222,7 @@ func (r *RadioGroup) HandleAction(act int, ctx *tui.Ctx) bool {
 		}
 
 		return true
+	default:
 	}
 
 	return false

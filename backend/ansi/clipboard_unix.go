@@ -8,13 +8,16 @@ import (
 	"fmt"
 )
 
+var ErrClipboardPayloadTooLarge = errors.New("clipboard payload too large")
+var ErrClipboardReadNotSupported = errors.New("clipboard read not supported synchronously; use ClipboardReadRequest")
+
 // maxClipboardBytes is the maximum payload size for OSC 52 clipboard write.
 const maxClipboardBytes = 64 * 1024
 
 // ClipboardWrite writes text to the system clipboard via OSC 52.
 func (b *Backend) ClipboardWrite(text string) error {
 	if len(text) > maxClipboardBytes {
-		return fmt.Errorf("clipboard payload too large: %d bytes (max %d)", len(text), maxClipboardBytes)
+		return fmt.Errorf("clipboard payload too large: %d bytes (max %d): %w", len(text), maxClipboardBytes, ErrClipboardPayloadTooLarge)
 	}
 
 	encoded := base64.StdEncoding.EncodeToString([]byte(text))
@@ -32,7 +35,7 @@ func (b *Backend) ClipboardWrite(text string) error {
 // ClipboardRead is not supported synchronously by the ANSI backend.
 // Use ClipboardReadRequest for async clipboard reading via OSC 52.
 func (b *Backend) ClipboardRead() (string, error) {
-	return "", errors.New("clipboard read not supported synchronously; use ClipboardReadRequest")
+	return "", ErrClipboardReadNotSupported
 }
 
 // ClipboardReadRequest sends an OSC 52 read request to the terminal.

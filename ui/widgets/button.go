@@ -143,6 +143,7 @@ func (b *Button) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 		switch ctx.Theme.EffectiveAesthetic() {
 		case tui.AestheticModern:
 			chrome = ButtonChromeSolid
+		case tui.AestheticClassic:
 		default:
 			chrome = ButtonChromeBrackets
 		}

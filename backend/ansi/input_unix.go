@@ -130,6 +130,8 @@ func (d *InputDecoder) Finalize(dst []event.Event) []event.Event {
 	case stateOSC, stateOSCEsc:
 		// Discard incomplete OSC at end-of-stream.
 		d.oscBuf = d.oscBuf[:0]
+	case stateGround:
+	default:
 	}
 
 	d.Reset()

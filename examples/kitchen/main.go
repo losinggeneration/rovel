@@ -54,6 +54,7 @@ func (appKeymap) Resolve(ctx ui.KeyContext, k ui.Keystroke) (ui.Action, bool) {
 		return ActionQuit, true
 	case event.KeyEsc:
 		return ActionQuit, true
+	default:
 	}
 
 	return ui.ActionNone, false

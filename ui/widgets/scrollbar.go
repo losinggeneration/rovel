@@ -182,6 +182,8 @@ func (s *Scrollbar) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		}
 
 		return false
+	case tui.MouseMove:
+		return false
 	}
 
 	return false

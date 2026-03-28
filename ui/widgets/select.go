@@ -164,6 +164,7 @@ func (s *Select) Handle(e tui.Event, ctx *tui.Ctx) bool {
 
 			return true
 		}
+	default:
 	}
 
 	return false
@@ -350,6 +351,7 @@ func (l *selectList) Handle(e tui.Event, ctx *tui.Ctx) bool {
 
 			return true
 		}
+	default:
 	}
 
 	return false
@@ -378,6 +380,7 @@ func (l *selectList) HandleAction(act int, ctx *tui.Ctx) bool {
 		}
 
 		return true
+	default:
 	}
 
 	return false

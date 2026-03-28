@@ -206,6 +206,8 @@ func (c Color) toBasic() Color {
 	case ColorKindIndexed:
 		idx, _ := c.Index()
 		r, g, b = xterm256RGB(int(idx))
+	case ColorKindDefault, ColorKindBasic:
+		return c
 	default:
 		return c
 	}

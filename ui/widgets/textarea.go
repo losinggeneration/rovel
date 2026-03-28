@@ -520,6 +520,7 @@ func (ta *TextArea) HandleAction(act int, ctx *tui.Ctx) bool {
 		ctx.Invalidate(ta.rect)
 
 		return true
+	default:
 	}
 
 	return false

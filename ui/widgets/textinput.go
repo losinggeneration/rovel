@@ -279,6 +279,7 @@ func (t *TextInput) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		ctx.Invalidate(t.rect)
 
 		return true
+	default:
 	}
 
 	return false
@@ -399,6 +400,7 @@ func (t *TextInput) HandleAction(act int, ctx *tui.Ctx) bool {
 		}
 
 		return true
+	default:
 	}
 
 	return false

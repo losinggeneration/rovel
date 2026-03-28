@@ -31,6 +31,7 @@ func (themeKeymap) Resolve(ctx ui.KeyContext, k ui.Keystroke) (ui.Action, bool) 
 		return ui.ActionFocusPrev, true
 	case event.KeyRight, event.KeyTab:
 		return ui.ActionFocusNext, true
+	default:
 	}
 
 	if ctx == ui.KeyCtxTextInput {
@@ -603,6 +604,7 @@ func (r *Root) HandleAction(act int, ctx *tui.Ctx) bool {
 		}
 
 		return true
+	default:
 	}
 
 	return false

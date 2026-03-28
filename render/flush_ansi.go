@@ -111,6 +111,8 @@ func appendFGColor(params []int, c style.Color) []int {
 		r, g, b, _ := c.RGB()
 
 		return append(params, 38, 2, int(r), int(g), int(b))
+	case style.ColorKindDefault:
+		return params
 	}
 
 	return params
@@ -134,6 +136,8 @@ func appendBGColor(params []int, c style.Color) []int {
 		r, g, b, _ := c.RGB()
 
 		return append(params, 48, 2, int(r), int(g), int(b))
+	case style.ColorKindDefault:
+		return params
 	}
 
 	return params

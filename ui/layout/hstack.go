@@ -252,6 +252,7 @@ func (s *HStack) HandleAction(act int, ctx *tui.Ctx) bool {
 		}
 
 		return false
+	default:
 	}
 
 	return false
@@ -322,6 +323,7 @@ func (s *HStack) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		}
 
 		return false
+	default:
 	}
 
 	return false

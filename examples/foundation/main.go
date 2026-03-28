@@ -23,9 +23,9 @@ func (quitKeymap) Resolve(_ ui.KeyContext, k ui.Keystroke) (ui.Action, bool) {
 	switch k.Key {
 	case event.KeyEsc, event.KeyCtrlC:
 		return ActionQuit, true
+	default:
+		return ui.ActionNone, false
 	}
-
-	return ui.ActionNone, false
 }
 
 type Root struct {

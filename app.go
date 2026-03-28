@@ -941,6 +941,8 @@ func (a *App) enrichMouseEvent(e *MouseEvent) {
 
 		a.mouse.pressButton = event.MouseButtonNone
 		a.mouse.dragging = false
+	case event.MouseDrag:
+	default:
 	}
 }
 

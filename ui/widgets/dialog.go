@@ -268,6 +268,7 @@ func (d *Dialog) Handle(e tui.Event, ctx *tui.Ctx) bool {
 
 			return true
 		}
+	default:
 	}
 
 	return false
@@ -308,6 +309,7 @@ func (d *Dialog) HandleAction(act int, ctx *tui.Ctx) bool {
 		ctx.Invalidate(d.rect)
 
 		return true
+	default:
 	}
 
 	return false

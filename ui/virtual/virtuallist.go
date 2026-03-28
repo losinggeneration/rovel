@@ -192,6 +192,7 @@ func (v *VirtualList) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			v.ScrollBy(ctx, wheelItems)
 
 			return true
+		default:
 		}
 
 		return false
@@ -270,6 +271,7 @@ func (v *VirtualList) HandleAction(act int, ctx *tui.Ctx) bool {
 		v.SelectIndex(ctx, n-1)
 
 		return true
+	default:
 	}
 
 	return false

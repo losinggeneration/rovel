@@ -55,6 +55,7 @@ func defaultGlobalBinding(k Keystroke) (Action, bool) {
 		if k.Rune == ' ' && k.Mod == 0 {
 			return ActionActivate, true
 		}
+	default:
 	}
 
 	return ActionNone, false
@@ -110,6 +111,7 @@ func defaultTextInputBinding(k Keystroke) (Action, bool) {
 		return ActionHome, true
 	case event.KeyEnd:
 		return ActionEnd, true
+	default:
 	}
 
 	return ActionNone, false

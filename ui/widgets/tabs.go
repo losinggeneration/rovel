@@ -180,6 +180,7 @@ func (t *Tabs) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		}
 
 		return true
+	default:
 	}
 
 	return false
@@ -213,6 +214,7 @@ func (t *Tabs) HandleAction(act int, ctx *tui.Ctx) bool {
 		t.focusContent(ctx)
 
 		return true
+	default:
 	}
 
 	return false
