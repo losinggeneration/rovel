@@ -109,42 +109,6 @@ func (ta *TextArea) Focusable() bool    { return true }
 // IsTextInputMode returns true when the text area is not read-only.
 func (ta *TextArea) IsTextInputMode() bool { return !ta.readOnly }
 
-// rebuildLineIndex scans text for \n and builds the line index.
-// An empty text produces one empty entry.
-func (ta *TextArea) rebuildLineIndex() {
-	ta.lines = ta.lines[:0]
-	start := 0
-
-	for i := range len(ta.text) {
-		if ta.text[i] == '\n' {
-			ta.lines = append(ta.lines, lineEntry{startByte: start, endByte: i})
-			start = i + 1
-		}
-	}
-	// Final line (or only line if no \n)
-	ta.lines = append(ta.lines, lineEntry{startByte: start, endByte: len(ta.text)})
-}
-
-// cursorLine returns the line index containing the cursor.
-func (ta *TextArea) cursorLine() int {
-	for i, ln := range ta.lines {
-		// Cursor is within or at the end of this line
-		if ta.cursor >= ln.startByte && ta.cursor <= ln.endByte {
-			return i
-		}
-	}
-
-	return len(ta.lines) - 1
-}
-
-// cursorCol returns the display column of the cursor within its line.
-func (ta *TextArea) cursorCol() int {
-	line := ta.cursorLine()
-	ln := ta.lines[line]
-
-	return text.ColumnOf(ta.text[ln.startByte:ln.endByte], ta.cursor-ln.startByte)
-}
-
 // ScrollY returns the current vertical scroll offset (line index).
 func (ta *TextArea) ScrollY() int { return ta.scrollY }
 
@@ -158,42 +122,6 @@ func (ta *TextArea) SetScrollY(ctx *tui.Ctx, y int) {
 
 	if ta.scrollY != old && ctx != nil {
 		ctx.Invalidate(ta.rect)
-	}
-}
-
-// scrollBy adjusts scrollY by delta, clamping to valid range.
-func (ta *TextArea) scrollBy(delta int) {
-	ta.scrollY += delta
-	ta.clampScrollY()
-}
-
-// clampScrollY keeps scrollY within valid bounds.
-func (ta *TextArea) clampScrollY() {
-	maxScroll := len(ta.lines) - ta.rect.H
-	if maxScroll < 0 {
-		maxScroll = 0
-	}
-
-	if ta.scrollY < 0 {
-		ta.scrollY = 0
-	} else if ta.scrollY > maxScroll {
-		ta.scrollY = maxScroll
-	}
-}
-
-// scrollToCursor ensures the cursor line is visible.
-func (ta *TextArea) scrollToCursor() {
-	if ta.rect.H <= 0 {
-		return
-	}
-
-	line := ta.cursorLine()
-	if line < ta.scrollY {
-		ta.scrollY = line
-	}
-
-	if line >= ta.scrollY+ta.rect.H {
-		ta.scrollY = line - ta.rect.H + 1
 	}
 }
 
@@ -400,25 +328,6 @@ func (ta *TextArea) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	return false
 }
 
-// handlePaste inserts pasted text.
-func (ta *TextArea) handlePaste(e event.PasteEvent, ctx *tui.Ctx) bool {
-	if ctx.FocusedID != ta.id || ta.readOnly {
-		return false
-	}
-
-	insert := text.Sanitize(strings.ReplaceAll(e.Text, "\r\n", "\n"))
-	if insert == "" {
-		return true
-	}
-
-	ta.insertText(insert)
-	ta.desiredCol = -1
-	ta.scrollToCursor()
-	ctx.Invalidate(ta.rect)
-
-	return true
-}
-
 // HandleAction handles semantic actions.
 func (ta *TextArea) HandleAction(act int, ctx *tui.Ctx) bool {
 	if ctx.FocusedID != ta.id {
@@ -614,6 +523,97 @@ func (ta *TextArea) HandleAction(act int, ctx *tui.Ctx) bool {
 	}
 
 	return false
+}
+
+// rebuildLineIndex scans text for \n and builds the line index.
+// An empty text produces one empty entry.
+func (ta *TextArea) rebuildLineIndex() {
+	ta.lines = ta.lines[:0]
+	start := 0
+
+	for i := range len(ta.text) {
+		if ta.text[i] == '\n' {
+			ta.lines = append(ta.lines, lineEntry{startByte: start, endByte: i})
+			start = i + 1
+		}
+	}
+	// Final line (or only line if no \n)
+	ta.lines = append(ta.lines, lineEntry{startByte: start, endByte: len(ta.text)})
+}
+
+// cursorLine returns the line index containing the cursor.
+func (ta *TextArea) cursorLine() int {
+	for i, ln := range ta.lines {
+		// Cursor is within or at the end of this line
+		if ta.cursor >= ln.startByte && ta.cursor <= ln.endByte {
+			return i
+		}
+	}
+
+	return len(ta.lines) - 1
+}
+
+// cursorCol returns the display column of the cursor within its line.
+func (ta *TextArea) cursorCol() int {
+	line := ta.cursorLine()
+	ln := ta.lines[line]
+
+	return text.ColumnOf(ta.text[ln.startByte:ln.endByte], ta.cursor-ln.startByte)
+}
+
+// scrollBy adjusts scrollY by delta, clamping to valid range.
+func (ta *TextArea) scrollBy(delta int) {
+	ta.scrollY += delta
+	ta.clampScrollY()
+}
+
+// clampScrollY keeps scrollY within valid bounds.
+func (ta *TextArea) clampScrollY() {
+	maxScroll := len(ta.lines) - ta.rect.H
+	if maxScroll < 0 {
+		maxScroll = 0
+	}
+
+	if ta.scrollY < 0 {
+		ta.scrollY = 0
+	} else if ta.scrollY > maxScroll {
+		ta.scrollY = maxScroll
+	}
+}
+
+// scrollToCursor ensures the cursor line is visible.
+func (ta *TextArea) scrollToCursor() {
+	if ta.rect.H <= 0 {
+		return
+	}
+
+	line := ta.cursorLine()
+	if line < ta.scrollY {
+		ta.scrollY = line
+	}
+
+	if line >= ta.scrollY+ta.rect.H {
+		ta.scrollY = line - ta.rect.H + 1
+	}
+}
+
+// handlePaste inserts pasted text.
+func (ta *TextArea) handlePaste(e event.PasteEvent, ctx *tui.Ctx) bool {
+	if ctx.FocusedID != ta.id || ta.readOnly {
+		return false
+	}
+
+	insert := text.Sanitize(strings.ReplaceAll(e.Text, "\r\n", "\n"))
+	if insert == "" {
+		return true
+	}
+
+	ta.insertText(insert)
+	ta.desiredCol = -1
+	ta.scrollToCursor()
+	ctx.Invalidate(ta.rect)
+
+	return true
 }
 
 // moveCursorVertical moves the cursor up (dir=-1) or down (dir=1),

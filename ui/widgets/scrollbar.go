@@ -82,43 +82,6 @@ func (s *Scrollbar) Dragging() bool {
 	return s.dragging
 }
 
-// maxScroll returns the maximum scroll offset.
-func (s *Scrollbar) maxScroll() int {
-	m := s.contentSize - s.viewSize
-	if m < 0 {
-		return 0
-	}
-
-	return m
-}
-
-// thumbGeometry returns (thumbHeight, thumbY) in rows relative to the rect.
-func (s *Scrollbar) thumbGeometry() (thumbH, thumbY int) {
-	h := s.rect.H
-	if h <= 0 || s.contentSize <= s.viewSize {
-		return 0, 0
-	}
-
-	thumbH = max(1, s.viewSize*h/s.contentSize)
-
-	maxS := s.maxScroll()
-	if maxS <= 0 {
-		thumbY = 0
-	} else {
-		thumbY = s.position * (h - thumbH) / maxS
-	}
-
-	if thumbY+thumbH > h {
-		thumbY = h - thumbH
-	}
-
-	if thumbY < 0 {
-		thumbY = 0
-	}
-
-	return thumbH, thumbY
-}
-
 func (s *Scrollbar) Paint(p *tui.Painter, ctx *tui.Ctx) {
 	s.PaintDrawer(tui.NewDrawer(p), ctx)
 }
@@ -171,12 +134,10 @@ func (s *Scrollbar) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		thumbH, thumbY := s.thumbGeometry()
 
 		if clickY >= thumbY && clickY < thumbY+thumbH {
-			// Click on thumb — start drag
 			s.dragging = true
 			s.dragStartY = me.Y
 			s.dragStartPos = s.position
 		} else {
-			// Click on track — jump to proportional position
 			maxS := s.maxScroll()
 			newPos := clickY * maxS / (s.rect.H - 1)
 			newPos = max(0, min(newPos, maxS))
@@ -224,4 +185,39 @@ func (s *Scrollbar) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	}
 
 	return false
+}
+
+func (s *Scrollbar) maxScroll() int {
+	m := s.contentSize - s.viewSize
+	if m < 0 {
+		return 0
+	}
+
+	return m
+}
+
+func (s *Scrollbar) thumbGeometry() (thumbH, thumbY int) {
+	h := s.rect.H
+	if h <= 0 || s.contentSize <= s.viewSize {
+		return 0, 0
+	}
+
+	thumbH = max(1, s.viewSize*h/s.contentSize)
+
+	maxS := s.maxScroll()
+	if maxS <= 0 {
+		thumbY = 0
+	} else {
+		thumbY = s.position * (h - thumbH) / maxS
+	}
+
+	if thumbY+thumbH > h {
+		thumbY = h - thumbH
+	}
+
+	if thumbY < 0 {
+		thumbY = 0
+	}
+
+	return thumbH, thumbY
 }

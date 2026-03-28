@@ -85,28 +85,6 @@ func (t *Tabs) Layout(r tui.Rect) {
 	t.layoutContent()
 }
 
-func (t *Tabs) layoutContent() {
-	if len(t.tabs) == 0 {
-		return
-	}
-	// Content area is everything below the tab bar (1 line)
-	cr := t.contentRect()
-	if cr.H > 0 && t.selected >= 0 && t.selected < len(t.tabs) {
-		if content := t.tabs[t.selected].Content; content != nil {
-			content.Layout(cr)
-		}
-	}
-}
-
-func (t *Tabs) contentRect() geom.Rect {
-	r := t.rect
-	if r.H <= 1 {
-		return geom.Rect{}
-	}
-
-	return geom.Rect{X: r.X, Y: r.Y + 1, W: r.W, H: r.H - 1}
-}
-
 func (t *Tabs) MinSize() geom.Size {
 	barW := 0
 	for _, tab := range t.tabs {
@@ -154,46 +132,6 @@ func (t *Tabs) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 				})
 			}
 		}
-	}
-}
-
-func (t *Tabs) paintTabBar(d tui.Drawer, ctx *tui.Ctx, focused bool) {
-	r := t.rect
-
-	barFallback := ctx.Theme.Palette.Surface
-	if barFallback == (style.Style{}) {
-		barFallback = ctx.Theme.Base
-	}
-
-	barSt := resolveStyle(t.stBar, barFallback)
-
-	// Clear bar
-	d.FillRect(geom.Rect{X: r.X, Y: r.Y, W: r.W, H: 1}, barSt)
-
-	x := r.X
-	for i, tab := range t.tabs {
-		if x >= r.X+r.W {
-			break
-		}
-
-		label := " " + tab.Title + " "
-		w := text.Width(label)
-
-		var st style.Style
-
-		if i == t.selected {
-			if focused {
-				st = resolveStyle(t.stFocused, ctx.Theme.Palette.Focus)
-			} else {
-				st = resolveStyle(t.stSelected, ctx.Theme.Palette.Accent)
-			}
-		} else {
-			st = barSt
-		}
-
-		lbl := text.Truncate(label, r.X+r.W-x, false)
-		d.DrawText(tui.Point{X: x, Y: r.Y}, lbl, st)
-		x += w
 	}
 }
 
@@ -289,6 +227,67 @@ func (t *Tabs) Children() []tui.View {
 	}
 
 	return nil
+}
+
+func (t *Tabs) layoutContent() {
+	if len(t.tabs) == 0 {
+		return
+	}
+
+	cr := t.contentRect()
+	if cr.H > 0 && t.selected >= 0 && t.selected < len(t.tabs) {
+		if content := t.tabs[t.selected].Content; content != nil {
+			content.Layout(cr)
+		}
+	}
+}
+
+func (t *Tabs) contentRect() geom.Rect {
+	r := t.rect
+	if r.H <= 1 {
+		return geom.Rect{}
+	}
+
+	return geom.Rect{X: r.X, Y: r.Y + 1, W: r.W, H: r.H - 1}
+}
+
+func (t *Tabs) paintTabBar(d tui.Drawer, ctx *tui.Ctx, focused bool) {
+	r := t.rect
+
+	barFallback := ctx.Theme.Palette.Surface
+	if barFallback == (style.Style{}) {
+		barFallback = ctx.Theme.Base
+	}
+
+	barSt := resolveStyle(t.stBar, barFallback)
+
+	d.FillRect(geom.Rect{X: r.X, Y: r.Y, W: r.W, H: 1}, barSt)
+
+	x := r.X
+	for i, tab := range t.tabs {
+		if x >= r.X+r.W {
+			break
+		}
+
+		label := " " + tab.Title + " "
+		w := text.Width(label)
+
+		var st style.Style
+
+		if i == t.selected {
+			if focused {
+				st = resolveStyle(t.stFocused, ctx.Theme.Palette.Focus)
+			} else {
+				st = resolveStyle(t.stSelected, ctx.Theme.Palette.Accent)
+			}
+		} else {
+			st = barSt
+		}
+
+		lbl := text.Truncate(label, r.X+r.W-x, false)
+		d.DrawText(tui.Point{X: x, Y: r.Y}, lbl, st)
+		x += w
+	}
 }
 
 func (t *Tabs) switchTab(ctx *tui.Ctx, idx int) {

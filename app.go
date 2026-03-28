@@ -240,6 +240,242 @@ func (a *App) Restore() error {
 	return nil
 }
 
+// Run starts the main event loop and blocks until the application quits.
+func (a *App) Run() (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			_ = a.Restore()
+
+			panic(r)
+		}
+	}()
+
+	a.closeMu.Lock()
+	a.closed = false
+	a.closeMu.Unlock()
+
+	a.running.Store(true)
+
+	go a.readEvents()
+
+	for a.running.Load() {
+		const maxPostsPerIteration = 64
+
+		ctx := a.mkUpdateCtx()
+		processedPosts := false
+
+		for range maxPostsPerIteration {
+			a.postMu.Lock()
+
+			if len(a.postQueue) == 0 {
+				a.postMu.Unlock()
+
+				break
+			}
+
+			fn := a.postQueue[0]
+			a.postQueue = a.postQueue[1:]
+			a.postMu.Unlock()
+
+			fn(ctx)
+
+			processedPosts = true
+
+			if !a.running.Load() {
+				a.setClosed()
+
+				return nil
+			}
+		}
+
+		// Posted callbacks run on the app loop and may invalidate, relayout,
+		// or change overlay/focus state. Render that work before blocking for
+		// the next external wake/event so Post-driven updates are not delayed
+		// by loop timing.
+		if processedPosts {
+			a.render()
+			a.lastRenderTime = time.Now()
+		}
+
+		select {
+		case e, ok := <-a.eventCh:
+			if !ok {
+				a.setClosed()
+
+				return nil
+			}
+
+			for _, qe := range a.compactEventBatch(a.collectEventBatch(e)) {
+				a.handleEvent(qe)
+
+				if !a.running.Load() {
+					a.setClosed()
+
+					return nil
+				}
+			}
+
+			if a.shouldSkipRender() {
+				continue
+			}
+
+			a.render()
+			a.lastRenderTime = time.Now()
+
+		case <-a.wakeCh:
+			a.render()
+			a.lastRenderTime = time.Now()
+		}
+	}
+
+	a.setClosed()
+
+	return nil
+}
+
+// Invalidate marks a rect as needing repaint.
+func (a *App) Invalidate(r geom.Rect) {
+	a.invalidRects = append(a.invalidRects, r)
+}
+
+// InvalidateAll marks the entire screen as needing repaint.
+func (a *App) InvalidateAll() {
+	a.Invalidate(geom.Rect{X: 0, Y: 0, W: a.size.W, H: a.size.H})
+}
+
+// InvalidateLayout marks that a layout pass is needed.
+func (a *App) InvalidateLayout(id ID) {
+	a.layoutDirty = true
+}
+
+// Errors returns the accumulated errors from terminal operations.
+// The returned slice is a copy and is safe to modify.
+// Errors are capped at 50 by default; older errors are discarded.
+func (a *App) Errors() []error {
+	return a.errs.Get()
+}
+
+// Quit requests the application to stop.
+// It is safe to call from any goroutine.
+// Repeated calls are harmless and idempotent.
+func (a *App) Quit() {
+	a.closeMu.Lock()
+	defer a.closeMu.Unlock()
+
+	if a.closed {
+		return
+	}
+
+	a.running.Store(false)
+}
+
+// Post schedules fn to run on the app loop.
+// It is safe to call from any goroutine, including before Run().
+// Returns ErrClosed if the app is shutting down or closed.
+func (a *App) Post(fn func(ctx *UpdateCtx)) error {
+	if fn == nil {
+		return nil
+	}
+
+	a.closeMu.RLock()
+
+	if a.closed {
+		a.closeMu.RUnlock()
+
+		return ErrClosed
+	}
+
+	a.closeMu.RUnlock()
+
+	a.postMu.Lock()
+	a.postQueue = append(a.postQueue, fn)
+	a.postMu.Unlock()
+
+	a.wake()
+
+	return nil
+}
+
+// Size returns the current terminal size.
+func (a *App) Size() geom.Size {
+	return a.size
+}
+
+// ShowOverlay pushes an overlay onto the stack. The overlay is laid out
+// immediately and the screen is invalidated. If modal, focus is saved and
+// moved to the first focusable view in the overlay subtree.
+// Must be called from the app loop (or via App.Post).
+func (a *App) ShowOverlay(opts OverlayOpts) *Overlay {
+	o := a.overlays.PushOverlay(opts, a.focusedID)
+	o.rect = o.place.Resolve(o.root, a.size)
+	o.root.Layout(o.rect)
+	a.rebuildTree()
+	a.updateBounds()
+	a.Invalidate(o.rect)
+
+	// Focus first focusable in overlay
+	a.focusFirstIn(o.root)
+
+	return o
+}
+
+// DismissOverlay removes the topmost overlay. Restores saved focus if modal.
+// Returns the dismissed overlay, or nil if no overlays exist.
+func (a *App) DismissOverlay() *Overlay {
+	o := a.overlays.PopOverlay()
+	if o == nil {
+		return nil
+	}
+
+	if o.onDismiss != nil {
+		o.onDismiss()
+	}
+	// Clean up scope memory for the dismissed overlay's scope.
+	delete(a.scopeMemory, o.id)
+	a.rebuildTree()
+	a.updateBounds()
+	// Restore focus
+	a.setRequestFocus(o.savedFocus)
+	a.Invalidate(o.rect)
+
+	return o
+}
+
+// DismissOverlayByID removes a specific overlay by ID.
+func (a *App) DismissOverlayByID(id ID) *Overlay {
+	o := a.overlays.PopOverlayByID(id)
+	if o == nil {
+		return nil
+	}
+
+	if o.onDismiss != nil {
+		o.onDismiss()
+	}
+
+	a.rebuildTree()
+	a.updateBounds()
+	a.setRequestFocus(o.savedFocus)
+	a.Invalidate(o.rect)
+
+	return o
+}
+
+// Focus sets the keyboard focus to the view with the given ID.
+// Must be called from the app loop goroutine (e.g., via App.Post).
+func (a *App) Focus(id ID) {
+	a.setRequestFocus(id)
+}
+
+// SetTheme changes the application theme at runtime.
+// Must be called from the app loop goroutine (e.g., via App.Post).
+// Triggers full repaint with new theme.
+func (a *App) SetTheme(theme Theme) {
+	a.opts.Theme = theme
+	a.resolvedTheme = theme.Resolved(a.capability)
+	a.presenter.ResetStyle() // Force re-emission of all SGR codes with new theme
+	a.InvalidateAll()
+}
+
 // doInitialPaint performs the initial paint of the screen.
 func (a *App) doInitialPaint() {
 	if a.root == nil {
@@ -341,99 +577,6 @@ func (a *App) layout() {
 	a.overlays.layoutOverlays(a.size)
 
 	a.layoutDirty = false
-}
-
-// Run starts the main event loop and blocks until the application quits.
-func (a *App) Run() (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			_ = a.Restore()
-
-			panic(r)
-		}
-	}()
-
-	a.closeMu.Lock()
-	a.closed = false
-	a.closeMu.Unlock()
-
-	a.running.Store(true)
-
-	go a.readEvents()
-
-	for a.running.Load() {
-		const maxPostsPerIteration = 64
-
-		ctx := a.mkUpdateCtx()
-		processedPosts := false
-
-		for range maxPostsPerIteration {
-			a.postMu.Lock()
-
-			if len(a.postQueue) == 0 {
-				a.postMu.Unlock()
-
-				break
-			}
-
-			fn := a.postQueue[0]
-			a.postQueue = a.postQueue[1:]
-			a.postMu.Unlock()
-
-			fn(ctx)
-
-			processedPosts = true
-
-			if !a.running.Load() {
-				a.setClosed()
-
-				return nil
-			}
-		}
-
-		// Posted callbacks run on the app loop and may invalidate, relayout,
-		// or change overlay/focus state. Render that work before blocking for
-		// the next external wake/event so Post-driven updates are not delayed
-		// by loop timing.
-		if processedPosts {
-			a.render()
-			a.lastRenderTime = time.Now()
-		}
-
-		select {
-		case e, ok := <-a.eventCh:
-			if !ok {
-				a.setClosed()
-
-				return nil
-			}
-
-			for _, qe := range a.compactEventBatch(a.collectEventBatch(e)) {
-				a.handleEvent(qe)
-
-				if !a.running.Load() {
-					a.setClosed()
-
-					return nil
-				}
-			}
-
-			if a.shouldSkipRender() {
-				continue
-			}
-
-			a.render()
-			a.lastRenderTime = time.Now()
-
-		case <-a.wakeCh:
-			a.render()
-			a.lastRenderTime = time.Now()
-		}
-	}
-
-	a.setClosed()
-
-	return nil
 }
 
 func (a *App) setClosed() {
@@ -918,21 +1061,6 @@ func (a *App) handleResizeEvent(e ResizeEvent) {
 	a.Invalidate(geom.Rect{X: 0, Y: 0, W: e.W, H: e.H})
 }
 
-// Invalidate marks a rect as needing repaint.
-func (a *App) Invalidate(r geom.Rect) {
-	a.invalidRects = append(a.invalidRects, r)
-}
-
-// InvalidateAll marks the entire screen as needing repaint.
-func (a *App) InvalidateAll() {
-	a.Invalidate(geom.Rect{X: 0, Y: 0, W: a.size.W, H: a.size.H})
-}
-
-// InvalidateLayout marks that a layout pass is needed.
-func (a *App) InvalidateLayout(id ID) {
-	a.layoutDirty = true
-}
-
 // mkCtx creates a context for a view.
 func (a *App) mkCtx(v View) *Ctx {
 	ctx := &Ctx{
@@ -1094,54 +1222,6 @@ func (a *App) render() {
 	a.presentFrame()
 }
 
-// Errors returns the accumulated errors from terminal operations.
-// The returned slice is a copy and is safe to modify.
-// Errors are capped at 50 by default; older errors are discarded.
-func (a *App) Errors() []error {
-	return a.errs.Get()
-}
-
-// Quit requests the application to stop.
-// It is safe to call from any goroutine.
-// Repeated calls are harmless and idempotent.
-func (a *App) Quit() {
-	a.closeMu.Lock()
-	defer a.closeMu.Unlock()
-
-	if a.closed {
-		return
-	}
-
-	a.running.Store(false)
-}
-
-// Post schedules fn to run on the app loop.
-// It is safe to call from any goroutine, including before Run().
-// Returns ErrClosed if the app is shutting down or closed.
-func (a *App) Post(fn func(ctx *UpdateCtx)) error {
-	if fn == nil {
-		return nil
-	}
-
-	a.closeMu.RLock()
-
-	if a.closed {
-		a.closeMu.RUnlock()
-
-		return ErrClosed
-	}
-
-	a.closeMu.RUnlock()
-
-	a.postMu.Lock()
-	a.postQueue = append(a.postQueue, fn)
-	a.postMu.Unlock()
-
-	a.wake()
-
-	return nil
-}
-
 // wake signals the event loop to wake up.
 // It is internal machinery, not part of the public API.
 func (a *App) wake() {
@@ -1149,70 +1229,6 @@ func (a *App) wake() {
 	case a.wakeCh <- struct{}{}:
 	default:
 	}
-}
-
-// Size returns the current terminal size.
-func (a *App) Size() geom.Size {
-	return a.size
-}
-
-// ShowOverlay pushes an overlay onto the stack. The overlay is laid out
-// immediately and the screen is invalidated. If modal, focus is saved and
-// moved to the first focusable view in the overlay subtree.
-// Must be called from the app loop (or via App.Post).
-func (a *App) ShowOverlay(opts OverlayOpts) *Overlay {
-	o := a.overlays.PushOverlay(opts, a.focusedID)
-	o.rect = o.place.Resolve(o.root, a.size)
-	o.root.Layout(o.rect)
-	a.rebuildTree()
-	a.updateBounds()
-	a.Invalidate(o.rect)
-
-	// Focus first focusable in overlay
-	a.focusFirstIn(o.root)
-
-	return o
-}
-
-// DismissOverlay removes the topmost overlay. Restores saved focus if modal.
-// Returns the dismissed overlay, or nil if no overlays exist.
-func (a *App) DismissOverlay() *Overlay {
-	o := a.overlays.PopOverlay()
-	if o == nil {
-		return nil
-	}
-
-	if o.onDismiss != nil {
-		o.onDismiss()
-	}
-	// Clean up scope memory for the dismissed overlay's scope.
-	delete(a.scopeMemory, o.id)
-	a.rebuildTree()
-	a.updateBounds()
-	// Restore focus
-	a.setRequestFocus(o.savedFocus)
-	a.Invalidate(o.rect)
-
-	return o
-}
-
-// DismissOverlayByID removes a specific overlay by ID.
-func (a *App) DismissOverlayByID(id ID) *Overlay {
-	o := a.overlays.PopOverlayByID(id)
-	if o == nil {
-		return nil
-	}
-
-	if o.onDismiss != nil {
-		o.onDismiss()
-	}
-
-	a.rebuildTree()
-	a.updateBounds()
-	a.setRequestFocus(o.savedFocus)
-	a.Invalidate(o.rect)
-
-	return o
 }
 
 // focusFirstIn sets focus to the first focusable descendant of v.
@@ -1237,20 +1253,4 @@ func (a *App) focusFirstIn(v View) {
 		return false
 	}
 	walk(v)
-}
-
-// Focus sets the keyboard focus to the view with the given ID.
-// Must be called from the app loop goroutine (e.g., via App.Post).
-func (a *App) Focus(id ID) {
-	a.setRequestFocus(id)
-}
-
-// SetTheme changes the application theme at runtime.
-// Must be called from the app loop goroutine (e.g., via App.Post).
-// Triggers full repaint with new theme.
-func (a *App) SetTheme(theme Theme) {
-	a.opts.Theme = theme
-	a.resolvedTheme = theme.Resolved(a.capability)
-	a.presenter.ResetStyle() // Force re-emission of all SGR codes with new theme
-	a.InvalidateAll()
 }

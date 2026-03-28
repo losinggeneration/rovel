@@ -284,64 +284,6 @@ func (t *TextInput) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	return false
 }
 
-// Handle also processes paste events.
-func (t *TextInput) handlePaste(e event.PasteEvent, ctx *tui.Ctx) bool {
-	if ctx.FocusedID != t.id {
-		return false
-	}
-
-	insert := text.Sanitize(e.Text)
-	if insert == "" {
-		return true
-	}
-
-	t.cursor = text.ClampCluster(t.text, t.cursor)
-	t.text = t.text[:t.cursor] + insert + t.text[t.cursor:]
-	t.cursor += len(insert)
-	t.cursor = text.ClampCluster(t.text, t.cursor)
-	t.updateScroll()
-	ctx.Invalidate(t.rect)
-
-	return true
-}
-
-// hasSelection reports whether a selection is active.
-func (t *TextInput) hasSelection() bool {
-	return t.anchor >= 0 && t.anchor != t.cursor
-}
-
-// selectionRange returns the normalized selection range.
-func (t *TextInput) selectionRange() text.Range {
-	if t.anchor < 0 {
-		return text.Range{Start: t.cursor, End: t.cursor}
-	}
-
-	return text.Range{Start: t.anchor, End: t.cursor}.Normalized()
-}
-
-// selectedText returns the currently selected text.
-func (t *TextInput) selectedText() string {
-	if !t.hasSelection() {
-		return ""
-	}
-
-	r := t.selectionRange()
-
-	return t.text[r.Start:r.End]
-}
-
-// deleteSelection removes the selected text and clears the anchor.
-func (t *TextInput) deleteSelection() {
-	if !t.hasSelection() {
-		return
-	}
-
-	r := t.selectionRange()
-	t.text, _ = text.DeleteRange(t.text, r)
-	t.cursor = r.Start
-	t.anchor = -1
-}
-
 // HandleAction handles semantic actions.
 func (t *TextInput) HandleAction(act int, ctx *tui.Ctx) bool {
 	if ctx.FocusedID != t.id {
@@ -469,6 +411,59 @@ func (t *TextInput) IsTextInputMode() bool {
 
 func (t *TextInput) Focusable() bool {
 	return true
+}
+
+func (t *TextInput) handlePaste(e event.PasteEvent, ctx *tui.Ctx) bool {
+	if ctx.FocusedID != t.id {
+		return false
+	}
+
+	insert := text.Sanitize(e.Text)
+	if insert == "" {
+		return true
+	}
+
+	t.cursor = text.ClampCluster(t.text, t.cursor)
+	t.text = t.text[:t.cursor] + insert + t.text[t.cursor:]
+	t.cursor += len(insert)
+	t.cursor = text.ClampCluster(t.text, t.cursor)
+	t.updateScroll()
+	ctx.Invalidate(t.rect)
+
+	return true
+}
+
+func (t *TextInput) hasSelection() bool {
+	return t.anchor >= 0 && t.anchor != t.cursor
+}
+
+func (t *TextInput) selectionRange() text.Range {
+	if t.anchor < 0 {
+		return text.Range{Start: t.cursor, End: t.cursor}
+	}
+
+	return text.Range{Start: t.anchor, End: t.cursor}.Normalized()
+}
+
+func (t *TextInput) selectedText() string {
+	if !t.hasSelection() {
+		return ""
+	}
+
+	r := t.selectionRange()
+
+	return t.text[r.Start:r.End]
+}
+
+func (t *TextInput) deleteSelection() {
+	if !t.hasSelection() {
+		return
+	}
+
+	r := t.selectionRange()
+	t.text, _ = text.DeleteRange(t.text, r)
+	t.cursor = r.Start
+	t.anchor = -1
 }
 
 // updateScroll adjusts scrollX to keep cursor visible.

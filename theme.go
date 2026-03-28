@@ -41,14 +41,6 @@ const (
 	AestheticModern
 )
 
-func (t Theme) effectiveAesthetic() Aesthetic {
-	if t.Aesthetic != 0 {
-		return t.Aesthetic
-	}
-	// Zero value preserves pre-P3 behavior: classic terminal chrome.
-	return AestheticClassic
-}
-
 // EffectiveAesthetic returns the theme's aesthetic, defaulting to classic if
 // the zero value is used.
 func (t Theme) EffectiveAesthetic() Aesthetic {
@@ -227,6 +219,14 @@ func (t Theme) Resolved(c style.Capability) Theme {
 	resolved.Chrome.FocusRing.StyleFn = resolved.Chrome.FocusRing.StyleFn.wrapResolver(resolveStyle)
 
 	return resolved
+}
+
+func (t Theme) effectiveAesthetic() Aesthetic {
+	if t.Aesthetic != 0 {
+		return t.Aesthetic
+	}
+
+	return AestheticClassic
 }
 
 // InputOpts configures which platform input features to enable.

@@ -85,9 +85,9 @@ type ResizeEvent struct {
 	H int
 }
 
-func (ResizeEvent) isEvent() {}
-
 // Size returns the size as a geom.Size.
 func (e ResizeEvent) Size() geom.Size {
 	return geom.Size{W: e.W, H: e.H}
 }
+
+func (ResizeEvent) isEvent() {}

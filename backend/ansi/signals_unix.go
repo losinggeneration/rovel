@@ -72,6 +72,14 @@ func (h *signalHandler) ResizeChan() <-chan geom.Size {
 	return h.resizeCh
 }
 
+// Stop stops the signal handler.
+func (h *signalHandler) Stop() {
+	h.once.Do(func() {
+		close(h.stopCh)
+		close(h.resizeCh)
+	})
+}
+
 // wakePoll writes a byte to the wake pipe to unblock a blocking poll call.
 // Errors are buffered in the package-level error buffer for later inspection.
 func (h *signalHandler) wakePoll() {
@@ -82,12 +90,4 @@ func (h *signalHandler) wakePoll() {
 		_, err := unix.Write(h.wakeFd, b[:])
 		h.errs.Add(err)
 	}
-}
-
-// Stop stops the signal handler.
-func (h *signalHandler) Stop() {
-	h.once.Do(func() {
-		close(h.stopCh)
-		close(h.resizeCh)
-	})
 }

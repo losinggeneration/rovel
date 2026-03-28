@@ -93,72 +93,6 @@ func (f *ANSIFlusher) FlushRuns(back, front *Buffer, runs []Run) error {
 	return f.w.Flush()
 }
 
-func (f *ANSIFlusher) moveCursorTo(y, x int) error {
-	if f.curX == x && f.curY == y {
-		return nil
-	}
-
-	_, err := fmt.Fprintf(f.w, "\x1b[%d;%dH", y+1, x+1)
-	if err != nil {
-		return err
-	}
-
-	f.curX = x
-	f.curY = y
-
-	return nil
-}
-
-func (f *ANSIFlusher) emitSGR(s style.Style) error {
-	params := []int{0}
-
-	// Special case: if truly empty style, emit reset
-	if s == (style.Style{}) {
-		return emitSGRParams(f.w, []int{0})
-	}
-
-	// Foreground color
-	if s.FG.IsDefault() {
-		params = append(params, 39) // Explicit default foreground color
-	} else {
-		params = appendFGColor(params, s.FG)
-	}
-
-	// Background color
-	if s.BG.IsDefault() {
-		params = append(params, 49) // Explicit default background color
-	} else {
-		params = appendBGColor(params, s.BG)
-	}
-
-	// Attributes (1=bold, 2=dim, 3=italic, 4=underline, 5=blink, 7=reverse)
-	if s.Attr&style.AttrBold != 0 {
-		params = append(params, 1)
-	}
-
-	if s.Attr&style.AttrDim != 0 {
-		params = append(params, 2)
-	}
-
-	if s.Attr&style.AttrItalic != 0 {
-		params = append(params, 3)
-	}
-
-	if s.Attr&style.AttrUnderline != 0 {
-		params = append(params, 4)
-	}
-
-	if s.Attr&style.AttrBlink != 0 {
-		params = append(params, 5)
-	}
-
-	if s.Attr&style.AttrReverse != 0 {
-		params = append(params, 7)
-	}
-
-	return emitSGRParams(f.w, params)
-}
-
 // appendFGColor appends foreground color SGR parameters.
 func appendFGColor(params []int, c style.Color) []int {
 	switch c.Kind() {
@@ -228,19 +162,6 @@ func emitSGRParams(w *bufio.Writer, params []int) error {
 	return err
 }
 
-func (f *ANSIFlusher) emitRune(r rune) error {
-	if r == 0 {
-		r = ' '
-	}
-
-	var buf [utf8.UTFMax]byte
-
-	n := utf8.EncodeRune(buf[:], r)
-	_, err := f.w.Write(buf[:n])
-
-	return err
-}
-
 // ClearScreen emits the ANSI escape sequence to clear the entire screen.
 func (f *ANSIFlusher) ClearScreen() error {
 	_, err := f.w.WriteString("\x1b[2J")
@@ -272,4 +193,83 @@ func (f *ANSIFlusher) ShowCursor() error {
 // Flush flushes the underlying buffer.
 func (f *ANSIFlusher) Flush() error {
 	return f.w.Flush()
+}
+
+func (f *ANSIFlusher) moveCursorTo(y, x int) error {
+	if f.curX == x && f.curY == y {
+		return nil
+	}
+
+	_, err := fmt.Fprintf(f.w, "\x1b[%d;%dH", y+1, x+1)
+	if err != nil {
+		return err
+	}
+
+	f.curX = x
+	f.curY = y
+
+	return nil
+}
+
+func (f *ANSIFlusher) emitSGR(s style.Style) error {
+	params := []int{0}
+
+	// Special case: if truly empty style, emit reset
+	if s == (style.Style{}) {
+		return emitSGRParams(f.w, []int{0})
+	}
+
+	// Foreground color
+	if s.FG.IsDefault() {
+		params = append(params, 39) // Explicit default foreground color
+	} else {
+		params = appendFGColor(params, s.FG)
+	}
+
+	// Background color
+	if s.BG.IsDefault() {
+		params = append(params, 49) // Explicit default background color
+	} else {
+		params = appendBGColor(params, s.BG)
+	}
+
+	// Attributes (1=bold, 2=dim, 3=italic, 4=underline, 5=blink, 7=reverse)
+	if s.Attr&style.AttrBold != 0 {
+		params = append(params, 1)
+	}
+
+	if s.Attr&style.AttrDim != 0 {
+		params = append(params, 2)
+	}
+
+	if s.Attr&style.AttrItalic != 0 {
+		params = append(params, 3)
+	}
+
+	if s.Attr&style.AttrUnderline != 0 {
+		params = append(params, 4)
+	}
+
+	if s.Attr&style.AttrBlink != 0 {
+		params = append(params, 5)
+	}
+
+	if s.Attr&style.AttrReverse != 0 {
+		params = append(params, 7)
+	}
+
+	return emitSGRParams(f.w, params)
+}
+
+func (f *ANSIFlusher) emitRune(r rune) error {
+	if r == 0 {
+		r = ' '
+	}
+
+	var buf [utf8.UTFMax]byte
+
+	n := utf8.EncodeRune(buf[:], r)
+	_, err := f.w.Write(buf[:n])
+
+	return err
 }

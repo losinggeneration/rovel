@@ -133,14 +133,6 @@ func (s *Select) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 	d.DrawText(tui.Point{X: r.X + 2, Y: y}, lbl, st)
 }
 
-func (s *Select) displayText() string {
-	if s.selected >= 0 && s.selected < len(s.items) {
-		return s.items[s.selected]
-	}
-
-	return s.placeholder
-}
-
 func (s *Select) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	if me, ok := e.(tui.MouseEvent); ok {
 		if me.Button == tui.MouseButtonLeft && me.Action == tui.MousePress {
@@ -186,6 +178,14 @@ func (s *Select) HandleAction(act int, ctx *tui.Ctx) bool {
 	}
 
 	return false
+}
+
+func (s *Select) displayText() string {
+	if s.selected >= 0 && s.selected < len(s.items) {
+		return s.items[s.selected]
+	}
+
+	return s.placeholder
 }
 
 func (s *Select) openDropdown(ctx *tui.Ctx) {

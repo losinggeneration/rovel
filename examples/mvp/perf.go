@@ -56,38 +56,6 @@ func (pm *PerfMonitor) RecordScroll(name string, duration time.Duration) {
 	pm.recordMetric(name+"_scroll", duration, pm.scrollThreshold)
 }
 
-// recordMetric records a metric with threshold checking.
-func (pm *PerfMonitor) recordMetric(key string, duration time.Duration, threshold time.Duration) {
-	pm.mu.Lock()
-	defer pm.mu.Unlock()
-
-	m, ok := pm.metrics[key]
-	if !ok {
-		m = &perfMetric{
-			minNs:     int64(duration),
-			maxNs:     int64(duration),
-			threshold: threshold,
-		}
-		pm.metrics[key] = m
-	}
-
-	ns := int64(duration)
-	m.count++
-	m.totalNs += ns
-
-	if ns < m.minNs {
-		m.minNs = ns
-	}
-
-	if ns > m.maxNs {
-		m.maxNs = ns
-	}
-
-	if duration > threshold {
-		m.exceeds++
-	}
-}
-
 // Report generates a performance summary string.
 func (pm *PerfMonitor) Report() string {
 	if !pm.enabled {
@@ -174,6 +142,37 @@ func (pm *PerfMonitor) Summary() string {
 	}
 
 	return fmt.Sprintf("Perf: %d ops, %d exceeds threshold", totalOps, totalExceeds)
+}
+
+func (pm *PerfMonitor) recordMetric(key string, duration time.Duration, threshold time.Duration) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
+	m, ok := pm.metrics[key]
+	if !ok {
+		m = &perfMetric{
+			minNs:     int64(duration),
+			maxNs:     int64(duration),
+			threshold: threshold,
+		}
+		pm.metrics[key] = m
+	}
+
+	ns := int64(duration)
+	m.count++
+	m.totalNs += ns
+
+	if ns < m.minNs {
+		m.minNs = ns
+	}
+
+	if ns > m.maxNs {
+		m.maxNs = ns
+	}
+
+	if duration > threshold {
+		m.exceeds++
+	}
 }
 
 // InstrumentedVirtualList wraps a VirtualList to record performance metrics.

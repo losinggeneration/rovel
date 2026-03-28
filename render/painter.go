@@ -40,74 +40,6 @@ func (p *Painter) SetCell(x, y int, r rune, style style.Style) {
 	p.setCellAt(x+p.offsetX, y+p.offsetY, r, style)
 }
 
-// setCellAt writes a cell at the exact coordinates without applying offset.
-// This is used internally when offset has already been applied.
-func (p *Painter) setCellAt(x, y int, r rune, style style.Style) {
-	if IsClipped(x, y, p.clip) {
-		return
-	}
-
-	width := RuneWidth(r)
-	if width == 0 {
-		// The buffer is cell-based and cannot represent width-zero code points
-		// (combining marks, ZWJ, variation selectors) without corrupting the
-		// surrounding cells. Drop them consistently.
-		return
-	}
-
-	// Handle edge case: wide character at buffer edge
-	if width == 2 && x+1 >= p.buf.W {
-		r = '?'
-		width = 1
-	}
-
-	// Wide-char overwrite rules (design doc 16.4):
-	// 1. If target is a continuation, clear the lead at (x-1, y)
-	// 2. If target is a wide lead and we're writing narrow, clear continuation at (x+1, y)
-	// 3. If writing wide, check for wide-glyph collision at (x+1, y)
-
-	cell := p.buf.At(x, y)
-
-	// Rule 1: Clear lead if target is a continuation
-	if cell.WideCont && x > 0 {
-		leadCell := p.buf.At(x-1, y)
-		if leadCell.Wide {
-			*leadCell = Cell{R: ' ', Style: p.baseStyle}
-		}
-	}
-
-	// Rule 2: Clear continuation if we're overwriting a wide lead with narrow
-	if cell.Wide && width == 1 && x+1 < p.buf.W {
-		contCell := p.buf.At(x+1, y)
-		*contCell = Cell{R: ' ', Style: p.baseStyle}
-	}
-
-	// Rule 3: Check for wide-glyph collision
-	if width == 2 && x+1 < p.buf.W {
-		nextCell := p.buf.At(x+1, y)
-		// If next cell is a wide lead, clear its continuation
-		if nextCell.Wide && x+2 < p.buf.W {
-			contCell := p.buf.At(x+2, y)
-			*contCell = Cell{R: ' ', Style: p.baseStyle}
-		}
-	}
-
-	// Write the cell
-	cell.R = r
-	cell.Style = style
-	cell.Wide = (width == 2)
-	cell.WideCont = false
-
-	// Write continuation cell for wide characters
-	if width == 2 && x+1 < p.buf.W {
-		contCell := p.buf.At(x+1, y)
-		contCell.R = 0
-		contCell.Style = style
-		contCell.Wide = false
-		contCell.WideCont = true
-	}
-}
-
 // ClipRect returns the current clip rect.
 func (p *Painter) ClipRect() geom.Rect {
 	return p.clip
@@ -316,5 +248,58 @@ func (p *Painter) BoxStyled(r geom.Rect, bs BoxStyle) {
 			x, y := r.X+r.W-1, r.Y+r.H-1
 			p.setCellAt(x, y, g.BR, cellStyle(BoxPartCornerBR, x, y))
 		}
+	}
+}
+
+// setCellAt writes a cell at the exact coordinates without applying offset.
+// This is used internally when offset has already been applied.
+func (p *Painter) setCellAt(x, y int, r rune, style style.Style) {
+	if IsClipped(x, y, p.clip) {
+		return
+	}
+
+	width := RuneWidth(r)
+	if width == 0 {
+		return
+	}
+
+	if width == 2 && x+1 >= p.buf.W {
+		r = '?'
+		width = 1
+	}
+
+	cell := p.buf.At(x, y)
+
+	if cell.WideCont && x > 0 {
+		leadCell := p.buf.At(x-1, y)
+		if leadCell.Wide {
+			*leadCell = Cell{R: ' ', Style: p.baseStyle}
+		}
+	}
+
+	if cell.Wide && width == 1 && x+1 < p.buf.W {
+		contCell := p.buf.At(x+1, y)
+		*contCell = Cell{R: ' ', Style: p.baseStyle}
+	}
+
+	if width == 2 && x+1 < p.buf.W {
+		nextCell := p.buf.At(x+1, y)
+		if nextCell.Wide && x+2 < p.buf.W {
+			contCell := p.buf.At(x+2, y)
+			*contCell = Cell{R: ' ', Style: p.baseStyle}
+		}
+	}
+
+	cell.R = r
+	cell.Style = style
+	cell.Wide = (width == 2)
+	cell.WideCont = false
+
+	if width == 2 && x+1 < p.buf.W {
+		contCell := p.buf.At(x+1, y)
+		contCell.R = 0
+		contCell.Style = style
+		contCell.Wide = false
+		contCell.WideCont = true
 	}
 }
