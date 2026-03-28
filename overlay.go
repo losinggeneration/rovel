@@ -128,11 +128,11 @@ func (m *OverlayManager) layoutOverlays(screenSize geom.Size) {
 }
 
 // paintOverlays paints all overlays in z-order (bottom to top).
-func (m *OverlayManager) paintOverlays(p *Painter, ctx *Ctx) {
+func (m *OverlayManager) paintOverlays(d Drawer, ctx *Ctx) {
 	for _, o := range m.stack {
-		p.WithClip(o.rect, func(cp *Painter) {
-			cp.Clear(o.rect)
-			PaintView(o.root, cp, ctx)
+		d.WithClip(o.rect, func(cd Drawer) {
+			cd.FillRect(o.rect, ctx.Theme.Base)
+			o.root.Paint(cd, ctx)
 		})
 	}
 }

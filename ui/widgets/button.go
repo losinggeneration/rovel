@@ -126,11 +126,7 @@ func (b *Button) SetOnPress(fn func(ctx *tui.Ctx)) {
 	b.onPress = fn
 }
 
-func (b *Button) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	b.PaintDrawer(tui.NewDrawer(p), ctx)
-}
-
-func (b *Button) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
+func (b *Button) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	r := b.rect
 	if r.W <= 0 || r.H <= 0 {
 		return

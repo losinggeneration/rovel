@@ -108,9 +108,9 @@ func (c *ContentView) MinSize() tui.Size { return tui.Size{W: 40, H: len(c.lines
 func (c *ContentView) Focusable() bool   { return true }
 func (c *ContentView) Layout(r tui.Rect) { c.rect = r }
 
-func (c *ContentView) Paint(p *tui.Painter, ctx *tui.Ctx) {
+func (c *ContentView) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	for i, line := range c.lines {
-		p.Text(c.rect.X, c.rect.Y+i, line, ctx.Theme.Base)
+		d.DrawText(tui.Point{X: c.rect.X, Y: c.rect.Y + i}, line, ctx.Theme.Base)
 	}
 }
 
@@ -132,8 +132,8 @@ func (s *StatusView) Layout(r tui.Rect) {
 	s.rect = r
 }
 
-func (s *StatusView) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	p.Text(s.rect.X, s.rect.Y, s.text, ctx.Theme.Base)
+func (s *StatusView) Paint(d tui.Drawer, ctx *tui.Ctx) {
+	d.DrawText(tui.Point{X: s.rect.X, Y: s.rect.Y}, s.text, ctx.Theme.Base)
 }
 
 func (s *StatusView) Handle(e tui.Event, ctx *tui.Ctx) bool {

@@ -333,11 +333,11 @@ func newTestView(focusable bool) *testView {
 	return &testView{id: NewID(), focusable: focusable}
 }
 
-func (v *testView) ID() ID                     { return v.id }
-func (v *testView) MinSize() geom.Size         { return geom.Size{W: 1, H: 1} }
-func (v *testView) Layout(r geom.Rect)         { v.rect = r }
-func (v *testView) Rect() geom.Rect            { return v.rect }
-func (v *testView) Paint(p *Painter, ctx *Ctx) {}
+func (v *testView) ID() ID                   { return v.id }
+func (v *testView) MinSize() geom.Size       { return geom.Size{W: 1, H: 1} }
+func (v *testView) Layout(r geom.Rect)       { v.rect = r }
+func (v *testView) Rect() geom.Rect          { return v.rect }
+func (v *testView) Paint(d Drawer, ctx *Ctx) {}
 func (v *testView) Handle(e Event, ctx *Ctx) bool {
 	return false
 }
@@ -364,7 +364,7 @@ func (r *testRoot) Layout(gr geom.Rect) {
 	}
 }
 func (r *testRoot) Rect() geom.Rect               { return r.rect }
-func (r *testRoot) Paint(p *Painter, ctx *Ctx)    {}
+func (r *testRoot) Paint(d Drawer, ctx *Ctx)      {}
 func (r *testRoot) Handle(e Event, ctx *Ctx) bool { return false }
 func (r *testRoot) Children() []View              { return r.children }
 

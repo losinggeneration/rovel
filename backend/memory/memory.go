@@ -67,16 +67,6 @@ func (b *Backend) Restore() error {
 	return nil
 }
 
-// Write is a no-op because memory presentation does not use ANSI bytes.
-func (b *Backend) Write(p []byte) (int, error) {
-	return len(p), nil
-}
-
-// Flush is a no-op for the memory backend.
-func (b *Backend) Flush() error {
-	return nil
-}
-
 func (b *Backend) ReadEvent() event.Event {
 	ev, ok := <-b.eventCh
 	if !ok {

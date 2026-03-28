@@ -23,7 +23,7 @@ func (m *mockView) Rect() geom.Rect    { return m.rect }
 func (m *mockView) MinSize() geom.Size { return m.minSize }
 func (m *mockView) Focusable() bool    { return m.focusable }
 func (m *mockView) Layout(r geom.Rect) { m.rect = r }
-func (m *mockView) Paint(p *tui.Painter, ctx *tui.Ctx) {
+func (m *mockView) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	m.paintCalled++
 }
 func (m *mockView) Handle(e tui.Event, ctx *tui.Ctx) bool { return false }
@@ -300,9 +300,9 @@ func (v *paintRowsView) Handle(tui.Event, *tui.Ctx) bool {
 	return false
 }
 
-func (v *paintRowsView) Paint(p *tui.Painter, _ *tui.Ctx) {
+func (v *paintRowsView) Paint(d tui.Drawer, _ *tui.Ctx) {
 	for i, ch := range []rune{'0', '1', '2', '3'} {
-		p.Text(v.rect.X, v.rect.Y+i, string(ch), style.Style{})
+		d.DrawText(tui.Point{X: v.rect.X, Y: v.rect.Y + i}, string(ch), style.Style{})
 	}
 }
 
@@ -321,7 +321,7 @@ func TestScrollViewPaint_DrawerAdapterOffsetAndClip(t *testing.T) {
 	rp := render.NewPainter(buf, geom.Rect{X: 0, Y: 0, W: 3, H: 2}, base)
 	p := tui.NewPainter(rp, base)
 
-	sv.Paint(p, &tui.Ctx{Theme: tui.DefaultTheme()})
+	sv.Paint(tui.NewDrawer(p), &tui.Ctx{Theme: tui.DefaultTheme()})
 
 	if got := buf.At(0, 0).R; got != '1' {
 		t.Fatalf("row 0 = %q, want %q", got, '1')

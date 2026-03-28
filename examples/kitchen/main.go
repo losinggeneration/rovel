@@ -603,17 +603,17 @@ func (r *rootView) Layout(rect geom.Rect) {
 	r.View.Layout(geom.Rect{X: rect.X, Y: rect.Y + 1, W: rect.W, H: rect.H - 1})
 }
 
-func (r *rootView) Paint(p *tui.Painter, ctx *tui.Ctx) {
+func (r *rootView) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	barSt := ctx.Theme.Palette.SurfaceMuted
 	if barSt == (style.Style{}) {
 		barSt = ctx.Theme.Base
 	}
 
-	p.Fill(geom.Rect{X: r.rect.X, Y: r.rect.Y, W: r.rect.W, H: 1}, ' ', barSt)
+	d.FillRect(geom.Rect{X: r.rect.X, Y: r.rect.Y, W: r.rect.W, H: 1}, barSt)
 	r.state.status.Layout(geom.Rect{X: r.rect.X + 1, Y: r.rect.Y, W: r.rect.W - 2, H: 1})
-	r.state.status.Paint(p, ctx)
+	r.state.status.Paint(d, ctx)
 
-	r.View.Paint(p, ctx)
+	r.View.Paint(d, ctx)
 }
 
 func (r *rootView) Handle(e tui.Event, ctx *tui.Ctx) bool {
@@ -704,11 +704,11 @@ func (sp *scrollPanel) Layout(r geom.Rect) {
 	}
 }
 
-func (sp *scrollPanel) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	sp.content.Paint(p, ctx)
+func (sp *scrollPanel) Paint(d tui.Drawer, ctx *tui.Ctx) {
+	sp.content.Paint(d, ctx)
 	cs, vs, pos := sp.getState()
 	sp.scrollbar.SetState(cs, vs, pos)
-	sp.scrollbar.Paint(p, ctx)
+	sp.scrollbar.Paint(d, ctx)
 
 	// If scroll state changed since last paint, the scrollbar column was
 	// probably not in the damage region (child only invalidated its own rect).

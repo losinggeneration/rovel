@@ -193,10 +193,10 @@ func NewInstrumentedVirtualList(name string, base *virtual.VirtualList, monitor 
 }
 
 // Paint records paint performance before delegating to the base list.
-func (i *InstrumentedVirtualList) Paint(p *tui.Painter, ctx *tui.Ctx) {
+func (i *InstrumentedVirtualList) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	start := time.Now()
 
-	i.VirtualList.Paint(p, ctx)
+	i.VirtualList.Paint(d, ctx)
 
 	duration := time.Since(start)
 	i.monitor.RecordPaint(i.name, duration)

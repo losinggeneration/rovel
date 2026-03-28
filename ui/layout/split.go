@@ -212,34 +212,17 @@ func (s *Split) MinSize() tui.Size {
 }
 
 // Paint renders the split and its children.
-func (s *Split) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	// Clip to container rect FIRST, then children
-	p.WithClip(s.rect, func(p *tui.Painter) {
-		if s.first != nil {
-			p.WithClip(s.first.Rect(), func(p *tui.Painter) {
-				tui.PaintView(s.first, p, ctx)
-			})
-		}
-
-		if s.second != nil {
-			p.WithClip(s.second.Rect(), func(p *tui.Painter) {
-				tui.PaintView(s.second, p, ctx)
-			})
-		}
-	})
-}
-
-func (s *Split) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
+func (s *Split) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	d.WithClip(s.rect, func(d tui.Drawer) {
 		if s.first != nil {
 			d.WithClip(s.first.Rect(), func(d tui.Drawer) {
-				tui.PaintViewDrawer(s.first, d, ctx)
+				s.first.Paint(d, ctx)
 			})
 		}
 
 		if s.second != nil {
 			d.WithClip(s.second.Rect(), func(d tui.Drawer) {
-				tui.PaintViewDrawer(s.second, d, ctx)
+				s.second.Paint(d, ctx)
 			})
 		}
 	})

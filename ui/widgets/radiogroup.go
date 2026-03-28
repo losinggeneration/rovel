@@ -104,11 +104,7 @@ func (r *RadioGroup) MinSize() geom.Size {
 	return geom.Size{W: maxW, H: len(r.items)}
 }
 
-func (r *RadioGroup) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	r.PaintDrawer(tui.NewDrawer(p), ctx)
-}
-
-func (r *RadioGroup) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
+func (r *RadioGroup) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	rect := r.rect
 	if rect.W <= 0 || rect.H <= 0 || len(r.items) == 0 {
 		return

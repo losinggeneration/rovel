@@ -45,7 +45,7 @@ func (v *integrationView) Rect() geom.Rect      { return v.rect }
 func (v *integrationView) Focusable() bool      { return v.focusable }
 func (v *integrationView) Children() []tui.View { return v.children }
 
-func (v *integrationView) Paint(p *tui.Painter, ctx *tui.Ctx) {
+func (v *integrationView) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	v.paintCount.Add(1)
 }
 
@@ -79,11 +79,11 @@ func (r *integrationRoot) Layout(gr geom.Rect) {
 	}
 }
 
-func (r *integrationRoot) Paint(p *tui.Painter, ctx *tui.Ctx) {
+func (r *integrationRoot) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	r.paintCount.Add(1)
 
 	for _, c := range r.children {
-		c.Paint(p, ctx)
+		c.Paint(d, ctx)
 	}
 }
 

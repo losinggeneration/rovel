@@ -138,15 +138,6 @@ func (c *Core) Restore() error {
 	return nil
 }
 
-// Write is a no-op because SDL presentation consumes logical frames, not ANSI.
-func (c *Core) Write(p []byte) (int, error) {
-	return len(p), nil
-}
-
-func (c *Core) Flush() error {
-	return nil
-}
-
 func (c *Core) ReadEvent() event.Event {
 	ev, ok := <-c.eventCh
 	if !ok {

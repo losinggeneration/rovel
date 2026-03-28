@@ -115,17 +115,17 @@ type viewFocusable interface {
 	Focusable() bool
 }
 
-// backendWriter adapts a backend.Backend to io.Writer.
-type backendWriter struct {
-	b backend.Backend
+// transportWriter adapts a backend.ANSITransport to io.Writer.
+type transportWriter struct {
+	t backend.ANSITransport
 }
 
 type actionHandler interface {
 	HandleAction(act int, ctx *Ctx) bool
 }
 
-func (w *backendWriter) Write(p []byte) (int, error) {
-	return w.b.Write(p)
+func (w *transportWriter) Write(p []byte) (int, error) {
+	return w.t.Write(p)
 }
 
 // New creates a new App with the given options.
@@ -136,7 +136,6 @@ func New(opts AppOpts) (*App, error) {
 		opts:        opts,
 		size:        size,
 		renderer:    newCellRenderer(size),
-		presenter:   newANSIPresenter(),
 		nodes:       make(map[ID]*nodeEntry),
 		scopeMemory: make(map[ID]*scopeState),
 		eventCh:     make(chan Event, 256),
@@ -204,9 +203,13 @@ func (a *App) Enable() error {
 	// Resize buffers to terminal size
 	a.resizeBuffers(size.W, size.H)
 
-	// Choose and attach the presenter for the concrete backend.
-	a.presenter = presenterForBackend(a.host.Backend())
-	a.presenter.Attach(a.host.Backend())
+	// Choose the presenter for the concrete backend.
+	presenter, err := presenterForBackend(a.opts.Backend)
+	if err != nil {
+		return err
+	}
+
+	a.presenter = presenter
 
 	if err := a.presenter.InitScreen(); err != nil {
 		return err

@@ -18,8 +18,8 @@ func (v *paintChildView) ID() tui.ID        { return v.id }
 func (v *paintChildView) Rect() tui.Rect    { return v.rect }
 func (v *paintChildView) Layout(r tui.Rect) { v.rect = r }
 func (v *paintChildView) MinSize() tui.Size { return tui.Size{W: 1, H: 1} }
-func (v *paintChildView) Paint(p *tui.Painter, _ *tui.Ctx) {
-	p.Text(v.rect.X, v.rect.Y, "X", style.Style{})
+func (v *paintChildView) Paint(d tui.Drawer, _ *tui.Ctx) {
+	d.DrawText(tui.Point{X: v.rect.X, Y: v.rect.Y}, "X", style.Style{})
 }
 func (v *paintChildView) Handle(tui.Event, *tui.Ctx) bool { return false }
 
@@ -37,7 +37,7 @@ func TestBorderPaint_DrawerAdapter(t *testing.T) {
 	p := tui.NewPainter(rp, base)
 	ctx := &tui.Ctx{Theme: tui.DefaultTheme()}
 
-	border.Paint(p, ctx)
+	border.Paint(tui.NewDrawer(p), ctx)
 
 	assertRune := func(x, y int, want rune) {
 		t.Helper()

@@ -24,7 +24,7 @@ func TestTextInputPaint_DrawerAdapterCursorAndFill(t *testing.T) {
 		FocusedID: input.ID(),
 	}
 
-	input.Paint(p, ctx)
+	input.Paint(tui.NewDrawer(p), ctx)
 
 	if got := buf.At(0, 0).R; got != 'h' {
 		t.Fatalf("cell (0,0) = %q, want %q", got, 'h')
@@ -65,7 +65,7 @@ func TestTextInputPaint_DrawerAdapterSelectionStyle(t *testing.T) {
 		FocusedID: input.ID(),
 	}
 
-	input.Paint(p, ctx)
+	input.Paint(tui.NewDrawer(p), ctx)
 
 	selectionSt := tui.DefaultTheme().Palette.Selection
 	if got := buf.At(0, 0).Style; got != selectionSt {

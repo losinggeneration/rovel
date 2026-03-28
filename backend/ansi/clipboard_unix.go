@@ -8,8 +8,10 @@ import (
 	"fmt"
 )
 
-var ErrClipboardPayloadTooLarge = errors.New("clipboard payload too large")
-var ErrClipboardReadNotSupported = errors.New("clipboard read not supported synchronously; use ClipboardReadRequest")
+var (
+	ErrClipboardPayloadTooLarge  = errors.New("clipboard payload too large")
+	ErrClipboardReadNotSupported = errors.New("clipboard read not supported synchronously; use ClipboardReadRequest")
+)
 
 // maxClipboardBytes is the maximum payload size for OSC 52 clipboard write.
 const maxClipboardBytes = 64 * 1024

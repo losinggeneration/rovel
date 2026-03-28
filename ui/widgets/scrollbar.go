@@ -82,11 +82,7 @@ func (s *Scrollbar) Dragging() bool {
 	return s.dragging
 }
 
-func (s *Scrollbar) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	s.PaintDrawer(tui.NewDrawer(p), ctx)
-}
-
-func (s *Scrollbar) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
+func (s *Scrollbar) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	r := s.rect
 	if r.W <= 0 || r.H <= 0 || s.contentSize <= s.viewSize {
 		return

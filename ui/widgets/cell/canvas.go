@@ -82,23 +82,17 @@ func (c *Canvas) Focusable() bool {
 }
 
 // Paint renders the canvas using the paint callback.
-// The callback is clipped to the canvas rect.
-func (c *Canvas) Paint(p *tui.Painter, ctx *tui.Ctx) {
+// Canvas remains explicitly cell-specific: it extracts the underlying Painter
+// from the Drawer and delegates to the paint callback.
+func (c *Canvas) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	if c.paint == nil || c.rect.W <= 0 || c.rect.H <= 0 {
 		return
 	}
 
-	p.WithClip(c.rect, func(cp *tui.Painter) {
-		c.paint(cp, c.rect, ctx)
-	})
-}
-
-// PaintDrawer preserves compatibility with DrawerPaintable container paths on
-// the current cell-family renderer by delegating to the underlying Painter when
-// available. Canvas remains explicitly cell-specific.
-func (c *Canvas) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 	if p := tui.PainterFromDrawer(d); p != nil {
-		c.Paint(p, ctx)
+		p.WithClip(c.rect, func(cp *tui.Painter) {
+			c.paint(cp, c.rect, ctx)
+		})
 	}
 }
 

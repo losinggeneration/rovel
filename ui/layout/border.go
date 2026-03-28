@@ -53,15 +53,7 @@ func (b *Border) MinSize() tui.Size {
 }
 
 // Paint renders the border and its child.
-func (b *Border) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	b.PaintDrawer(tui.NewDrawer(p), ctx)
-	inner := InsetRect(b.rect, 1, 1, 1, 1)
-	p.WithClip(inner, func(p *tui.Painter) {
-		tui.PaintView(b.child, p, ctx)
-	})
-}
-
-func (b *Border) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
+func (b *Border) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	r := b.rect
 	inner := InsetRect(r, 1, 1, 1, 1)
 
@@ -101,7 +93,7 @@ func (b *Border) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 	}
 
 	d.WithClip(inner, func(d tui.Drawer) {
-		tui.PaintViewDrawer(b.child, d, ctx)
+		b.child.Paint(d, ctx)
 	})
 }
 

@@ -195,21 +195,11 @@ func (s *VStack) MinSize() tui.Size {
 	return tui.Size{W: maxW, H: totalH}
 }
 
-func (s *VStack) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	p.WithClip(s.rect, func(p *tui.Painter) {
-		for _, c := range s.children {
-			p.WithClip(c.View.Rect(), func(p *tui.Painter) {
-				tui.PaintView(c.View, p, ctx)
-			})
-		}
-	})
-}
-
-func (s *VStack) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
+func (s *VStack) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	d.WithClip(s.rect, func(d tui.Drawer) {
 		for _, c := range s.children {
 			d.WithClip(c.View.Rect(), func(d tui.Drawer) {
-				tui.PaintViewDrawer(c.View, d, ctx)
+				c.View.Paint(d, ctx)
 			})
 		}
 	})

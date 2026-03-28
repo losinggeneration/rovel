@@ -103,11 +103,7 @@ func (s *Select) MinSize() geom.Size {
 	return geom.Size{W: maxW + 4, H: 1} // "v " prefix + padding
 }
 
-func (s *Select) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	s.PaintDrawer(tui.NewDrawer(p), ctx)
-}
-
-func (s *Select) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
+func (s *Select) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	r := s.rect
 	if r.W <= 0 || r.H <= 0 {
 		return
@@ -265,11 +261,7 @@ func (l *selectList) PreferredSize() geom.Size {
 	return l.MinSize()
 }
 
-func (l *selectList) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	l.PaintDrawer(tui.NewDrawer(p), ctx)
-}
-
-func (l *selectList) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
+func (l *selectList) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	r := l.rect
 	if r.W <= 0 || r.H <= 0 {
 		return

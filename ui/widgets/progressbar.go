@@ -77,11 +77,7 @@ func (b *ProgressBar) MinSize() geom.Size {
 	return geom.Size{W: b.width, H: 1}
 }
 
-func (b *ProgressBar) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	b.PaintDrawer(tui.NewDrawer(p), ctx)
-}
-
-func (b *ProgressBar) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
+func (b *ProgressBar) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	r := b.rect
 	if r.W <= 0 || r.H <= 0 {
 		return

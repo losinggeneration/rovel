@@ -106,11 +106,7 @@ func (d *Dialog) PreferredSize() geom.Size {
 	return d.MinSize()
 }
 
-func (d *Dialog) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	d.PaintDrawer(tui.NewDrawer(p), ctx)
-}
-
-func (d *Dialog) PaintDrawer(dr tui.Drawer, ctx *tui.Ctx) {
+func (d *Dialog) Paint(dr tui.Drawer, ctx *tui.Ctx) {
 	r := d.rect
 	if r.W <= 0 || r.H <= 0 {
 		return

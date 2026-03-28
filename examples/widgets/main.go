@@ -117,9 +117,9 @@ func (q *QuitHandler) MinSize() tui.Size {
 	return tui.Size{W: mainMin.W, H: mainMin.H + 1}
 }
 
-func (q *QuitHandler) Paint(p *tui.Painter, ctx *tui.Ctx) {
+func (q *QuitHandler) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	// Paint status row
-	p.Text(q.rect.X, q.rect.Y, q.status, ctx.Theme.Base)
+	d.DrawText(tui.Point{X: q.rect.X, Y: q.rect.Y}, q.status, ctx.Theme.Base)
 
 	// Paint main view below status
 	mainRect := tui.Rect{
@@ -128,8 +128,8 @@ func (q *QuitHandler) Paint(p *tui.Painter, ctx *tui.Ctx) {
 		W: q.rect.W,
 		H: q.rect.H - 1,
 	}
-	p.WithClip(mainRect, func(p *tui.Painter) {
-		q.mainView.Paint(p, ctx)
+	d.WithClip(mainRect, func(d tui.Drawer) {
+		q.mainView.Paint(d, ctx)
 	})
 }
 

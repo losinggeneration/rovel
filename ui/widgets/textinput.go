@@ -94,11 +94,7 @@ func (t *TextInput) PreferredSize() geom.Size {
 }
 
 // Paint renders the text input.
-func (t *TextInput) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	t.PaintDrawer(tui.NewDrawer(p), ctx)
-}
-
-func (t *TextInput) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
+func (t *TextInput) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	if t.rect.W <= 0 {
 		return
 	}

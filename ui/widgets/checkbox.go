@@ -95,11 +95,7 @@ func (c *Checkbox) MinSize() geom.Size {
 	return geom.Size{W: 4 + text.Width(c.label), H: 1}
 }
 
-func (c *Checkbox) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	c.PaintDrawer(tui.NewDrawer(p), ctx)
-}
-
-func (c *Checkbox) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
+func (c *Checkbox) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	r := c.rect
 	if r.W <= 0 || r.H <= 0 {
 		return

@@ -3,7 +3,6 @@ package tui
 import "github.com/losinggeneration/tui/backend"
 
 type runtimeHost interface {
-	Backend() backend.Backend
 	Enable() (Size, error)
 	Restore() error
 	ReadEvent() Event
@@ -21,10 +20,6 @@ type appHost struct {
 
 func newAppHost(b backend.Backend) *appHost {
 	return &appHost{raw: b}
-}
-
-func (h *appHost) Backend() backend.Backend {
-	return h.raw
 }
 
 func (h *appHost) Enable() (Size, error) {

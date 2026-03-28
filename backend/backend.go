@@ -6,26 +6,28 @@ import (
 	"github.com/losinggeneration/tui/style"
 )
 
-// Backend is the interface for terminal backends.
+// Backend is the host-facing interface for backends. It handles lifecycle,
+// input, and size — but not rendering transport.
 type Backend interface {
-	// Enable enables the terminal and returns the initial size.
+	// Enable enables the backend and returns the initial size.
 	Enable() (geom.Size, error)
 
-	// Restore restores the terminal to its original state.
+	// Restore restores the backend to its original state.
 	Restore() error
-
-	// Write writes raw ANSI output to the terminal.
-	Write(p []byte) (int, error)
-
-	// Flush flushes any buffered output.
-	Flush() error
 
 	// ReadEvent reads and returns the next event, blocking until one is available.
 	// It returns nil when the backend is shutting down or the input stream ends.
 	ReadEvent() event.Event
 
-	// Size returns the current terminal size.
+	// Size returns the current size.
 	Size() geom.Size
+}
+
+// ANSITransport is implemented by backends that support raw ANSI byte-stream
+// output. The ANSI presenter uses this to write terminal escape sequences.
+type ANSITransport interface {
+	Write(p []byte) (int, error)
+	Flush() error
 }
 
 // InputCapabilities describes what input features the backend supports.

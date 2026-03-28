@@ -1,14 +1,19 @@
 package tui
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/losinggeneration/tui/backend"
 	"github.com/losinggeneration/tui/geom"
 	"github.com/losinggeneration/tui/render"
 	"github.com/losinggeneration/tui/style"
 )
 
+var errNoSinkOrTransport = errors.New("backend provides neither CellFrameSink nor ANSITransport")
+
 type runtimeFrame interface {
-	Painter() *Painter
+	Drawer() Drawer
 }
 
 type runtimeRenderer interface {
@@ -22,7 +27,6 @@ type runtimeRenderer interface {
 }
 
 type runtimePresenter interface {
-	Attach(b backend.Backend)
 	InitScreen() error
 	RestoreScreen() error
 	ResetCursor()
@@ -98,13 +102,6 @@ func (r *cellRenderer) ClearDamaged(base style.Style) {
 	}
 }
 
-func (r *cellRenderer) Painter(size geom.Size, base style.Style) *Painter {
-	clip := geom.Rect{X: 0, Y: 0, W: size.W, H: size.H}
-	rp := render.NewPainter(r.backBuf, clip, base)
-
-	return NewPainter(rp, base)
-}
-
 func (r *cellRenderer) Frame(size geom.Size, base style.Style) runtimeFrame {
 	return &cellFrame{
 		backBuf:  r.backBuf,
@@ -115,11 +112,11 @@ func (r *cellRenderer) Frame(size geom.Size, base style.Style) runtimeFrame {
 	}
 }
 
-func (f *cellFrame) Painter() *Painter {
+func (f *cellFrame) Drawer() Drawer {
 	clip := geom.Rect{X: 0, Y: 0, W: f.size.W, H: f.size.H}
 	rp := render.NewPainter(f.backBuf, clip, f.base)
 
-	return NewPainter(rp, f.base)
+	return NewDrawer(NewPainter(rp, f.base))
 }
 
 func makeBackendCellFrame(f *cellFrame) backend.CellFrame {
@@ -145,19 +142,15 @@ func makeBackendCellFrame(f *cellFrame) backend.CellFrame {
 }
 
 type ansiPresenter struct {
-	backend backend.Backend
-	flusher *render.ANSIFlusher
+	transport backend.ANSITransport
+	flusher   *render.ANSIFlusher
 }
 
-func newANSIPresenter() *ansiPresenter {
+func newANSIPresenter(t backend.ANSITransport) *ansiPresenter {
 	return &ansiPresenter{
-		flusher: render.NewANSIFlusher(nil),
+		transport: t,
+		flusher:   render.NewANSIFlusher(&transportWriter{t: t}),
 	}
-}
-
-func (p *ansiPresenter) Attach(b backend.Backend) {
-	p.backend = b
-	p.flusher = render.NewANSIFlusher(&backendWriter{b: b})
 }
 
 func (p *ansiPresenter) InitScreen() error {
@@ -205,24 +198,15 @@ func (p *ansiPresenter) PresentFrame(frame runtimeFrame) error {
 		}
 	}
 
-	if p.backend != nil {
-		return p.backend.Flush()
-	}
-
-	return nil
+	return p.transport.Flush()
 }
 
 type cellFramePresenter struct {
 	sink backend.CellFrameSink
 }
 
-func newCellFramePresenter() *cellFramePresenter {
-	return &cellFramePresenter{}
-}
-
-func (p *cellFramePresenter) Attach(b backend.Backend) {
-	sink, _ := b.(backend.CellFrameSink)
-	p.sink = sink
+func newCellFramePresenter(sink backend.CellFrameSink) *cellFramePresenter {
+	return &cellFramePresenter{sink: sink}
 }
 
 func (p *cellFramePresenter) InitScreen() error {
@@ -250,12 +234,16 @@ func (p *cellFramePresenter) PresentFrame(frame runtimeFrame) error {
 	return p.sink.PresentCellFrame(makeBackendCellFrame(f))
 }
 
-func presenterForBackend(b backend.Backend) runtimePresenter {
-	if _, ok := b.(backend.CellFrameSink); ok {
-		return newCellFramePresenter()
+func presenterForBackend(b backend.Backend) (runtimePresenter, error) {
+	if sink, ok := b.(backend.CellFrameSink); ok {
+		return newCellFramePresenter(sink), nil
 	}
 
-	return newANSIPresenter()
+	if t, ok := b.(backend.ANSITransport); ok {
+		return newANSIPresenter(t), nil
+	}
+
+	return nil, fmt.Errorf("%w: %T", errNoSinkOrTransport, b)
 }
 
 func (a *App) beginFrame(rects []geom.Rect) bool {
@@ -274,9 +262,9 @@ func (a *App) paintFramePass() {
 	frame := a.renderer.Frame(a.size, a.resolvedTheme.Base)
 
 	ctx := a.mkCtx(a.root)
-	p := frame.Painter()
-	a.paintView(a.root, p, ctx)
-	a.overlays.paintOverlays(p, ctx)
+	d := frame.Drawer()
+	a.paintView(a.root, d, ctx)
+	a.overlays.paintOverlays(d, ctx)
 }
 
 func (a *App) presentFrame() {
@@ -284,6 +272,6 @@ func (a *App) presentFrame() {
 	a.errs.Add(a.presenter.PresentFrame(frame))
 }
 
-func (a *App) paintView(v View, p *Painter, ctx *Ctx) {
-	PaintView(v, p, ctx)
+func (a *App) paintView(v View, d Drawer, ctx *Ctx) {
+	v.Paint(d, ctx)
 }

@@ -17,7 +17,7 @@ func (v *stubView) ID() tui.ID                            { return v.id }
 func (v *stubView) MinSize() geom.Size                    { return v.minSize }
 func (v *stubView) Layout(r geom.Rect)                    { v.rect = r }
 func (v *stubView) Rect() geom.Rect                       { return v.rect }
-func (v *stubView) Paint(p *tui.Painter, ctx *tui.Ctx)    {}
+func (v *stubView) Paint(d tui.Drawer, ctx *tui.Ctx)      {}
 func (v *stubView) Handle(e tui.Event, ctx *tui.Ctx) bool { return false }
 
 func TestCentered(t *testing.T) {

@@ -126,11 +126,7 @@ func (ta *TextArea) SetScrollY(ctx *tui.Ctx, y int) {
 }
 
 // Paint renders the text area.
-func (ta *TextArea) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	ta.PaintDrawer(tui.NewDrawer(p), ctx)
-}
-
-func (ta *TextArea) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
+func (ta *TextArea) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	if ta.rect.W <= 0 || ta.rect.H <= 0 {
 		return
 	}

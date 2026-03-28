@@ -109,11 +109,7 @@ func (t *Tabs) MinSize() geom.Size {
 	return geom.Size{W: barW, H: minH}
 }
 
-func (t *Tabs) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	t.PaintDrawer(tui.NewDrawer(p), ctx)
-}
-
-func (t *Tabs) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
+func (t *Tabs) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	r := t.rect
 	if r.W <= 0 || r.H <= 0 || len(t.tabs) == 0 {
 		return
@@ -126,11 +122,9 @@ func (t *Tabs) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 	cr := t.contentRect()
 	if cr.H > 0 && t.selected >= 0 && t.selected < len(t.tabs) {
 		if content := t.tabs[t.selected].Content; content != nil {
-			if p := tui.PainterFromDrawer(d); p != nil {
-				p.WithClip(cr, func(cp *tui.Painter) {
-					tui.PaintView(content, cp, ctx)
-				})
-			}
+			d.WithClip(cr, func(cd tui.Drawer) {
+				content.Paint(cd, ctx)
+			})
 		}
 	}
 }

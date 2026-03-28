@@ -26,6 +26,7 @@ type Backend struct {
 
 var (
 	_ backend.Backend             = (*Backend)(nil)
+	_ backend.ANSITransport       = (*Backend)(nil)
 	_ backend.CapabilityReporter  = (*Backend)(nil)
 	_ backend.InputFeatureEnabler = (*Backend)(nil)
 )

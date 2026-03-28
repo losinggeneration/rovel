@@ -26,7 +26,7 @@ func TestTextAreaPaint_DrawerAdapterScrollAndCursor(t *testing.T) {
 		FocusedID: ta.ID(),
 	}
 
-	ta.Paint(p, ctx)
+	ta.Paint(tui.NewDrawer(p), ctx)
 
 	if got := buf.At(0, 0).R; got != 'b' {
 		t.Fatalf("row 0 col 0 = %q, want %q", got, 'b')
@@ -67,7 +67,7 @@ func TestTextAreaPaint_DrawerAdapterSelectionStyle(t *testing.T) {
 		FocusedID: ta.ID(),
 	}
 
-	ta.Paint(p, ctx)
+	ta.Paint(tui.NewDrawer(p), ctx)
 
 	selectionSt := tui.DefaultTheme().Palette.Selection
 	if got := buf.At(0, 0).Style; got != selectionSt {

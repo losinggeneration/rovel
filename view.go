@@ -20,53 +20,17 @@ type View interface {
 	// Rect returns the current rect of the view.
 	Rect() geom.Rect
 
-	// Paint renders the view using the provided painter and context.
-	// The view should only paint within the clip rect of the painter.
-	Paint(p *Painter, ctx *Ctx)
+	// Paint renders the view using the provided drawer and context.
+	// The view should only paint within the clip rect of the drawer.
+	Paint(d Drawer, ctx *Ctx)
 
 	// Handle processes an event and returns true if the event was handled.
 	Handle(e Event, ctx *Ctx) bool
 }
 
-// DrawerPaintable is an optional interface for views that can paint directly
-// against the Drawer abstraction. The runtime prefers this path when available
-// while preserving compatibility with the legacy Painter-based Paint method.
-type DrawerPaintable interface {
-	PaintDrawer(d Drawer, ctx *Ctx)
-}
-
 type CompositeView interface {
 	View
 	Children() []View
-}
-
-// PaintView paints a view through Drawer when available, falling back to the
-// legacy Painter-based Paint method otherwise. It is a compatibility helper
-// for container views during the paint API transition.
-func PaintView(v View, p *Painter, ctx *Ctx) {
-	if dp, ok := v.(DrawerPaintable); ok {
-		dp.PaintDrawer(NewDrawer(p), ctx)
-
-		return
-	}
-
-	v.Paint(p, ctx)
-}
-
-// PaintViewDrawer paints a view through Drawer directly when available. It is
-// primarily a compatibility helper for DrawerPaintable container views. Views
-// that only support the legacy Paint method can still be painted when the
-// Drawer is backed by a Painter adapter.
-func PaintViewDrawer(v View, d Drawer, ctx *Ctx) {
-	if dp, ok := v.(DrawerPaintable); ok {
-		dp.PaintDrawer(d, ctx)
-
-		return
-	}
-
-	if p := PainterFromDrawer(d); p != nil {
-		v.Paint(p, ctx)
-	}
 }
 
 // Ctx provides context methods for views during Paint and Handle.

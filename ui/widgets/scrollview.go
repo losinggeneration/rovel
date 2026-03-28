@@ -132,11 +132,7 @@ func (s *ScrollView) Children() []tui.View {
 	return []tui.View{s.child}
 }
 
-func (s *ScrollView) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	s.PaintDrawer(tui.NewDrawer(p), ctx)
-}
-
-func (s *ScrollView) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
+func (s *ScrollView) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	if s.child == nil || s.rect.W <= 0 || s.rect.H <= 0 {
 		return
 	}
@@ -149,14 +145,14 @@ func (s *ScrollView) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 
 	d.WithClip(clipRect, func(cd tui.Drawer) {
 		cd.WithOffset(0, -s.scrollY, func(od tui.Drawer) {
-			tui.PaintViewDrawer(s.child, od, ctx)
+			s.child.Paint(od, ctx)
 		})
 	})
 
 	// Paint scrollbar
 	if s.showScrollbar && s.scrollbar != nil {
 		s.scrollbar.SetState(s.contentHeight(), s.rect.H, s.scrollY)
-		tui.PaintViewDrawer(s.scrollbar, d, ctx)
+		s.scrollbar.Paint(d, ctx)
 	}
 }
 

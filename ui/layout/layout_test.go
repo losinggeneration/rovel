@@ -31,7 +31,7 @@ func (v *simpleView) MinSize() tui.Size    { return v.minSize }
 func (v *simpleView) Focusable() bool      { return v.focusable }
 func (v *simpleView) Children() []tui.View { return nil }
 
-func (v *simpleView) Paint(p *tui.Painter, ctx *tui.Ctx)    {}
+func (v *simpleView) Paint(d tui.Drawer, ctx *tui.Ctx)      {}
 func (v *simpleView) Handle(e tui.Event, ctx *tui.Ctx) bool { return false }
 
 func TestPadding(t *testing.T) {
@@ -213,7 +213,7 @@ func newTrackInvalidationView(w, h int, focusable bool) *trackInvalidationView {
 	}
 }
 
-func (v *trackInvalidationView) Paint(p *tui.Painter, ctx *tui.Ctx) {
+func (v *trackInvalidationView) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	if ctx.Invalidate != nil {
 		ctx.Invalidate(v.rect)
 		v.invalidated = true

@@ -19,14 +19,14 @@ func benchCtx() *tui.Ctx {
 	}
 }
 
-// benchPainter creates a new tui.Painter with a buffer of the given size.
-func benchPainter(w, h int) *tui.Painter {
+// benchDrawer creates a new tui.Drawer with a buffer of the given size.
+func benchDrawer(w, h int) tui.Drawer {
 	buf := render.NewBuffer(w, h)
 	clip := geom.Rect{X: 0, Y: 0, W: w, H: h}
 	baseStyle := style.Style{}
 	rp := render.NewPainter(buf, clip, baseStyle)
 
-	return tui.NewPainter(rp, baseStyle)
+	return tui.NewDrawer(tui.NewPainter(rp, baseStyle))
 }
 
 // setupBenchmarkList creates a VirtualList configured for benchmarking.
@@ -45,42 +45,42 @@ func setupBenchmarkList(itemCount, rowHeight, width, height int) *VirtualList {
 func BenchmarkPaintSmallList(b *testing.B) {
 	// 10 items, 5 visible
 	v := setupBenchmarkList(10, 1, 20, 5)
-	p := benchPainter(20, 5)
+	d := benchDrawer(20, 5)
 	ctx := benchCtx()
 
 	b.ResetTimer()
 	b.ReportAllocs()
 
 	for range b.N {
-		v.Paint(p, ctx)
+		v.Paint(d, ctx)
 	}
 }
 
 func BenchmarkPaintMediumList(b *testing.B) {
 	// 1,000 items, 20 visible
 	v := setupBenchmarkList(1000, 1, 20, 20)
-	p := benchPainter(20, 20)
+	d := benchDrawer(20, 20)
 	ctx := benchCtx()
 
 	b.ResetTimer()
 	b.ReportAllocs()
 
 	for range b.N {
-		v.Paint(p, ctx)
+		v.Paint(d, ctx)
 	}
 }
 
 func BenchmarkPaintLargeList(b *testing.B) {
 	// 100,000 items, 20 visible
 	v := setupBenchmarkList(100000, 1, 20, 20)
-	p := benchPainter(20, 20)
+	d := benchDrawer(20, 20)
 	ctx := benchCtx()
 
 	b.ResetTimer()
 	b.ReportAllocs()
 
 	for range b.N {
-		v.Paint(p, ctx)
+		v.Paint(d, ctx)
 	}
 }
 
@@ -98,13 +98,13 @@ func BenchmarkPaintVariousSizes(b *testing.B) {
 	for _, size := range sizes {
 		b.Run(size.name, func(b *testing.B) {
 			v := setupBenchmarkList(1000, 1, size.w, size.h)
-			p := benchPainter(size.w, size.h)
+			d := benchDrawer(size.w, size.h)
 			ctx := benchCtx()
 
 			b.ResetTimer()
 
 			for range b.N {
-				v.Paint(p, ctx)
+				v.Paint(d, ctx)
 			}
 		})
 	}
@@ -206,13 +206,13 @@ func BenchmarkPaint100kItems(b *testing.B) {
 	for _, ic := range itemCounts {
 		b.Run(ic.name, func(b *testing.B) {
 			v := setupBenchmarkList(ic.count, 1, 20, 20)
-			p := benchPainter(20, 20)
+			d := benchDrawer(20, 20)
 			ctx := benchCtx()
 
 			b.ResetTimer()
 
 			for range b.N {
-				v.Paint(p, ctx)
+				v.Paint(d, ctx)
 			}
 		})
 	}
@@ -223,13 +223,13 @@ func BenchmarkPaintThreshold(b *testing.B) {
 	// This benchmark is designed to validate that paint time is under 1ms
 	// Run with: go test -bench=BenchmarkPaintThreshold -benchtime=1x
 	v := setupBenchmarkList(100000, 1, 20, 20)
-	p := benchPainter(20, 20)
+	d := benchDrawer(20, 20)
 	ctx := benchCtx()
 
 	b.ResetTimer()
 
 	for range b.N {
-		v.Paint(p, ctx)
+		v.Paint(d, ctx)
 	}
 }
 

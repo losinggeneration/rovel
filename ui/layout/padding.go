@@ -59,17 +59,10 @@ func (p *Padding) MinSize() tui.Size {
 }
 
 // Paint renders the padding and its child.
-func (p *Padding) Paint(painter *tui.Painter, ctx *tui.Ctx) {
-	inner := InsetRect(p.rect, p.Left, p.Top, p.Right, p.Bottom)
-	painter.WithClip(inner, func(painter *tui.Painter) {
-		tui.PaintView(p.child, painter, ctx)
-	})
-}
-
-func (p *Padding) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
+func (p *Padding) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	inner := InsetRect(p.rect, p.Left, p.Top, p.Right, p.Bottom)
 	d.WithClip(inner, func(d tui.Drawer) {
-		tui.PaintViewDrawer(p.child, d, ctx)
+		p.child.Paint(d, ctx)
 	})
 }
 

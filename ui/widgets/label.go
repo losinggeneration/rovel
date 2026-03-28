@@ -76,11 +76,7 @@ func (l *Label) PreferredSize() geom.Size {
 	return l.MinSize()
 }
 
-func (l *Label) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	l.PaintDrawer(tui.NewDrawer(p), ctx)
-}
-
-func (l *Label) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
+func (l *Label) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	x := l.rect.X
 	y := l.rect.Y
 

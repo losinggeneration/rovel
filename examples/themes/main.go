@@ -509,7 +509,7 @@ func (w *statusWrapper) UpdateStatus(msg, msgType string) {
 	w.msgType = msgType
 }
 
-func (w *statusWrapper) Paint(p *tui.Painter, ctx *tui.Ctx) {
+func (w *statusWrapper) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	// Get current text and style based on message type
 	quitHint := " | Press 1/2/3 to switch themes, Esc to quit"
 	text := w.msg + quitHint
@@ -541,14 +541,14 @@ func (w *statusWrapper) Paint(p *tui.Painter, ctx *tui.Ctx) {
 
 	// Fill with background color
 	if bgStyle != (style.Style{}) {
-		p.Fill(w.Rect(), ' ', bgStyle)
+		d.FillRect(w.Rect(), bgStyle)
 	}
 
 	// Paint border and text
 	if w.border != nil {
-		w.border.Paint(p, ctx)
+		w.border.Paint(d, ctx)
 	} else if w.textView != nil {
-		w.textView.Paint(p, ctx)
+		w.textView.Paint(d, ctx)
 	}
 }
 
@@ -650,8 +650,8 @@ func (w *focusBlockWrapper) Rect() tui.Rect {
 	return w.view.Rect()
 }
 
-func (w *focusBlockWrapper) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	w.view.Paint(p, ctx)
+func (w *focusBlockWrapper) Paint(d tui.Drawer, ctx *tui.Ctx) {
+	w.view.Paint(d, ctx)
 }
 
 func (w *focusBlockWrapper) Handle(e tui.Event, ctx *tui.Ctx) bool {

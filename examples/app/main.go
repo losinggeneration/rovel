@@ -86,7 +86,12 @@ func (v *DemoView) Rect() geom.Rect {
 	return v.rect
 }
 
-func (v *DemoView) Paint(p *tui.Painter, ctx *tui.Ctx) {
+func (v *DemoView) Paint(d tui.Drawer, ctx *tui.Ctx) {
+	p := tui.PainterFromDrawer(d)
+	if p == nil {
+		return
+	}
+
 	// Draw a border box
 	p.Box(v.rect, tui.Style{
 		FG:   tui.ColorCyan,

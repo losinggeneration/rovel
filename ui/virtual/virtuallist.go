@@ -99,8 +99,11 @@ func (v *VirtualList) Focusable() bool {
 }
 
 // Paint renders the visible items only.
-func (v *VirtualList) Paint(p *tui.Painter, ctx *tui.Ctx) {
-	if v.rect.W <= 0 || v.rect.H <= 0 {
+// VirtualList remains a cell-shaped API because row rendering is explicitly
+// Painter-based, so it extracts the underlying Painter from the Drawer.
+func (v *VirtualList) Paint(d tui.Drawer, ctx *tui.Ctx) {
+	p := tui.PainterFromDrawer(d)
+	if p == nil || v.rect.W <= 0 || v.rect.H <= 0 {
 		return
 	}
 
@@ -144,16 +147,6 @@ func (v *VirtualList) Paint(p *tui.Painter, ctx *tui.Ctx) {
 			})
 		}
 	})
-}
-
-// PaintDrawer preserves compatibility with DrawerPaintable container paths on
-// the current cell-family renderer by delegating to the underlying Painter when
-// available. VirtualList remains a cell-shaped API because row rendering is
-// still explicitly Painter-based.
-func (v *VirtualList) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
-	if p := tui.PainterFromDrawer(d); p != nil {
-		v.Paint(p, ctx)
-	}
 }
 
 // Handle processes keyboard and mouse events.
