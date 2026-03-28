@@ -20,7 +20,9 @@ func enableRaw() (*unix.Termios, error) {
 
 	// Get current terminal settings
 	var orig unix.Termios
-	if err := unix.IoctlSetTermios(fd, unix.TCGETS, &orig); err != nil {
+
+	err := unix.IoctlSetTermios(fd, unix.TCGETS, &orig)
+	if err != nil {
 		return nil, err
 	}
 
@@ -35,7 +37,8 @@ func enableRaw() (*unix.Termios, error) {
 	raw.Cc[unix.VMIN] = 1
 	raw.Cc[unix.VTIME] = 0
 
-	if err := unix.IoctlSetTermios(fd, unix.TCSETS, &raw); err != nil {
+	err = unix.IoctlSetTermios(fd, unix.TCSETS, &raw)
+	if err != nil {
 		return nil, err
 	}
 
@@ -59,8 +62,8 @@ func getTerminalSize() (geom.Size, error) {
 
 	_, _, errno := syscall.Syscall(
 		syscall.SYS_IOCTL,
-		uintptr(os.Stdout.Fd()),
-		uintptr(unix.TIOCGWINSZ),
+		os.Stdout.Fd(),
+		unix.TIOCGWINSZ,
 		uintptr(unsafe.Pointer(&ws)),
 	)
 	if errno != 0 {

@@ -72,7 +72,8 @@ func main() {
 	}
 
 	defer func() {
-		if err := app.Restore(); err != nil {
+		err := app.Restore()
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to restore terminal: %v\n", err)
 		}
 	}()
@@ -204,6 +205,7 @@ func buildTextDemo() tui.View {
 
 type sizedLabel struct {
 	*widgets.Label
+
 	prefSize geom.Size
 }
 

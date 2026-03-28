@@ -58,6 +58,7 @@ func TestResolveGlyphRuns(t *testing.T) {
 	}
 
 	wantFG := base.BG.DisplayRGBA(defaultFG)
+
 	wantBG := base.FG.DisplayRGBA(defaultBG)
 	if runs[1].FG != wantFG || runs[1].BG != wantBG {
 		t.Fatalf("reversed run colors = %+v/%+v, want %+v/%+v", runs[1].FG, runs[1].BG, wantFG, wantBG)

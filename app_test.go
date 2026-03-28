@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -14,7 +15,7 @@ func TestPost_ErrClosed(t *testing.T) {
 	app.setClosed()
 
 	err := app.Post(func(ctx *UpdateCtx) {})
-	if err != ErrClosed {
+	if !errors.Is(err, ErrClosed) {
 		t.Errorf("Post after closed: got %v, want ErrClosed", err)
 	}
 }
@@ -59,9 +60,7 @@ func TestPost_OrderingFIFO(t *testing.T) {
 		mu    sync.Mutex
 	)
 
-	for i := 0; i < 5; i++ {
-		i := i
-
+	for i := range 5 {
 		if err := app.Post(func(ctx *UpdateCtx) {
 			mu.Lock()
 			order = append(order, i)

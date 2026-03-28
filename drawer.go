@@ -52,6 +52,7 @@ func PainterFromDrawer(d Drawer) *Painter {
 // exact cell writes.
 func CellDrawerOf(d Drawer) (CellDrawer, bool) {
 	cd, ok := d.(CellDrawer)
+
 	return cd, ok
 }
 

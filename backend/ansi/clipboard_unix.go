@@ -4,6 +4,7 @@ package ansi
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 )
 
@@ -31,7 +32,7 @@ func (b *Backend) ClipboardWrite(text string) error {
 // ClipboardRead is not supported synchronously by the ANSI backend.
 // Use ClipboardReadRequest for async clipboard reading via OSC 52.
 func (b *Backend) ClipboardRead() (string, error) {
-	return "", fmt.Errorf("clipboard read not supported synchronously; use ClipboardReadRequest")
+	return "", errors.New("clipboard read not supported synchronously; use ClipboardReadRequest")
 }
 
 // ClipboardReadRequest sends an OSC 52 read request to the terminal.

@@ -22,12 +22,12 @@ type runtimeRenderer interface {
 }
 
 type runtimePresenter interface {
-	Attach(backend.Backend)
+	Attach(b backend.Backend)
 	InitScreen() error
 	RestoreScreen() error
 	ResetCursor()
 	ResetStyle()
-	PresentFrame(runtimeFrame) error
+	PresentFrame(frame runtimeFrame) error
 }
 
 type cellRenderer struct {
@@ -101,6 +101,7 @@ func (r *cellRenderer) ClearDamaged(base style.Style) {
 func (r *cellRenderer) Painter(size geom.Size, base style.Style) *Painter {
 	clip := geom.Rect{X: 0, Y: 0, W: size.W, H: size.H}
 	rp := render.NewPainter(r.backBuf, clip, base)
+
 	return NewPainter(rp, base)
 }
 
@@ -117,14 +118,15 @@ func (r *cellRenderer) Frame(size geom.Size, base style.Style) runtimeFrame {
 func (f *cellFrame) Painter() *Painter {
 	clip := geom.Rect{X: 0, Y: 0, W: f.size.W, H: f.size.H}
 	rp := render.NewPainter(f.backBuf, clip, f.base)
+
 	return NewPainter(rp, f.base)
 }
 
 func makeBackendCellFrame(f *cellFrame) backend.CellFrame {
 	cells := make([]backend.FrameCell, f.size.W*f.size.H)
 
-	for y := 0; y < f.size.H; y++ {
-		for x := 0; x < f.size.W; x++ {
+	for y := range f.size.H {
+		for x := range f.size.W {
 			cell := f.backBuf.At(x, y)
 			cells[y*f.size.W+x] = backend.FrameCell{
 				R:        cell.R,
@@ -159,11 +161,13 @@ func (p *ansiPresenter) Attach(b backend.Backend) {
 }
 
 func (p *ansiPresenter) InitScreen() error {
-	if err := p.flusher.ClearScreen(); err != nil {
+	err := p.flusher.ClearScreen()
+	if err != nil {
 		return err
 	}
 
-	if err := p.flusher.HideCursor(); err != nil {
+	err = p.flusher.HideCursor()
+	if err != nil {
 		return err
 	}
 
@@ -171,7 +175,8 @@ func (p *ansiPresenter) InitScreen() error {
 }
 
 func (p *ansiPresenter) RestoreScreen() error {
-	if err := p.flusher.ShowCursor(); err != nil {
+	err := p.flusher.ShowCursor()
+	if err != nil {
 		return err
 	}
 
@@ -194,7 +199,8 @@ func (p *ansiPresenter) PresentFrame(frame runtimeFrame) error {
 
 	runs := render.DiffRuns(f.backBuf, f.frontBuf, f.damage)
 	if len(runs) > 0 {
-		if err := p.flusher.FlushRuns(f.backBuf, f.frontBuf, runs); err != nil {
+		err := p.flusher.FlushRuns(f.backBuf, f.frontBuf, runs)
+		if err != nil {
 			return err
 		}
 	}
@@ -255,6 +261,7 @@ func presenterForBackend(b backend.Backend) runtimePresenter {
 func (a *App) beginFrame(rects []geom.Rect) bool {
 	a.renderer.ResetDamage()
 	a.renderer.AddDamageRects(rects)
+
 	return a.renderer.IsDamaged()
 }
 

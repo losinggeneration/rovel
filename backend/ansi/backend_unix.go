@@ -4,7 +4,7 @@ package ansi
 
 import (
 	"bufio"
-	"fmt"
+	"errors"
 	"io"
 	"os"
 	"sync"
@@ -138,12 +138,14 @@ func (b *Backend) Restore() error {
 	var firstErr error
 
 	// 1. Disable any enabled input features before flushing.
-	if err := b.disableInputFeatures(); err != nil && firstErr == nil {
+	err := b.disableInputFeatures()
+	if err != nil && firstErr == nil {
 		firstErr = err
 	}
 
 	// 2. Flush any pending output.
-	if err := b.w.Flush(); err != nil && firstErr == nil {
+	err = b.w.Flush()
+	if err != nil && firstErr == nil {
 		firstErr = err
 	}
 
@@ -163,7 +165,8 @@ func (b *Backend) Restore() error {
 
 	// 5. Close write end of pipe to wake poll and request shutdown.
 	if b.pipeW >= 0 {
-		if err := unix.Close(b.pipeW); err != nil && firstErr == nil {
+		err := unix.Close(b.pipeW)
+		if err != nil && firstErr == nil {
 			firstErr = err
 		}
 
@@ -176,7 +179,8 @@ func (b *Backend) Restore() error {
 		<-b.readDone
 	} else if b.pipeR >= 0 {
 		// Read loop never started; no one else will close pipeR.
-		if err := unix.Close(b.pipeR); err != nil && firstErr == nil {
+		err := unix.Close(b.pipeR)
+		if err != nil && firstErr == nil {
 			firstErr = err
 		}
 
@@ -185,7 +189,8 @@ func (b *Backend) Restore() error {
 
 	// 7. Restore terminal settings last.
 	if b.origTermios != nil {
-		if err := restore(b.origTermios); err != nil && firstErr == nil {
+		err := restore(b.origTermios)
+		if err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
@@ -249,7 +254,7 @@ func (b *Backend) readEvents() {
 
 		alive := b.emitEvents(evs)
 		if !alive {
-			b.errs.Add(fmt.Errorf("emitKeyEvents already shutdown"))
+			b.errs.Add(errors.New("emitKeyEvents already shutdown"))
 		}
 
 		// Stop resize handling if the read loop exits before Restore() runs.

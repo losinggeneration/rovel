@@ -121,27 +121,27 @@ type Capability struct {
 
 // DetectCapabilityFromEnv detects color capabilities from environment variables.
 func DetectCapabilityFromEnv() Capability {
-	cap := Capability{HasBasic: true}
+	result := Capability{HasBasic: true}
 
 	// Check COLORTERM for truecolor indicator
 	if colorterm := os.Getenv("COLORTERM"); colorterm == "truecolor" || colorterm == "24bit" {
-		cap.HasTrueColor = true
-		cap.Has256Color = true
+		result.HasTrueColor = true
+		result.Has256Color = true
 
-		return cap
+		return result
 	}
 
 	// Check TERM for 256-color support
 	term := os.Getenv("TERM")
 	if strings.Contains(term, "256color") {
-		cap.Has256Color = true
+		result.Has256Color = true
 	}
 
-	return cap
+	return result
 }
 
 // Resolve resolves color to supported capability level.
-func (c Color) Resolve(cap Capability) Color {
+func (c Color) Resolve(capability Capability) Color {
 	kind := c.Kind()
 
 	// Already supported or default
@@ -149,17 +149,17 @@ func (c Color) Resolve(cap Capability) Color {
 		return c
 	}
 
-	if kind == ColorKindIndexed && cap.Has256Color {
+	if kind == ColorKindIndexed && capability.Has256Color {
 		return c
 	}
 
-	if kind == ColorKindRGB && cap.HasTrueColor {
+	if kind == ColorKindRGB && capability.HasTrueColor {
 		return c
 	}
 
 	// Need fallback
 	if kind == ColorKindRGB {
-		if cap.Has256Color {
+		if capability.Has256Color {
 			return c.rgbToIndexed()
 		}
 
@@ -200,12 +200,13 @@ func (c Color) rgbToIndexed() Color {
 func (c Color) toBasic() Color {
 	var r, g, b uint8
 
-	if c.Kind() == ColorKindRGB {
+	switch c.Kind() {
+	case ColorKindRGB:
 		r, g, b, _ = c.RGB()
-	} else if c.Kind() == ColorKindIndexed {
+	case ColorKindIndexed:
 		idx, _ := c.Index()
 		r, g, b = xterm256RGB(int(idx))
-	} else {
+	default:
 		return c
 	}
 

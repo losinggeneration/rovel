@@ -98,8 +98,8 @@ func TestThemeResolved(t *testing.T) {
 	theme := DefaultThemeModern()
 
 	// Resolve for basic-only terminal
-	cap := style.Capability{HasBasic: true}
-	resolved := theme.Resolved(cap)
+	c := style.Capability{HasBasic: true}
+	resolved := theme.Resolved(c)
 
 	// Resolved theme should be different from original
 	if resolved.Base.FG.Kind() != style.ColorKindBasic {
@@ -124,8 +124,8 @@ func TestThemeResolved(t *testing.T) {
 func TestThemeResolved_Palette(t *testing.T) {
 	theme := DefaultThemeModern()
 
-	cap := style.Capability{HasBasic: true}
-	resolved := theme.Resolved(cap)
+	c := style.Capability{HasBasic: true}
+	resolved := theme.Resolved(c)
 
 	// All palette fields should be resolved
 	// Just check a few representative fields
@@ -157,8 +157,8 @@ func TestThemePreservesBaseAndPaletteFocus(t *testing.T) {
 		},
 	}
 
-	cap := style.Capability{HasBasic: true}
-	resolved := original.Resolved(cap)
+	c := style.Capability{HasBasic: true}
+	resolved := original.Resolved(c)
 
 	// Base and Palette.Focus should be preserved (just colors resolved)
 	if resolved.Base.Attr != original.Base.Attr {
@@ -206,9 +206,9 @@ func TestThemeResolved_DefaultsPaletteFocus(t *testing.T) {
 		Base: style.Style{FG: style.ColorWhite, BG: style.ColorBlack},
 	}
 
-	cap := style.Capability{HasBasic: true}
+	c := style.Capability{HasBasic: true}
 
-	resolved := original.Resolved(cap)
+	resolved := original.Resolved(c)
 	if resolved.Palette.Focus.Attr&style.AttrReverse == 0 {
 		t.Error("Resolved() Palette.Focus should default to AttrReverse when unset")
 	}
@@ -226,8 +226,8 @@ func TestThemeResolved_ChromeStyleFn(t *testing.T) {
 		return style.Style{FG: style.ColorRGB(10, 20, 30), BG: style.ColorRGB(40, 50, 60)}
 	}
 
-	cap := style.Capability{HasBasic: true}
-	resolved := theme.Resolved(cap)
+	c := style.Capability{HasBasic: true}
+	resolved := theme.Resolved(c)
 
 	chrome := resolved.Chrome.Border.Effective(resolved)
 

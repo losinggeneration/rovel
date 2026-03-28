@@ -154,21 +154,24 @@ func (b *Button) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 
 	var st style.Style
 
-	if b.disabled {
+	switch {
+	case b.disabled:
 		fallback := ctx.Theme.Palette.Disabled
 		if fallback == (style.Style{}) {
 			fallback = ctx.Theme.Base
 		}
 
 		st = resolveStyle(b.stDisabled, fallback)
-	} else if focused {
+
+	case focused:
 		fallback := ctx.Theme.Palette.Focus
 		if fallback == (style.Style{}) {
 			fallback = ctx.Theme.Base
 		}
 
 		st = resolveStyle(b.stFocused, fallback)
-	} else {
+
+	default:
 		fallback := ctx.Theme.Palette.Surface
 		if fallback == (style.Style{}) {
 			fallback = ctx.Theme.Base

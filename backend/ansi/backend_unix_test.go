@@ -25,6 +25,7 @@ type testBackend struct {
 
 // newTestBackend creates a new test backend.
 func newTestBackend(t *testing.T) (*testBackend, error) {
+	t.Helper()
 	// Create input pipe
 	r, w, err := os.Pipe()
 	if err != nil {
@@ -63,6 +64,8 @@ func newTestBackend(t *testing.T) (*testBackend, error) {
 }
 
 func closer(t *testing.T, c io.Closer) {
+	t.Helper()
+
 	if c == nil {
 		return
 	}

@@ -66,11 +66,13 @@ func (h *appHost) ClipboardWrite(text string) bool {
 	}
 
 	_ = cb.ClipboardWrite(text)
+
 	return true
 }
 
 func (h *appHost) CanClipboardReadAsync() bool {
 	_, ok := h.raw.(backend.ClipboardAsyncReader)
+
 	return ok
 }
 
@@ -81,5 +83,6 @@ func (h *appHost) ClipboardReadRequest() bool {
 	}
 
 	_ = ar.ClipboardReadRequest()
+
 	return true
 }

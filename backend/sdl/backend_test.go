@@ -1,7 +1,6 @@
 package sdl
 
 import (
-	"os"
 	"testing"
 
 	"github.com/losinggeneration/tui/backend"
@@ -21,9 +20,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestBackendEnablePresentRestore_DummyVideo(t *testing.T) {
-	if err := os.Setenv("SDL_VIDEODRIVER", "dummy"); err != nil {
-		t.Fatalf("Setenv: %v", err)
-	}
+	t.Setenv("SDL_VIDEODRIVER", "dummy")
 
 	bi, err := New(DefaultOptions())
 	if err != nil {
@@ -78,8 +75,10 @@ func TestMapKeyArrows(t *testing.T) {
 		key, ok := mapKey(tc.sym, 0)
 		if !ok {
 			t.Errorf("mapKey(%v, 0) = not ok, want ok", tc.sym)
+
 			continue
 		}
+
 		if key != tc.wantKey {
 			t.Errorf("mapKey(%v, 0) = %v, want %v", tc.sym, key, tc.wantKey)
 		}
@@ -103,8 +102,10 @@ func TestMapKeyNavigation(t *testing.T) {
 		key, ok := mapKey(tc.sym, 0)
 		if !ok {
 			t.Errorf("mapKey(%v, 0) = not ok, want ok", tc.sym)
+
 			continue
 		}
+
 		if key != tc.wantKey {
 			t.Errorf("mapKey(%v, 0) = %v, want %v", tc.sym, key, tc.wantKey)
 		}
@@ -134,8 +135,10 @@ func TestMapKeyFunctionKeys(t *testing.T) {
 		key, ok := mapKey(tc.sym, 0)
 		if !ok {
 			t.Errorf("mapKey(%v, 0) = not ok, want ok", tc.sym)
+
 			continue
 		}
+
 		if key != tc.wantKey {
 			t.Errorf("mapKey(%v, 0) = %v, want %v", tc.sym, key, tc.wantKey)
 		}
@@ -158,8 +161,10 @@ func TestMapKeySpecial(t *testing.T) {
 		key, ok := mapKey(tc.sym, 0)
 		if !ok {
 			t.Errorf("mapKey(%v, 0) = not ok, want ok", tc.sym)
+
 			continue
 		}
+
 		if key != tc.wantKey {
 			t.Errorf("mapKey(%v, 0) = %v, want %v", tc.sym, key, tc.wantKey)
 		}

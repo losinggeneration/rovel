@@ -179,6 +179,7 @@ func (pm *PerfMonitor) Summary() string {
 // InstrumentedVirtualList wraps a VirtualList to record performance metrics.
 type InstrumentedVirtualList struct {
 	*virtual.VirtualList
+
 	monitor *PerfMonitor
 	name    string
 }

@@ -46,6 +46,7 @@ type CompositeView interface {
 func PaintView(v View, p *Painter, ctx *Ctx) {
 	if dp, ok := v.(DrawerPaintable); ok {
 		dp.PaintDrawer(NewDrawer(p), ctx)
+
 		return
 	}
 
@@ -59,6 +60,7 @@ func PaintView(v View, p *Painter, ctx *Ctx) {
 func PaintViewDrawer(v View, d Drawer, ctx *Ctx) {
 	if dp, ok := v.(DrawerPaintable); ok {
 		dp.PaintDrawer(d, ctx)
+
 		return
 	}
 

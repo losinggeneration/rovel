@@ -61,14 +61,17 @@ func (b *Backend) Enable() (geom.Size, error) {
 
 	if err := gttf.Init(); err != nil {
 		gsdl.Quit()
+
 		return geom.Size{}, err
 	}
 
 	opts := b.Options()
+
 	fontPath, err := discoverFontPath(opts.FontPath)
 	if err != nil {
 		gttf.Quit()
 		gsdl.Quit()
+
 		return geom.Size{}, err
 	}
 
@@ -83,14 +86,17 @@ func (b *Backend) Enable() (geom.Size, error) {
 	if err != nil {
 		gttf.Quit()
 		gsdl.Quit()
+
 		return geom.Size{}, err
 	}
 
 	renderer, err := createRenderer(window)
 	if err != nil {
 		_ = window.Destroy()
+
 		gttf.Quit()
 		gsdl.Quit()
+
 		return geom.Size{}, err
 	}
 
@@ -98,8 +104,10 @@ func (b *Backend) Enable() (geom.Size, error) {
 	if err != nil {
 		_ = renderer.Destroy()
 		_ = window.Destroy()
+
 		gttf.Quit()
 		gsdl.Quit()
+
 		return geom.Size{}, err
 	}
 
@@ -108,6 +116,7 @@ func (b *Backend) Enable() (geom.Size, error) {
 	b.font = font
 
 	cellW, cellH := measureFontMetrics(font, opts.CellWidth, opts.CellHeight)
+
 	b.mu.Lock()
 	b.metrics = cellsurface.Metrics{CellWidth: cellW, CellHeight: cellH}
 	b.size = geom.Size{
@@ -119,6 +128,7 @@ func (b *Backend) Enable() (geom.Size, error) {
 	gsdl.StartTextInput()
 
 	b.running.Store(true)
+
 	b.pollDone = make(chan struct{})
 	go b.pollEvents()
 
@@ -127,6 +137,7 @@ func (b *Backend) Enable() (geom.Size, error) {
 
 func (b *Backend) Restore() error {
 	b.running.Store(false)
+
 	if b.pollDone != nil {
 		<-b.pollDone
 	}
@@ -159,7 +170,8 @@ func (b *Backend) Restore() error {
 }
 
 func (b *Backend) PresentCellFrame(frame backend.CellFrame) error {
-	if err := b.Core.PresentCellFrame(frame); err != nil {
+	err := b.Core.PresentCellFrame(frame)
+	if err != nil {
 		return err
 	}
 
@@ -181,6 +193,7 @@ func (b *Backend) ClipboardReadRequest() error {
 	}
 
 	b.SendEvent(tevent.ClipboardResponseEvent{Text: text})
+
 	return nil
 }
 
@@ -196,15 +209,19 @@ func (b *Backend) drawFrame(frame backend.CellFrame) error {
 	metrics := b.Metrics()
 
 	bg := opts.DefaultBG
-	if err := b.renderer.SetDrawColor(bg.R, bg.G, bg.B, bg.A); err != nil {
+
+	err := b.renderer.SetDrawColor(bg.R, bg.G, bg.B, bg.A)
+	if err != nil {
 		return err
 	}
-	if err := b.renderer.Clear(); err != nil {
+
+	err = b.renderer.Clear()
+	if err != nil {
 		return err
 	}
 
 	base := style.Style{}
-	for y := 0; y < frame.H; y++ {
+	for y := range frame.H {
 		runs := cellsurface.ResolveGlyphRuns(frame, y, base, opts.DefaultFG, opts.DefaultBG)
 		for _, run := range runs {
 			dst := metrics.CellRect(run.X, y)
@@ -213,6 +230,7 @@ func (b *Backend) drawFrame(frame backend.CellFrame) error {
 			if err := b.renderer.SetDrawColor(run.BG.R, run.BG.G, run.BG.B, run.BG.A); err != nil {
 				return err
 			}
+
 			if err := b.renderer.FillRect(&gsdl.Rect{
 				X: int32(dst.X),
 				Y: int32(dst.Y),
@@ -229,9 +247,11 @@ func (b *Backend) drawFrame(frame backend.CellFrame) error {
 			b.font.SetStyle(ttfStyle(run.Attr))
 
 			if shouldRenderPerCell(run.Text) {
-				if err := b.drawPerCellRun(run, metrics, y); err != nil {
+				err := b.drawPerCellRun(run, metrics, y)
+				if err != nil {
 					return err
 				}
+
 				continue
 			}
 
@@ -245,6 +265,7 @@ func (b *Backend) drawFrame(frame backend.CellFrame) error {
 
 			texture, err := b.renderer.CreateTextureFromSurface(surface)
 			surface.Free()
+
 			if err != nil {
 				return err
 			}
@@ -256,6 +277,7 @@ func (b *Backend) drawFrame(frame backend.CellFrame) error {
 				H: h,
 			})
 			_ = texture.Destroy()
+
 			if copyErr != nil {
 				return copyErr
 			}
@@ -276,6 +298,7 @@ func (b *Backend) drawPerCellRun(run cellsurface.ResolvedGlyphRun, metrics cells
 
 		if drawBoxRune(b.renderer, r, cellRect, run.FG) {
 			x += span
+
 			continue
 		}
 
@@ -287,6 +310,7 @@ func (b *Backend) drawPerCellRun(run cellsurface.ResolvedGlyphRun, metrics cells
 		texture, err := b.renderer.CreateTextureFromSurface(surface)
 		if err != nil {
 			surface.Free()
+
 			return err
 		}
 
@@ -300,6 +324,7 @@ func (b *Backend) drawPerCellRun(run cellsurface.ResolvedGlyphRun, metrics cells
 			H: int32(dst.H),
 		})
 		_ = texture.Destroy()
+
 		if copyErr != nil {
 			return copyErr
 		}
@@ -316,6 +341,7 @@ func (b *Backend) pollEvents() {
 			b.running.Store(false)
 			b.Close()
 		}
+
 		close(b.pollDone)
 	}()
 
@@ -323,6 +349,7 @@ func (b *Backend) pollEvents() {
 		ev := gsdl.PollEvent()
 		if ev == nil {
 			time.Sleep(8 * time.Millisecond)
+
 			continue
 		}
 
@@ -330,10 +357,12 @@ func (b *Backend) pollEvents() {
 		case gsdl.QuitEvent:
 			b.running.Store(false)
 			b.Close()
+
 			return
 		case gsdl.WindowEvent:
 			if e.Event == gsdl.WINDOWEVENT_SIZE_CHANGED || e.Event == gsdl.WINDOWEVENT_RESIZED {
 				b.ResizeWindow(int(e.Data1), int(e.Data2))
+
 				continue
 			}
 
@@ -367,9 +396,11 @@ func (b *Backend) pollEvents() {
 			if e.State == gsdl.PRESSED {
 				action = tevent.MousePress
 			}
+
 			b.SendEvent(b.MapMouse(int(e.X), int(e.Y), mapMouseButton(e.Button), action, 0))
 		case gsdl.MouseWheelEvent:
 			x := e.MouseX
+
 			y := e.MouseY
 			if x == 0 && y == 0 {
 				x, y, _ = gsdl.GetMouseState()
@@ -395,6 +426,7 @@ func (b *Backend) handleCtrlModifiedKey(sym gsdl.Keycode, mod gsdl.Keymod) bool 
 		if text, err := gsdl.GetClipboardText(); err == nil {
 			b.SendEvent(tevent.PasteEvent{Text: text})
 		}
+
 		return true
 	case gsdl.K_a, gsdl.K_b, gsdl.K_c, gsdl.K_d, gsdl.K_e, gsdl.K_f,
 		gsdl.K_g, gsdl.K_h, gsdl.K_i, gsdl.K_j, gsdl.K_k, gsdl.K_l,
@@ -405,6 +437,7 @@ func (b *Backend) handleCtrlModifiedKey(sym gsdl.Keycode, mod gsdl.Keymod) bool 
 			Rune: rune(sym),
 			Mod:  tevent.ModCtrl,
 		})
+
 		return true
 	case gsdl.K_0, gsdl.K_1, gsdl.K_2, gsdl.K_3, gsdl.K_4,
 		gsdl.K_5, gsdl.K_6, gsdl.K_7, gsdl.K_8, gsdl.K_9:
@@ -413,6 +446,7 @@ func (b *Backend) handleCtrlModifiedKey(sym gsdl.Keycode, mod gsdl.Keymod) bool 
 			Rune: rune(sym - 0x30),
 			Mod:  tevent.ModCtrl,
 		})
+
 		return true
 	default:
 		return false
@@ -426,6 +460,7 @@ func New(opts Options) (backend.Backend, error) {
 
 func wheelEventSteps(e gsdl.MouseWheelEvent) (int, tevent.MouseButton) {
 	button := tevent.MouseButtonNone
+
 	value := int(e.Y)
 	if value > 0 {
 		button = tevent.MouseButtonWheelUp
@@ -437,12 +472,14 @@ func wheelEventSteps(e gsdl.MouseWheelEvent) (int, tevent.MouseButton) {
 	if steps < 0 {
 		steps = -steps
 	}
+
 	if steps == 0 && e.PreciseY != 0 {
 		if e.PreciseY > 0 {
 			button = tevent.MouseButtonWheelUp
 		} else {
 			button = tevent.MouseButtonWheelDown
 		}
+
 		steps = int(math.Ceil(math.Abs(float64(e.PreciseY))))
 	}
 
@@ -463,6 +500,7 @@ func mapKey(sym gsdl.Keycode, mod gsdl.Keymod) (tevent.Key, bool) {
 		if mod&gsdl.KMOD_SHIFT != 0 {
 			return tevent.KeyShiftTab, true
 		}
+
 		return tevent.KeyTab, true
 	case gsdl.K_BACKSPACE:
 		return tevent.KeyBackspace, true
@@ -524,9 +562,11 @@ func mapMod(mod gsdl.Keymod) tevent.ModMask {
 	if mod&gsdl.KMOD_SHIFT != 0 {
 		out |= tevent.ModShift
 	}
+
 	if mod&gsdl.KMOD_ALT != 0 {
 		out |= tevent.ModAlt
 	}
+
 	if mod&gsdl.KMOD_CTRL != 0 {
 		out |= tevent.ModCtrl
 	}
@@ -597,6 +637,7 @@ func drawBoxRune(renderer *gsdl.Renderer, r rune, cellRect cellsurface.PixelRect
 	}
 
 	var err error
+
 	switch r {
 	case '│':
 		err = joinErr(vTop(), vBottom())
@@ -651,9 +692,11 @@ func ttfStyle(attr style.AttrMask) gttf.Style {
 	if attr&style.AttrBold != 0 {
 		s |= gttf.STYLE_BOLD
 	}
+
 	if attr&style.AttrItalic != 0 {
 		s |= gttf.STYLE_ITALIC
 	}
+
 	if attr&style.AttrUnderline != 0 {
 		s |= gttf.STYLE_UNDERLINE
 	}
@@ -738,6 +781,7 @@ func createRenderer(window *gsdl.Window) (*gsdl.Renderer, error) {
 	}
 
 	var lastErr error
+
 	for _, flag := range flags {
 		renderer, err := gsdl.CreateRenderer(window, -1, flag)
 		if err == nil {
@@ -767,6 +811,7 @@ func measureFontMetrics(font *gttf.Font, fallbackW, fallbackH int) (int, int) {
 	if cellW <= 0 {
 		cellW = 8
 	}
+
 	if cellH <= 0 {
 		cellH = 16
 	}

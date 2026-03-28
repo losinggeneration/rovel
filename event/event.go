@@ -20,26 +20,26 @@ const (
 	// The actual rune is in KeyEvent.Rune.
 	KeyRune
 
-	// Special keys
+	// KeyEnter is the enter key.
 	KeyEnter
 	KeyEsc
 	KeyTab
 	KeyBackspace
 	KeyCtrlC // Ctrl+C for quit
 
-	// Arrow keys
+	// KeyUp is the up arrow key.
 	KeyUp
 	KeyDown
 	KeyLeft
 	KeyRight
 
-	// Function keys F1–F4 (SS3 P/Q/R/S sequences)
+	// KeyF1 is the F1 function key (SS3 P sequence).
 	KeyF1
 	KeyF2
 	KeyF3
 	KeyF4
 
-	// Navigation keys (CSI tilde sequences and CSI/SS3 letter sequences)
+	// KeyHome is the Home key (CSI tilde and CSI/SS3 letter sequences).
 	KeyHome
 	KeyEnd
 	KeyInsert
@@ -47,7 +47,7 @@ const (
 	KeyPageUp
 	KeyPageDown
 
-	// Extended function keys (CSI 15~/17~/18~/19~/20~/21~/23~/24~)
+	// KeyF5 is the F5 function key (CSI 15~ sequence).
 	KeyF5
 	KeyF6
 	KeyF7

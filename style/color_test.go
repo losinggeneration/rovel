@@ -37,31 +37,31 @@ func TestColorConstructors(t *testing.T) {
 }
 
 func TestColorResolve_Basic(t *testing.T) {
-	cap := Capability{HasBasic: true}
+	c := Capability{HasBasic: true}
 
 	// Basic colors should pass through unchanged
-	c := ColorRed
+	color := ColorRed
 
-	resolved := c.Resolve(cap)
-	if resolved != c {
-		t.Errorf("Basic color changed after Resolve: got %d, want %d", resolved, c)
+	resolved := color.Resolve(c)
+	if resolved != color {
+		t.Errorf("Basic color changed after Resolve: got %d, want %d", resolved, color)
 	}
 
 	// Default should pass through
 	d := ColorDefault
 
-	resolved = d.Resolve(cap)
+	resolved = d.Resolve(c)
 	if resolved != d {
 		t.Errorf("Default color changed after Resolve")
 	}
 }
 
 func TestColorResolve_RGBToIndexed(t *testing.T) {
-	cap := Capability{HasBasic: true, Has256Color: true}
+	c := Capability{HasBasic: true, Has256Color: true}
 
 	// RGB should map to nearest indexed when no truecolor
-	c := ColorRGB(255, 0, 0)
-	resolved := c.Resolve(cap)
+	color := ColorRGB(255, 0, 0)
+	resolved := color.Resolve(c)
 
 	if resolved.Kind() != ColorKindIndexed {
 		t.Errorf("RGB didn't resolve to indexed, got kind=%d", resolved.Kind())
@@ -77,11 +77,11 @@ func TestColorResolve_RGBToIndexed(t *testing.T) {
 }
 
 func TestColorResolve_RGBToBasic(t *testing.T) {
-	cap := Capability{HasBasic: true}
+	c := Capability{HasBasic: true}
 
 	// RGB should map to basic when no 256/truecolor
-	c := ColorRGB(255, 0, 0)
-	resolved := c.Resolve(cap)
+	color := ColorRGB(255, 0, 0)
+	resolved := color.Resolve(c)
 
 	if resolved.Kind() != ColorKindBasic {
 		t.Errorf("RGB didn't resolve to basic, got kind=%d", resolved.Kind())
@@ -98,11 +98,11 @@ func TestColorResolve_RGBToBasic(t *testing.T) {
 }
 
 func TestColorResolve_IndexedToBasic(t *testing.T) {
-	cap := Capability{HasBasic: true}
+	c := Capability{HasBasic: true}
 
 	// Indexed should map to basic when no 256-color support
-	c := ColorIndex(200) // Some color in the 256-color palette
-	resolved := c.Resolve(cap)
+	color := ColorIndex(200) // Some color in the 256-color palette
+	resolved := color.Resolve(c)
 
 	if resolved.Kind() != ColorKindBasic {
 		t.Errorf("Indexed didn't resolve to basic, got kind=%d", resolved.Kind())

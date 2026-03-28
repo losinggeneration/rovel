@@ -749,7 +749,8 @@ func (d *InputDecoder) parseSGRMouse(final byte) (event.MouseEvent, bool) {
 		action event.MouseAction
 	)
 
-	if pb&64 != 0 {
+	switch {
+	case pb&64 != 0:
 		// Wheel events
 		switch buttonBits & 3 {
 		case 0:
@@ -761,7 +762,8 @@ func (d *InputDecoder) parseSGRMouse(final byte) (event.MouseEvent, bool) {
 		}
 
 		action = event.MousePress
-	} else if pb&32 != 0 {
+
+	case pb&32 != 0:
 		// Motion events
 		action = event.MouseMove
 
@@ -775,7 +777,8 @@ func (d *InputDecoder) parseSGRMouse(final byte) (event.MouseEvent, bool) {
 		default:
 			button = event.MouseButtonNone
 		}
-	} else {
+
+	default:
 		// Regular button events
 		switch buttonBits & 3 {
 		case 0:

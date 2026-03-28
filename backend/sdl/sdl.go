@@ -270,6 +270,7 @@ func (c *Core) MapMouse(pixelX, pixelY int, button event.MouseButton, action eve
 	c.mu.Unlock()
 
 	x, y := metrics.PixelToCell(pixelX, pixelY)
+
 	return event.MouseEvent{
 		X:      x,
 		Y:      y,
@@ -285,12 +286,4 @@ func (c *Core) Options() Options {
 	defer c.mu.Unlock()
 
 	return c.opts
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-
-	return b
 }

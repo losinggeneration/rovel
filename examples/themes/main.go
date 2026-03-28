@@ -249,7 +249,8 @@ func main() {
 	}
 
 	defer func() {
-		if err := app.Restore(); err != nil {
+		err := app.Restore()
+		if err != nil {
 			fmt.Printf("Failed to restore terminal: %v\n", err)
 		}
 	}()
@@ -414,9 +415,10 @@ func (s *appState) switchTheme(ctx *tui.Ctx, index int) {
 	s.updateLabels()
 
 	// Switch theme via App.Post to ensure it's updated on the app goroutine
-	if err := s.app.Post(func(updateCtx *tui.UpdateCtx) {
+	err := s.app.Post(func(updateCtx *tui.UpdateCtx) {
 		s.app.SetTheme(s.themes[index].theme)
-	}); err != nil {
+	})
+	if err != nil {
 		s.statusMessage = fmt.Sprintf("Failed to switch theme: %v", err)
 
 		s.statusType = "danger"
@@ -428,7 +430,7 @@ func (s *appState) switchTheme(ctx *tui.Ctx, index int) {
 
 func (s *appState) updateLabels() {
 	// Update theme selector
-	s.themeSelector.SetText(nil, fmt.Sprintf("Theme: %s", s.themes[s.currentThemeIndex].name))
+	s.themeSelector.SetText(nil, "Theme: "+s.themes[s.currentThemeIndex].name)
 
 	// Update capability label
 	var capText string
@@ -442,7 +444,7 @@ func (s *appState) updateLabels() {
 		capText = "Monochrome"
 	}
 
-	s.capabilityLabel.SetText(nil, fmt.Sprintf("Capability: %s", capText))
+	s.capabilityLabel.SetText(nil, "Capability: "+capText)
 }
 
 // statusWrapper paints a background color for status messages
@@ -576,6 +578,7 @@ func (w *statusWrapper) FocusScope() bool {
 // Root embeds CompositeView and handles app-level semantic actions.
 type Root struct {
 	tui.CompositeView
+
 	app   *tui.App
 	state *appState
 }

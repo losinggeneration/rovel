@@ -57,6 +57,7 @@ func TestCoreEnableAndResizeWindow(t *testing.T) {
 	}
 
 	read := core.ReadEvent()
+
 	re, ok := read.(event.ResizeEvent)
 	if !ok {
 		t.Fatalf("ReadEvent() = %T, want ResizeEvent", read)
@@ -110,12 +111,14 @@ func TestCoreRefreshEmitsCurrentSize(t *testing.T) {
 	}
 
 	want := core.Size()
+
 	ev := core.Refresh()
 	if ev.W != want.W || ev.H != want.H {
 		t.Fatalf("Refresh() = %+v, want current size %+v", ev, want)
 	}
 
 	read := core.ReadEvent()
+
 	re, ok := read.(event.ResizeEvent)
 	if !ok {
 		t.Fatalf("ReadEvent() = %T, want ResizeEvent", read)

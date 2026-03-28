@@ -260,11 +260,13 @@ func (ta *TextArea) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 			inSel := hasSel && absByte >= selStart && absByte < selEnd
 
 			var st style.Style
-			if cursorHere {
+
+			switch {
+			case cursorHere:
 				st = resolveStyle(ta.stFocused, ctx.Theme.Palette.Focus)
-			} else if inSel {
+			case inSel:
 				st = resolveStyle(ta.stSelection, ctx.Theme.Palette.Selection)
-			} else {
+			default:
 				st = resolveStyle(ta.stNormal, ctx.Theme.Base)
 			}
 

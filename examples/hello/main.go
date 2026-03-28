@@ -55,7 +55,8 @@ func main() {
 	}
 
 	defer func() {
-		if err := app.Restore(); err != nil {
+		err := app.Restore()
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to restore terminal: %v\n", err)
 		}
 	}()

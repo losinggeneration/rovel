@@ -105,14 +105,6 @@ func (b *Border) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 	})
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-
-	return b
-}
-
 // Handle processes events - delegates to child.
 func (b *Border) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	return b.child.Handle(e, ctx)

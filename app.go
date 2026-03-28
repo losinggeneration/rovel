@@ -178,13 +178,13 @@ func (a *App) Enable() error {
 	a.size = size
 
 	// Detect or use provided capability
-	cap := a.opts.Capability
-	if cap == nil {
+	providedCap := a.opts.Capability
+	if providedCap == nil {
 		detected := style.DetectCapabilityFromEnv()
-		cap = &detected
+		providedCap = &detected
 	}
 
-	a.capability = *cap
+	a.capability = *providedCap
 
 	// Query backend capabilities
 	a.inputCaps = a.host.InputCapabilities()
@@ -207,6 +207,7 @@ func (a *App) Enable() error {
 	// Choose and attach the presenter for the concrete backend.
 	a.presenter = presenterForBackend(a.host.Backend())
 	a.presenter.Attach(a.host.Backend())
+
 	if err := a.presenter.InitScreen(); err != nil {
 		return err
 	}
@@ -227,7 +228,8 @@ func (a *App) Enable() error {
 
 // Restore restores the terminal to its original state.
 func (a *App) Restore() error {
-	if err := a.presenter.RestoreScreen(); err != nil {
+	err := a.presenter.RestoreScreen()
+	if err != nil {
 		return err
 	}
 
@@ -379,6 +381,7 @@ func (a *App) Run() (err error) {
 			a.postMu.Unlock()
 
 			fn(ctx)
+
 			processedPosts = true
 
 			if !a.running.Load() {
@@ -1214,10 +1217,6 @@ func (a *App) DismissOverlayByID(id ID) *Overlay {
 
 // focusFirstIn sets focus to the first focusable descendant of v.
 func (a *App) focusFirstIn(v View) {
-	type composite interface {
-		Children() []View
-	}
-
 	var walk func(View) bool
 
 	walk = func(v View) bool {
@@ -1227,7 +1226,7 @@ func (a *App) focusFirstIn(v View) {
 			return true
 		}
 
-		if c, ok := v.(composite); ok {
+		if c, ok := v.(viewChildren); ok {
 			for _, child := range c.Children() {
 				if walk(child) {
 					return true

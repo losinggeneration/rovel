@@ -59,6 +59,7 @@ func (appKeymap) Resolve(ctx ui.KeyContext, k ui.Keystroke) (ui.Action, bool) {
 // Root embeds the main layout and handles app-level actions.
 type Root struct {
 	*layout.VStack
+
 	state *appState
 	app   *tui.App
 }
@@ -185,7 +186,8 @@ func main() {
 
 			row := fmt.Sprintf("Item %d", i)
 
-			if selected && focused {
+			switch {
+			case selected && focused:
 				// Selected + focused: reverse video
 				p.Fill(r, ' ', tui.Style{Attr: style.AttrReverse})
 
@@ -193,7 +195,8 @@ func main() {
 				if r.W > 1 {
 					p.Text(r.X, r.Y, ">"+truncated, tui.Style{Attr: style.AttrReverse})
 				}
-			} else if selected {
+
+			case selected:
 				// Selected but unfocused: lighter treatment
 				p.Fill(r, ' ', tui.Style{FG: style.ColorWhite, BG: style.ColorBlue})
 
@@ -201,7 +204,8 @@ func main() {
 				if r.W > 1 {
 					p.Text(r.X, r.Y, ">"+truncated, tui.Style{FG: style.ColorWhite, BG: style.ColorBlue})
 				}
-			} else {
+
+			default:
 				// Normal row
 				truncated := truncate(row, r.W)
 				p.Text(r.X, r.Y, truncated, tui.Style{})
@@ -237,7 +241,8 @@ func main() {
 	}
 
 	defer func() {
-		if err := app.Restore(); err != nil {
+		err := app.Restore()
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to restore terminal: %v\n", err)
 		}
 	}()

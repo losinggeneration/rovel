@@ -1,6 +1,7 @@
 package tui_test
 
 import (
+	"errors"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -98,10 +99,10 @@ func (r *integrationRoot) Handle(e tui.Event, ctx *tui.Ctx) bool {
 
 func TestIntegration_FullLifecycle(t *testing.T) {
 	be := headless.New(geom.Size{W: 80, H: 24})
-	cap := style.Capability{HasBasic: true}
+	c := style.Capability{HasBasic: true}
 	opts := tui.AppOpts{
 		Backend:       be,
-		Capability:    &cap,
+		Capability:    &c,
 		Theme:         tui.DefaultTheme(),
 		ResolveAction: ui.DefaultAppResolver(),
 	}
@@ -187,7 +188,7 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 		t.Fatalf("Post: %v", err)
 	}
 
-	waitFor("post callback", func() bool { return postRan.Load() })
+	waitFor("post callback", postRan.Load)
 
 	// 5. Shut down.
 	app.Quit()
@@ -213,18 +214,18 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 
 	// 7. Post after shutdown should return ErrClosed.
 	err = app.Post(func(ctx *tui.UpdateCtx) {})
-	if err != tui.ErrClosed {
+	if !errors.Is(err, tui.ErrClosed) {
 		t.Errorf("Post after shutdown: got %v, want ErrClosed", err)
 	}
 }
 
 func TestIntegration_MemoryBackendCapturesLogicalFrames(t *testing.T) {
 	be := memory.New(geom.Size{W: 12, H: 4})
-	cap := style.Capability{HasBasic: true}
+	c := style.Capability{HasBasic: true}
 
 	app, err := tui.New(tui.AppOpts{
 		Backend:    be,
-		Capability: &cap,
+		Capability: &c,
 		Theme:      tui.DefaultTheme(),
 	})
 	if err != nil {
@@ -257,6 +258,7 @@ func TestIntegration_MemoryBackendCapturesLogicalFrames(t *testing.T) {
 	}
 
 	done := make(chan error, 1)
+
 	go func() { done <- app.Run() }()
 
 	waitFor := func(name string, check func() bool) {
@@ -308,11 +310,11 @@ func TestIntegration_MemoryBackendCapturesLogicalFrames(t *testing.T) {
 
 func TestIntegration_MemoryBackendCapturesPostedUpdatesAndOverlays(t *testing.T) {
 	be := memory.New(geom.Size{W: 16, H: 6})
-	cap := style.Capability{HasBasic: true}
+	c := style.Capability{HasBasic: true}
 
 	app, err := tui.New(tui.AppOpts{
 		Backend:    be,
-		Capability: &cap,
+		Capability: &c,
 		Theme:      tui.DefaultTheme(),
 	})
 	if err != nil {
@@ -327,6 +329,7 @@ func TestIntegration_MemoryBackendCapturesPostedUpdatesAndOverlays(t *testing.T)
 	}
 
 	done := make(chan error, 1)
+
 	go func() { done <- app.Run() }()
 
 	waitFor := func(name string, check func() bool) {
@@ -349,6 +352,7 @@ func TestIntegration_MemoryBackendCapturesPostedUpdatesAndOverlays(t *testing.T)
 	}
 
 	initialFrames := be.FrameCount()
+
 	err = app.Post(func(ctx *tui.UpdateCtx) {
 		label.SetText(nil, "updated")
 		ctx.Invalidate(label.Rect())
@@ -371,6 +375,7 @@ func TestIntegration_MemoryBackendCapturesPostedUpdatesAndOverlays(t *testing.T)
 	}
 
 	framesBeforeOverlay := be.FrameCount()
+
 	err = app.Post(func(ctx *tui.UpdateCtx) {
 		o := app.ShowOverlay(tui.OverlayOpts{
 			Root:  widgets.NewLabel("OVR"),

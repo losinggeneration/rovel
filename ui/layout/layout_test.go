@@ -203,6 +203,7 @@ func TestInsetRect(t *testing.T) {
 // trackInvalidationView is a test view that tracks invalidation calls
 type trackInvalidationView struct {
 	*simpleView
+
 	invalidated bool
 }
 

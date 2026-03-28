@@ -42,7 +42,8 @@ func (f *ANSIFlusher) FlushRuns(back, front *Buffer, runs []Run) error {
 		y := run.Y
 		x := run.X0
 
-		if err := f.moveCursorTo(y, x); err != nil {
+		err := f.moveCursorTo(y, x)
+		if err != nil {
 			return err
 		}
 
@@ -57,7 +58,8 @@ func (f *ANSIFlusher) FlushRuns(back, front *Buffer, runs []Run) error {
 			}
 
 			if !f.hasStyle || c.Style != f.curStyle {
-				if err := f.emitSGR(c.Style); err != nil {
+				err := f.emitSGR(c.Style)
+				if err != nil {
 					return err
 				}
 
@@ -65,7 +67,8 @@ func (f *ANSIFlusher) FlushRuns(back, front *Buffer, runs []Run) error {
 				f.hasStyle = true
 			}
 
-			if err := f.emitRune(c.R); err != nil {
+			err := f.emitRune(c.R)
+			if err != nil {
 				return err
 			}
 

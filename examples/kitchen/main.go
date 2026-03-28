@@ -93,6 +93,13 @@ var appOpts = tui.AppOpts{
 }
 
 func main() {
+	if err := run(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	s := &state{}
 
 	// Populate virtual list data
@@ -103,8 +110,7 @@ func main() {
 
 	app, err := tui.New(appOpts)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+		return err
 	}
 
 	s.app = app
@@ -113,16 +119,16 @@ func main() {
 	app.SetRoot(root)
 
 	if err := app.Enable(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+		return err
 	}
 
 	defer func() { _ = app.Restore() }()
 
 	if err := app.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+		return err
 	}
+
+	return nil
 }
 
 func (s *state) buildUI() tui.View {
@@ -250,7 +256,7 @@ func (s *state) buildRadioSection() tui.View {
 		Selected: 0,
 		OnChange: func(idx int, ctx *tui.Ctx) {
 			names := []string{"Alpha", "Beta", "Gamma"}
-			s.setStatus(ctx, fmt.Sprintf("Radio: %s", names[idx]))
+			s.setStatus(ctx, "Radio: "+names[idx])
 		},
 	})
 
@@ -340,7 +346,7 @@ func (s *state) buildSelectSection() tui.View {
 		Placeholder: "Pick a color...",
 		OnChange: func(idx int, ctx *tui.Ctx) {
 			colors := []string{"Red", "Green", "Blue", "Yellow", "Magenta", "Cyan"}
-			s.setStatus(ctx, fmt.Sprintf("Color: %s", colors[idx]))
+			s.setStatus(ctx, "Color: "+colors[idx])
 		},
 	})
 
@@ -412,7 +418,7 @@ func (s *state) buildTabsSection() tui.View {
 		},
 		OnTab: func(idx int, ctx *tui.Ctx) {
 			titles := []string{"Info", "ScrollView", "VirtualList", "TextArea"}
-			s.setStatus(ctx, fmt.Sprintf("Tab: %s", titles[idx]))
+			s.setStatus(ctx, "Tab: "+titles[idx])
 		},
 	})
 
@@ -471,11 +477,15 @@ func (s *state) buildVirtualListTab() tui.View {
 		Count:     func() int { return len(s.listItems) },
 		RenderRow: func(i int, selected, focused bool, p *tui.Painter, r geom.Rect) {
 			var st style.Style
-			if selected && focused {
+
+			switch {
+			case selected && focused:
 				st = style.Style{FG: style.ColorDefault, BG: style.ColorDefault, Attr: style.AttrReverse}
-			} else if selected {
+
+			case selected:
 				st = style.Style{Attr: style.AttrUnderline}
-			} else {
+
+			default:
 				st = style.Style{FG: style.ColorDefault, BG: style.ColorDefault}
 			}
 
@@ -484,7 +494,7 @@ func (s *state) buildVirtualListTab() tui.View {
 			p.Text(r.X, r.Y, label, st)
 		},
 		OnActivate: func(i int, ctx *tui.Ctx) {
-			s.setStatus(ctx, fmt.Sprintf("VirtualList activated: %s", s.listItems[i]))
+			s.setStatus(ctx, "VirtualList activated: "+s.listItems[i])
 		},
 	})
 
@@ -612,7 +622,7 @@ func (r *rootView) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			txt = txt[:60] + "..."
 		}
 
-		r.state.setStatus(ctx, fmt.Sprintf("Clipboard: %s", txt))
+		r.state.setStatus(ctx, "Clipboard: "+txt)
 
 		return true
 	}

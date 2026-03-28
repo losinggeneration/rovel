@@ -44,7 +44,7 @@ type VirtualList struct {
 	selectedIndex int // -1 = no selection
 }
 
-// Panics if Count, RenderRow are nil or RowHeight <= 0.
+// NewVirtualList creates a new VirtualList. Panics if Count, RenderRow are nil or RowHeight <= 0.
 func NewVirtualList(opts VirtualListOpts) *VirtualList {
 	if opts.Count == nil {
 		panic("virtual.NewVirtualList: Count is required")

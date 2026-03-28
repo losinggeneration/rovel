@@ -31,14 +31,16 @@ func main() {
 	}
 
 	defer func() {
-		if err := app.Restore(); err != nil {
+		err := app.Restore()
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to restore terminal: %v\n", err)
 		}
 	}()
 
 	// Start app in a goroutine so we can wait for quit
 	go func() {
-		if err := app.Run(); err != nil {
+		err := app.Run()
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "App error: %v\n", err)
 			os.Exit(1)
 		}
@@ -139,10 +141,8 @@ func (v *DemoView) Paint(p *tui.Painter, ctx *tui.Ctx) {
 }
 
 func (v *DemoView) Handle(e tui.Event, ctx *tui.Ctx) bool {
-	switch ke := e.(type) {
-	case tui.KeyEvent:
-		switch ke.Key {
-		case tui.KeyRune:
+	if ke, ok := e.(tui.KeyEvent); ok {
+		if ke.Key == tui.KeyRune {
 			switch ke.Rune {
 			case 'q':
 				// Quit the app

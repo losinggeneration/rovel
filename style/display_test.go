@@ -50,12 +50,14 @@ func TestStyleDisplayRGBA(t *testing.T) {
 	if fg == defaultFG {
 		t.Fatalf("fg fell back to default unexpectedly: %+v", fg)
 	}
+
 	if bg == defaultBG {
 		t.Fatalf("bg fell back to default unexpectedly: %+v", bg)
 	}
 
 	fg, bg = (Style{Attr: AttrReverse}).DisplayRGBA(base, defaultFG, defaultBG)
 	wantFG := base.BG.DisplayRGBA(defaultFG)
+
 	wantBG := base.FG.DisplayRGBA(defaultBG)
 	if fg != wantFG || bg != wantBG {
 		t.Fatalf("reverse DisplayRGBA = %+v/%+v, want %+v/%+v", fg, bg, wantFG, wantBG)

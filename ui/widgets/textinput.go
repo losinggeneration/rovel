@@ -144,11 +144,13 @@ func (t *TextInput) PaintDrawer(d tui.Drawer, ctx *tui.Ctx) {
 		inSelection := focused && hasSel && byteOff >= t.selectionRange().Start && byteOff < t.selectionRange().End
 
 		var st style.Style
-		if cursorHere {
+
+		switch {
+		case cursorHere:
 			st = resolveStyle(t.stFocused, ctx.Theme.Palette.Focus)
-		} else if inSelection {
+		case inSelection:
 			st = resolveStyle(t.stSelection, ctx.Theme.Palette.Selection)
-		} else {
+		default:
 			st = resolveStyle(t.stNormal, ctx.Theme.Base)
 		}
 

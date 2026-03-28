@@ -37,7 +37,7 @@ func (f CellFrame) RowRunes(y int) []rune {
 	}
 
 	out := make([]rune, f.W)
-	for x := 0; x < f.W; x++ {
+	for x := range f.W {
 		out[x] = f.At(x, y).R
 	}
 
@@ -53,7 +53,7 @@ func (f CellFrame) GlyphRuns(y int) []GlyphRun {
 
 	var runs []GlyphRun
 
-	for x := 0; x < f.W; x++ {
+	for x := range f.W {
 		cell := f.At(x, y)
 		if cell.WideCont {
 			continue

@@ -17,13 +17,16 @@ func (c Color) DisplayRGBA(fallback RGBA) RGBA {
 	case ColorKindBasic:
 		idx, _ := c.BasicIndex()
 		r, g, b := xterm256RGB(int(idx))
+
 		return RGBA{R: r, G: g, B: b, A: 0xFF}
 	case ColorKindIndexed:
 		idx, _ := c.Index()
 		r, g, b := xterm256RGB(int(idx))
+
 		return RGBA{R: r, G: g, B: b, A: 0xFF}
 	case ColorKindRGB:
 		r, g, b, _ := c.RGB()
+
 		return RGBA{R: r, G: g, B: b, A: 0xFF}
 	default:
 		return fallback
@@ -48,5 +51,6 @@ func (s Style) ResolvedForDisplay(base Style) (fg, bg Color) {
 // style against a base style and display defaults.
 func (s Style) DisplayRGBA(base Style, defaultFG, defaultBG RGBA) (fg, bg RGBA) {
 	fgColor, bgColor := s.ResolvedForDisplay(base)
+
 	return fgColor.DisplayRGBA(defaultFG), bgColor.DisplayRGBA(defaultBG)
 }

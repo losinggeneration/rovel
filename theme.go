@@ -185,13 +185,13 @@ func DefaultThemeModern() Theme {
 }
 
 // Resolved returns a new theme with colors resolved for the given capability.
-func (t Theme) Resolved(cap style.Capability) Theme {
+func (t Theme) Resolved(c style.Capability) Theme {
 	resolved := t
 
 	resolveStyle := func(s style.Style) style.Style {
 		resolved := s
-		resolved.FG = s.FG.Resolve(cap)
-		resolved.BG = s.BG.Resolve(cap)
+		resolved.FG = s.FG.Resolve(c)
+		resolved.BG = s.BG.Resolve(c)
 
 		return resolved
 	}
