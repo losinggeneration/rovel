@@ -903,6 +903,14 @@ const doubleClickTimeout = 500 * time.Millisecond
 func (a *App) enrichMouseEvent(e *MouseEvent) {
 	switch e.Action {
 	case event.MousePress:
+		// Wheel buttons are delivered as MousePress but never get a
+		// corresponding MouseRelease. Skip press-state tracking for them
+		// so that subsequent MouseMove events are not promoted to drags
+		// with a stale wheel button.
+		if e.Button == event.MouseButtonWheelUp || e.Button == event.MouseButtonWheelDown {
+			return
+		}
+
 		a.mouse.pressButton = e.Button
 		a.mouse.pressX = e.X
 		a.mouse.pressY = e.Y

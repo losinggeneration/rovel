@@ -451,6 +451,36 @@ func TestSetRequestFocus_ClearFocusDoesNotInvalidateAll(t *testing.T) {
 	}
 }
 
+func TestEnrichMouseEvent_WheelDoesNotPoison(t *testing.T) {
+	app, _ := New(AppOpts{})
+
+	// Simulate a wheel-up press (no corresponding release ever arrives).
+	wheel := MouseEvent{
+		Button: MouseButtonWheelUp,
+		Action: event.MousePress,
+		X:      5, Y: 5,
+	}
+	app.enrichMouseEvent(&wheel)
+
+	// pressButton must remain None — wheel events should not set it.
+	if app.mouse.pressButton != event.MouseButtonNone {
+		t.Fatalf("pressButton = %v after wheel press, want MouseButtonNone",
+			app.mouse.pressButton)
+	}
+
+	// A subsequent mouse move must stay a move, not be promoted to drag.
+	move := MouseEvent{Action: event.MouseMove, X: 10, Y: 10}
+	app.enrichMouseEvent(&move)
+
+	if move.Action != event.MouseMove {
+		t.Fatalf("move.Action = %v after wheel press, want MouseMove", move.Action)
+	}
+
+	if move.Button != event.MouseButtonNone {
+		t.Fatalf("move.Button = %v after wheel press, want MouseButtonNone", move.Button)
+	}
+}
+
 func TestCompactEventBatch_NetsQueuedWheelBacklog(t *testing.T) {
 	app, _ := New(AppOpts{})
 
