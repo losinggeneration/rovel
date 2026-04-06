@@ -18,17 +18,19 @@ type signalHandler struct {
 	stopCh   chan struct{}
 	once     sync.Once
 	wakeFd   int // write end of wake pipe (raw fd)
+	outFd    int // output fd for TIOCGWINSZ
 	errs     *errbuf.ErrorBuffer
 }
 
 // setupResizeHandler sets up a SIGWINCH signal handler for future resize events.
 // It does not synthesize an initial ResizeEvent; the initial terminal size is
 // obtained synchronously from Enable() / Size().
-func setupResizeHandler(wakeFd int, errs *errbuf.ErrorBuffer) (*signalHandler, error) {
+func setupResizeHandler(wakeFd int, outFd int, errs *errbuf.ErrorBuffer) (*signalHandler, error) {
 	h := &signalHandler{
 		resizeCh: make(chan geom.Size, 1),
 		stopCh:   make(chan struct{}),
 		wakeFd:   wakeFd,
+		outFd:    outFd,
 		errs:     errs,
 	}
 
@@ -40,7 +42,7 @@ func setupResizeHandler(wakeFd int, errs *errbuf.ErrorBuffer) (*signalHandler, e
 		for {
 			select {
 			case <-sigCh:
-				if newSize, err := getTerminalSize(); err == nil {
+				if newSize, err := getTerminalSize(h.outFd); err == nil {
 					select {
 					case h.resizeCh <- newSize:
 						h.wakePoll()

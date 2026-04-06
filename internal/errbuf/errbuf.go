@@ -31,8 +31,9 @@ func New(capacity int) *ErrorBuffer {
 
 // Add appends an error to the buffer. Nil errors are ignored.
 // If the buffer is at capacity, the oldest error is discarded.
+// A nil receiver is a no-op.
 func (e *ErrorBuffer) Add(err error) {
-	if err == nil {
+	if e == nil || err == nil {
 		return
 	}
 

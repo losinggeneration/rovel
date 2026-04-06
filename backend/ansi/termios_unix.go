@@ -3,7 +3,6 @@
 package ansi
 
 import (
-	"os"
 	"syscall"
 	"unsafe"
 
@@ -12,8 +11,7 @@ import (
 )
 
 // enableRaw puts the terminal into raw mode and returns the original state.
-func enableRaw() (*unix.Termios, error) {
-	fd := int(os.Stdin.Fd())
+func enableRaw(fd int) (*unix.Termios, error) {
 	if !isTerminal(fd) {
 		return nil, syscall.EINVAL
 	}
@@ -46,23 +44,21 @@ func enableRaw() (*unix.Termios, error) {
 }
 
 // restore restores the terminal to its original state.
-func restore(orig *unix.Termios) error {
+func restore(fd int, orig *unix.Termios) error {
 	if orig == nil {
 		return nil
 	}
 
-	fd := int(os.Stdin.Fd())
-
 	return unix.IoctlSetTermios(fd, unix.TCSETS, orig)
 }
 
-// getTerminalSize returns the current terminal size.
-func getTerminalSize() (geom.Size, error) {
+// getTerminalSize returns the current terminal size using the given output fd.
+func getTerminalSize(fd int) (geom.Size, error) {
 	var ws unix.Winsize
 
 	_, _, errno := syscall.Syscall(
 		syscall.SYS_IOCTL,
-		os.Stdout.Fd(),
+		uintptr(fd),
 		unix.TIOCGWINSZ,
 		uintptr(unsafe.Pointer(&ws)),
 	)
@@ -80,7 +76,5 @@ func getTerminalSize() (geom.Size, error) {
 func isTerminal(fd int) bool {
 	var termios unix.Termios
 
-	err := unix.IoctlSetTermios(fd, unix.TCGETS, &termios)
-
-	return err == nil
+	return unix.IoctlSetTermios(fd, unix.TCGETS, &termios) == nil
 }

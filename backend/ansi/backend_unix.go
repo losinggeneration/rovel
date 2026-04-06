@@ -5,6 +5,7 @@ package ansi
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"sync"
@@ -18,10 +19,29 @@ import (
 
 var ErrEmitKeyEventsShutdown = errors.New("emitKeyEvents already shutdown")
 
+// ErrInputNotTerminal is returned when the input file descriptor is not a terminal.
+var ErrInputNotTerminal = errors.New("input fd is not a terminal")
+
+// ErrOutputNotTerminal is returned when the output file descriptor is not a terminal.
+var ErrOutputNotTerminal = errors.New("output fd is not a terminal")
+
+// Options configures the ANSI backend.
+// The zero value is valid and uses os.Stdin for input and os.Stdout for output.
+type Options struct {
+	// Input overrides the file used for reading terminal input.
+	// If nil, os.Stdin is used. The file must be a terminal (tty).
+	Input *os.File
+
+	// Output overrides the file used for writing terminal output.
+	// If nil, os.Stdout is used. The file must be a terminal (tty).
+	Output *os.File
+}
+
 // Backend implements the backend.Backend interface for Unix terminals using ANSI escape sequences.
 type Backend struct {
 	origTermios *unix.Termios
 	r           *os.File
+	out         *os.File // underlying output file (for fd-based operations)
 	w           *bufio.Writer
 	decoder     InputDecoder
 	inputFeats  inputFeatures
@@ -46,16 +66,39 @@ type Backend struct {
 
 // New creates a new ANSI backend. The provided ErrorBuffer is used to record
 // non-fatal errors from signal handling and cleanup operations.
-func New(errs *errbuf.ErrorBuffer) (*Backend, error) {
-	w := bufio.NewWriterSize(os.Stdout, 64*1024)
+// opts allows overriding the input/output files; zero value uses os.Stdin/os.Stdout.
+func New(errs *errbuf.ErrorBuffer, opts Options) (*Backend, error) {
+	in := opts.Input
+	if in == nil {
+		in = os.Stdin
+	}
 
-	size, err := getTerminalSize()
+	out := opts.Output
+	if out == nil {
+		out = os.Stdout
+	}
+
+	inFd := int(in.Fd())
+	outFd := int(out.Fd())
+
+	if !isTerminal(inFd) {
+		return nil, fmt.Errorf("ansi input fd %d is not a terminal: %w", inFd, ErrInputNotTerminal)
+	}
+
+	if !isTerminal(outFd) {
+		return nil, fmt.Errorf("ansi output fd %d is not a terminal: %w", outFd, ErrOutputNotTerminal)
+	}
+
+	w := bufio.NewWriterSize(out, 64*1024)
+
+	size, err := getTerminalSize(outFd)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("getTerminalSize: %w", err)
 	}
 
 	b := &Backend{
-		r:       os.Stdin,
+		r:       in,
+		out:     out,
 		w:       w,
 		size:    size,
 		eventCh: make(chan event.Event, 8),
@@ -69,9 +112,9 @@ func New(errs *errbuf.ErrorBuffer) (*Backend, error) {
 
 // Enable enables the terminal and returns the initial size.
 func (b *Backend) Enable() (geom.Size, error) {
-	orig, err := enableRaw()
+	orig, err := enableRaw(int(b.r.Fd()))
 	if err != nil {
-		return geom.Size{}, err
+		return geom.Size{}, fmt.Errorf("enableRaw: %w", err)
 	}
 
 	b.origTermios = orig
@@ -79,7 +122,7 @@ func (b *Backend) Enable() (geom.Size, error) {
 	// Create self-pipe for waking poll using raw fds (no Go runtime involvement)
 	var pipeFds [2]int
 	if err := unix.Pipe2(pipeFds[:], unix.O_NONBLOCK|unix.O_CLOEXEC); err != nil {
-		b.errs.Add(restore(orig))
+		b.errs.Add(restore(int(b.r.Fd()), orig))
 
 		return geom.Size{}, err
 	}
@@ -88,13 +131,13 @@ func (b *Backend) Enable() (geom.Size, error) {
 	b.pipeW = pipeFds[1]
 
 	// Setup signal handler for resize events
-	signals, err := setupResizeHandler(b.pipeW, b.errs)
+	signals, err := setupResizeHandler(b.pipeW, int(b.out.Fd()), b.errs)
 	if err != nil {
 		b.errs.Add(unix.Close(b.pipeR))
 		b.errs.Add(unix.Close(b.pipeW))
 		b.pipeR = -1
 		b.pipeW = -1
-		b.errs.Add(restore(orig))
+		b.errs.Add(restore(int(b.r.Fd()), orig))
 
 		return geom.Size{}, err
 	}
@@ -102,7 +145,7 @@ func (b *Backend) Enable() (geom.Size, error) {
 	b.signals = signals
 
 	// Get initial size before starting background goroutines.
-	size, err := getTerminalSize()
+	size, err := getTerminalSize(int(b.out.Fd()))
 	if err != nil {
 		b.signals.Stop()
 		b.signals = nil
@@ -112,7 +155,7 @@ func (b *Backend) Enable() (geom.Size, error) {
 		b.pipeR = -1
 		b.pipeW = -1
 
-		b.errs.Add(restore(orig))
+		b.errs.Add(restore(int(b.r.Fd()), orig))
 		b.origTermios = nil
 
 		return geom.Size{}, err
@@ -191,7 +234,7 @@ func (b *Backend) Restore() error {
 
 	// 7. Restore terminal settings last.
 	if b.origTermios != nil {
-		err := restore(b.origTermios)
+		err := restore(int(b.r.Fd()), b.origTermios)
 		if err != nil && firstErr == nil {
 			firstErr = err
 		}

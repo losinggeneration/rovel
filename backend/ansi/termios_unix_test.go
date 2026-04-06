@@ -4,8 +4,10 @@ package ansi
 
 import (
 	"os"
+	"strings"
 	"testing"
 
+	"github.com/losinggeneration/tui/internal/errbuf"
 	"golang.org/x/sys/unix"
 )
 
@@ -26,7 +28,7 @@ func TestRawModeIntegration(t *testing.T) {
 	}
 
 	// Enable raw mode
-	rawOrig, err := enableRaw()
+	rawOrig, err := enableRaw(fd)
 	if err != nil {
 		t.Fatalf("enableRaw failed: %v", err)
 	}
@@ -46,7 +48,7 @@ func TestRawModeIntegration(t *testing.T) {
 	}
 
 	// Restore terminal
-	if err := restore(rawOrig); err != nil {
+	if err := restore(fd, rawOrig); err != nil {
 		t.Fatalf("restore failed: %v", err)
 	}
 
@@ -69,7 +71,7 @@ func TestGetTerminalSize(t *testing.T) {
 		t.Skip("not a terminal")
 	}
 
-	size, err := getTerminalSize()
+	size, err := getTerminalSize(int(os.Stdout.Fd()))
 	if err != nil {
 		t.Fatalf("getTerminalSize failed: %v", err)
 	}
@@ -81,5 +83,67 @@ func TestGetTerminalSize(t *testing.T) {
 	// Reasonable bounds check (most terminals should be at least 20x10)
 	if size.W < 20 || size.H < 10 {
 		t.Logf("warning: unusually small terminal size: %dx%d", size.W, size.H)
+	}
+}
+
+func TestNewRejectsNonTerminalInput(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe: %v", err)
+	}
+
+	defer func() {
+		if err := r.Close(); err != nil {
+			t.Error("r.Close:", err)
+		}
+
+		if err := w.Close(); err != nil {
+			t.Error("w.Close:", err)
+		}
+	}()
+
+	_, err = New(errbuf.New(1), Options{
+		Input:  r,
+		Output: os.Stdout,
+	})
+	if err == nil {
+		t.Fatal("expected error for non-terminal input")
+	}
+
+	if !strings.Contains(err.Error(), "input fd") {
+		t.Fatalf("expected input terminal error, got %v", err)
+	}
+}
+
+func TestNewRejectsNonTerminalOutput(t *testing.T) {
+	if !isTerminal(int(os.Stdin.Fd())) {
+		t.Skip("requires terminal stdin to isolate output validation")
+	}
+
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe: %v", err)
+	}
+
+	defer func() {
+		if err := r.Close(); err != nil {
+			t.Error("r.Close:", err)
+		}
+
+		if err := w.Close(); err != nil {
+			t.Error("w.Close:", err)
+		}
+	}()
+
+	_, err = New(errbuf.New(1), Options{
+		Input:  os.Stdin,
+		Output: w,
+	})
+	if err == nil {
+		t.Fatal("expected error for non-terminal output")
+	}
+
+	if !strings.Contains(err.Error(), "output fd") {
+		t.Fatalf("expected output terminal error, got %v", err)
 	}
 }
