@@ -297,7 +297,7 @@ func (s *state) buildCanvasSection() tui.View {
 	// Canvas: custom paint escape hatch — draws a simple bar chart.
 	canvas := cellwidgets.NewCanvasOpts(cellwidgets.CanvasOpts{
 		MinSize: geom.Size{W: 20, H: 3},
-		Paint: func(p *tui.Painter, r geom.Rect, ctx *tui.Ctx) {
+		Paint: func(d tui.CellDrawer, r geom.Rect, ctx *tui.Ctx) {
 			if r.W <= 0 || r.H <= 0 {
 				return
 			}
@@ -316,7 +316,7 @@ func (s *state) buildCanvasSection() tui.View {
 				}
 
 				for y := r.H - barH; y < r.H; y++ {
-					p.SetCell(r.X+x, r.Y+y, '▮', accentSt)
+					d.SetCell(r.X+x, r.Y+y, '▮', accentSt)
 				}
 			}
 		},
@@ -476,7 +476,7 @@ func (s *state) buildVirtualListTab() tui.View {
 	s.vlist = virtual.NewVirtualList(virtual.VirtualListOpts{
 		RowHeight: 1,
 		Count:     func() int { return len(s.listItems) },
-		RenderRow: func(i int, selected, focused bool, p *tui.Painter, r geom.Rect) {
+		RenderRow: func(i int, selected, focused bool, d tui.Drawer, r geom.Rect) {
 			var st style.Style
 
 			switch {
@@ -490,9 +490,9 @@ func (s *state) buildVirtualListTab() tui.View {
 				st = style.Style{FG: style.ColorDefault, BG: style.ColorDefault}
 			}
 
-			p.Fill(r, ' ', st)
+			d.FillRect(r, st)
 			label := text.Truncate(s.listItems[i], r.W, false)
-			p.Text(r.X, r.Y, label, st)
+			d.DrawText(tui.Point{X: r.X, Y: r.Y}, label, st)
 		},
 		OnActivate: func(i int, ctx *tui.Ctx) {
 			s.setStatus(ctx, "VirtualList activated: "+s.listItems[i])

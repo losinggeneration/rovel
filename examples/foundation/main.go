@@ -98,16 +98,17 @@ func buildRoot() *Root {
 func buildHeader() tui.View {
 	return cellwidgets.NewCanvasOpts(cellwidgets.CanvasOpts{
 		MinSize: geom.Size{W: 1, H: 2},
-		Paint: func(p *tui.Painter, rect geom.Rect, ctx *tui.Ctx) {
+		Paint: func(d tui.CellDrawer, rect geom.Rect, ctx *tui.Ctx) {
 			if rect.H < 2 {
 				return
 			}
 
 			title := "P1 Foundation Demo: Text, Size Policy, Box Layout"
 
-			p.Fill(rect, ' ', tui.Style{FG: style.ColorYellow, BG: style.ColorBlue})
-			p.Text(rect.X, rect.Y, title, tui.Style{FG: style.ColorYellow, BG: style.ColorBlue, Attr: style.AttrBold})
-			p.Text(rect.X, rect.Y+1, "Esc or Ctrl+C to quit", tui.Style{FG: style.ColorWhite, BG: style.ColorBlue})
+			fill := tui.Style{FG: style.ColorYellow, BG: style.ColorBlue}
+			d.FillRect(rect, fill)
+			d.DrawText(tui.Point{X: rect.X, Y: rect.Y}, title, tui.Style{FG: style.ColorYellow, BG: style.ColorBlue, Attr: style.AttrBold})
+			d.DrawText(tui.Point{X: rect.X, Y: rect.Y + 1}, "Esc or Ctrl+C to quit", tui.Style{FG: style.ColorWhite, BG: style.ColorBlue})
 		},
 		Handle: func(e tui.Event, ctx *tui.Ctx) bool {
 			return false
@@ -147,29 +148,29 @@ func buildTextDemo() tui.View {
 
 	canvas := cellwidgets.NewCanvasOpts(cellwidgets.CanvasOpts{
 		MinSize: geom.Size{W: 20, H: 8},
-		Paint: func(p *tui.Painter, rect geom.Rect, ctx *tui.Ctx) {
+		Paint: func(d tui.CellDrawer, rect geom.Rect, ctx *tui.Ctx) {
 			y := rect.Y
 
 			s1 := "Hello, World!"
 			end, cols, clipped := text.FitPrefix(s1, 10)
 			line := fmt.Sprintf("FitPrefix(%q, 10)", s1)
-			p.Text(rect.X, y, line, tui.Style{})
+			d.DrawText(tui.Point{X: rect.X, Y: y}, line, tui.Style{})
 			y++
-			p.Text(rect.X, y, fmt.Sprintf("  -> end=%d, cols=%d, clipped=%v", end, cols, clipped), tui.Style{})
+			d.DrawText(tui.Point{X: rect.X, Y: y}, fmt.Sprintf("  -> end=%d, cols=%d, clipped=%v", end, cols, clipped), tui.Style{})
 			y += 2
 
 			s2 := "日本語テスト"
 			end, cols, clipped = text.FitPrefix(s2, 5)
 			line = fmt.Sprintf("FitPrefix(%q, 5)", s2)
-			p.Text(rect.X, y, line, tui.Style{})
+			d.DrawText(tui.Point{X: rect.X, Y: y}, line, tui.Style{})
 			y++
-			p.Text(rect.X, y, fmt.Sprintf("  -> end=%d, cols=%d, clipped=%v", end, cols, clipped), tui.Style{})
+			d.DrawText(tui.Point{X: rect.X, Y: y}, fmt.Sprintf("  -> end=%d, cols=%d, clipped=%v", end, cols, clipped), tui.Style{})
 			y += 2
 
-			p.Text(rect.X, y, "Truncate(\"hello world\", 8, true):", tui.Style{})
+			d.DrawText(tui.Point{X: rect.X, Y: y}, "Truncate(\"hello world\", 8, true):", tui.Style{})
 			y++
 			truncated := text.Truncate("hello world", 8, true)
-			p.Text(rect.X, y, fmt.Sprintf("  -> %q", truncated), tui.Style{})
+			d.DrawText(tui.Point{X: rect.X, Y: y}, fmt.Sprintf("  -> %q", truncated), tui.Style{})
 		},
 		Handle: func(e tui.Event, ctx *tui.Ctx) bool {
 			return false
@@ -182,15 +183,15 @@ func buildTextDemo() tui.View {
 
 	wrapCanvas := cellwidgets.NewCanvasOpts(cellwidgets.CanvasOpts{
 		MinSize: geom.Size{W: 20, H: 6},
-		Paint: func(p *tui.Painter, rect geom.Rect, ctx *tui.Ctx) {
+		Paint: func(d tui.CellDrawer, rect geom.Rect, ctx *tui.Ctx) {
 			y := rect.Y
 			s := "The quick brown fox jumps"
 			lines := text.Wrap(s, 10)
-			p.Text(rect.X, y, fmt.Sprintf("Wrap(%q, 10):", s), tui.Style{})
+			d.DrawText(tui.Point{X: rect.X, Y: y}, fmt.Sprintf("Wrap(%q, 10):", s), tui.Style{})
 
 			y++
 			for i, line := range lines {
-				p.Text(rect.X, y, fmt.Sprintf("  L%d: [%d,%d) w=%d", i, line.Start, line.End, line.Width), tui.Style{})
+				d.DrawText(tui.Point{X: rect.X, Y: y}, fmt.Sprintf("  L%d: [%d,%d) w=%d", i, line.Start, line.End, line.Width), tui.Style{})
 				y++
 			}
 		},
@@ -249,25 +250,25 @@ func buildSizePolicyDemo() tui.View {
 	h3 := layout.NewHStack()
 	tall1 := cellwidgets.NewCanvasOpts(cellwidgets.CanvasOpts{
 		MinSize: geom.Size{W: 8, H: 3},
-		Paint: func(p *tui.Painter, rect geom.Rect, ctx *tui.Ctx) {
-			p.Fill(rect, ' ', tui.Style{BG: style.ColorGreen})
-			p.Text(rect.X, rect.Y, "Start", tui.Style{BG: style.ColorGreen})
+		Paint: func(d tui.CellDrawer, rect geom.Rect, ctx *tui.Ctx) {
+			d.FillRect(rect, tui.Style{BG: style.ColorGreen})
+			d.DrawText(tui.Point{X: rect.X, Y: rect.Y}, "Start", tui.Style{BG: style.ColorGreen})
 		},
 		Handle: func(e tui.Event, ctx *tui.Ctx) bool { return false },
 	})
 	tall2 := cellwidgets.NewCanvasOpts(cellwidgets.CanvasOpts{
 		MinSize: geom.Size{W: 8, H: 3},
-		Paint: func(p *tui.Painter, rect geom.Rect, ctx *tui.Ctx) {
-			p.Fill(rect, ' ', tui.Style{BG: style.ColorYellow})
-			p.Text(rect.X, rect.Y+1, "Center", tui.Style{BG: style.ColorYellow})
+		Paint: func(d tui.CellDrawer, rect geom.Rect, ctx *tui.Ctx) {
+			d.FillRect(rect, tui.Style{BG: style.ColorYellow})
+			d.DrawText(tui.Point{X: rect.X, Y: rect.Y + 1}, "Center", tui.Style{BG: style.ColorYellow})
 		},
 		Handle: func(e tui.Event, ctx *tui.Ctx) bool { return false },
 	})
 	tall3 := cellwidgets.NewCanvasOpts(cellwidgets.CanvasOpts{
 		MinSize: geom.Size{W: 8, H: 3},
-		Paint: func(p *tui.Painter, rect geom.Rect, ctx *tui.Ctx) {
-			p.Fill(rect, ' ', tui.Style{BG: style.ColorRed})
-			p.Text(rect.X, rect.Y+2, "End", tui.Style{BG: style.ColorRed})
+		Paint: func(d tui.CellDrawer, rect geom.Rect, ctx *tui.Ctx) {
+			d.FillRect(rect, tui.Style{BG: style.ColorRed})
+			d.DrawText(tui.Point{X: rect.X, Y: rect.Y + 2}, "End", tui.Style{BG: style.ColorRed})
 		},
 		Handle: func(e tui.Event, ctx *tui.Ctx) bool { return false },
 	})

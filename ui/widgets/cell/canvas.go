@@ -6,8 +6,8 @@ import (
 )
 
 // PaintCallback is the function signature for custom paint callbacks.
-// It receives the painter, the canvas rect, and the render context.
-type PaintCallback func(p *tui.Painter, rect geom.Rect, ctx *tui.Ctx)
+// It receives a cell-precise drawer, the canvas rect, and the render context.
+type PaintCallback func(d tui.CellDrawer, rect geom.Rect, ctx *tui.Ctx)
 
 // HandleCallback is the function signature for custom event handling callbacks.
 // It receives the event and the render context, returning true if handled.
@@ -23,7 +23,8 @@ type CanvasOpts struct {
 }
 
 // Canvas is the cell-renderer escape hatch for application-defined paint and
-// input behavior. Its callback contract is intentionally Painter-based.
+// input behavior. Its callback contract is intentionally cell-precise; prefer
+// ordinary Drawer-based widgets when exact cell writes are unnecessary.
 type Canvas struct {
 	id        tui.ID
 	rect      geom.Rect
@@ -82,18 +83,24 @@ func (c *Canvas) Focusable() bool {
 }
 
 // Paint renders the canvas using the paint callback.
-// Canvas remains explicitly cell-specific: it extracts the underlying Painter
-// from the Drawer and delegates to the paint callback.
 func (c *Canvas) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	if c.paint == nil || c.rect.W <= 0 || c.rect.H <= 0 {
 		return
 	}
 
-	if p := tui.PainterFromDrawer(d); p != nil {
-		p.WithClip(c.rect, func(cp *tui.Painter) {
-			c.paint(cp, c.rect, ctx)
-		})
+	cd, ok := tui.CellDrawerOf(d)
+	if !ok {
+		return
 	}
+
+	cd.WithClip(c.rect, func(inner tui.Drawer) {
+		clipped, ok := tui.CellDrawerOf(inner)
+		if !ok {
+			return
+		}
+
+		c.paint(clipped, c.rect, ctx)
+	})
 }
 
 func (c *Canvas) Handle(e tui.Event, ctx *tui.Ctx) bool {

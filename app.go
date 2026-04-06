@@ -18,6 +18,22 @@
 //		})
 //	}()
 //
+// For repaint-only work, PostInvalidate and PostInvalidateAll provide a small
+// goroutine-safe convenience layer. Posted callbacks can also manipulate
+// overlays through UpdateCtx:
+//
+//	go func() {
+//		time.Sleep(time.Second)
+//
+//		_ = app.Post(func(ctx *tui.UpdateCtx) {
+//			ctx.ShowOverlay(OverlayOpts{
+//				Root:  dialog,
+//				Modal: true,
+//				Place: overlay.Centered{},
+//			})
+//		})
+//	}()
+//
 // Posted callbacks are serialized with input handling and run on the app loop.
 // Multiple posted updates coalesce into bounded rendering work.
 package tui
@@ -361,6 +377,7 @@ func (a *App) Errors() []error {
 // Quit requests the application to stop.
 // It is safe to call from any goroutine.
 // Repeated calls are harmless and idempotent.
+// Wakes the event loop to ensure prompt termination.
 func (a *App) Quit() {
 	a.closeMu.Lock()
 	defer a.closeMu.Unlock()
@@ -370,6 +387,13 @@ func (a *App) Quit() {
 	}
 
 	a.running.Store(false)
+
+	// Wake the event loop to ensure it processes the quit request promptly.
+	// Without this, the loop may block on channel receives if no events are pending.
+	select {
+	case a.wakeCh <- struct{}{}:
+	default:
+	}
 }
 
 // Post schedules fn to run on the app loop.
@@ -399,6 +423,28 @@ func (a *App) Post(fn func(ctx *UpdateCtx)) error {
 	return nil
 }
 
+// PostInvalidate schedules a repaint of the given rect on the app loop.
+// It is safe to call from any goroutine.
+// This is a convenience wrapper that avoids the need to write:
+//
+//	_ = app.Post(func(ctx *tui.UpdateCtx) { ctx.Invalidate(r) })
+func (a *App) PostInvalidate(r geom.Rect) error {
+	return a.Post(func(ctx *UpdateCtx) {
+		ctx.Invalidate(r)
+	})
+}
+
+// PostInvalidateAll schedules a full repaint of the screen on the app loop.
+// It is safe to call from any goroutine.
+// This is a convenience wrapper that avoids the need to write:
+//
+//	_ = app.Post(func(ctx *tui.UpdateCtx) { ctx.InvalidateAll() })
+func (a *App) PostInvalidateAll() error {
+	return a.Post(func(ctx *UpdateCtx) {
+		ctx.InvalidateAll()
+	})
+}
+
 // Size returns the current terminal size.
 func (a *App) Size() geom.Size {
 	return a.size
@@ -416,8 +462,9 @@ func (a *App) ShowOverlay(opts OverlayOpts) *Overlay {
 	a.updateBounds()
 	a.Invalidate(o.rect)
 
-	// Focus first focusable in overlay
-	a.focusFirstIn(o.root)
+	if o.modal {
+		a.focusFirstIn(o.root)
+	}
 
 	return o
 }
@@ -437,15 +484,22 @@ func (a *App) DismissOverlay() *Overlay {
 	delete(a.scopeMemory, o.id)
 	a.rebuildTree()
 	a.updateBounds()
-	// Restore focus
-	a.setRequestFocus(o.savedFocus)
+	if o.modal {
+		a.setRequestFocus(o.savedFocus)
+	}
 	a.Invalidate(o.rect)
 
 	return o
 }
 
 // DismissOverlayByID removes a specific overlay by ID.
+// Returns the dismissed overlay, or nil if not found.
+// If the overlay is the top modal overlay, focus is restored.
+// If the overlay is not at the top, focus is unchanged (dismissing a lower
+// overlay should not affect focus that was moved after it was pushed).
 func (a *App) DismissOverlayByID(id ID) *Overlay {
+	wasTop := a.overlays.TopOverlay() != nil && a.overlays.TopOverlay().id == id
+
 	o := a.overlays.PopOverlayByID(id)
 	if o == nil {
 		return nil
@@ -455,9 +509,18 @@ func (a *App) DismissOverlayByID(id ID) *Overlay {
 		o.onDismiss()
 	}
 
+	// Clean up scope memory for the dismissed overlay.
+	delete(a.scopeMemory, o.id)
+
 	a.rebuildTree()
 	a.updateBounds()
-	a.setRequestFocus(o.savedFocus)
+
+	// Only restore focus if this was the top modal overlay.
+	// Dismissing a lower overlay should not steal focus from the current top.
+	if wasTop && o.modal {
+		a.setRequestFocus(o.savedFocus)
+	}
+
 	a.Invalidate(o.rect)
 
 	return o
@@ -1077,17 +1140,18 @@ func (a *App) handleResizeEvent(e ResizeEvent) {
 // mkCtx creates a context for a view.
 func (a *App) mkCtx(v View) *Ctx {
 	ctx := &Ctx{
-		Theme:            a.resolvedTheme,
-		Cap:              a.capability,
-		Invalidate:       func(r geom.Rect) { a.Invalidate(r) },
-		InvalidateAll:    func() { a.InvalidateAll() },
-		InvalidateLayout: func(id ID) { a.InvalidateLayout(id) },
-		RequestFocus:     func(id ID) { a.setRequestFocus(id) },
-		Quit:             func() { a.Quit() },
-		FocusedID:        a.focusedID,
-		InputCaps:        a.inputCaps,
-		ShowOverlay:      func(opts OverlayOpts) *Overlay { return a.ShowOverlay(opts) },
-		DismissOverlay:   func() *Overlay { return a.DismissOverlay() },
+		Theme:              a.resolvedTheme,
+		Cap:                a.capability,
+		Invalidate:         func(r geom.Rect) { a.Invalidate(r) },
+		InvalidateAll:      func() { a.InvalidateAll() },
+		InvalidateLayout:   func(id ID) { a.InvalidateLayout(id) },
+		RequestFocus:       func(id ID) { a.setRequestFocus(id) },
+		Quit:               func() { a.Quit() },
+		FocusedID:          a.focusedID,
+		InputCaps:          a.inputCaps,
+		ShowOverlay:        func(opts OverlayOpts) *Overlay { return a.ShowOverlay(opts) },
+		DismissOverlay:     func() *Overlay { return a.DismissOverlay() },
+		DismissOverlayByID: func(id ID) *Overlay { return a.DismissOverlayByID(id) },
 	}
 	if a.host != nil {
 		ctx.ClipboardWrite = func(s string) {
@@ -1107,11 +1171,14 @@ func (a *App) mkCtx(v View) *Ctx {
 // mkUpdateCtx creates an update context for posted callbacks.
 func (a *App) mkUpdateCtx() *UpdateCtx {
 	return &UpdateCtx{
-		Invalidate:       func(r geom.Rect) { a.Invalidate(r) },
-		InvalidateAll:    func() { a.InvalidateAll() },
-		InvalidateLayout: func(id ID) { a.InvalidateLayout(id) },
-		RequestFocus:     func(id ID) { a.setRequestFocus(id) },
-		Quit:             func() { a.Quit() },
+		Invalidate:         func(r geom.Rect) { a.Invalidate(r) },
+		InvalidateAll:      func() { a.InvalidateAll() },
+		InvalidateLayout:   func(id ID) { a.InvalidateLayout(id) },
+		RequestFocus:       func(id ID) { a.setRequestFocus(id) },
+		Quit:               func() { a.Quit() },
+		ShowOverlay:        func(opts OverlayOpts) *Overlay { return a.ShowOverlay(opts) },
+		DismissOverlay:     func() *Overlay { return a.DismissOverlay() },
+		DismissOverlayByID: func(id ID) *Overlay { return a.DismissOverlayByID(id) },
 	}
 }
 

@@ -28,6 +28,31 @@ func (Centered) Resolve(root tui.View, screen geom.Size) geom.Rect {
 	}
 }
 
+// TopCentered places the overlay at the top of the screen, centered
+// horizontally at its preferred or minimum size unless overridden.
+type TopCentered struct {
+	W int
+	H int
+}
+
+func (p TopCentered) Resolve(root tui.View, screen geom.Size) geom.Rect {
+	sz := preferredOrMin(root)
+	if p.W > 0 {
+		sz.W = p.W
+	}
+	if p.H > 0 {
+		sz.H = p.H
+	}
+	sz = clampSize(sz, screen)
+
+	return geom.Rect{
+		X: (screen.W - sz.W) / 2,
+		Y: 0,
+		W: sz.W,
+		H: sz.H,
+	}
+}
+
 // Anchored places the overlay relative to an anchor rect (e.g. a button).
 // The overlay appears below the anchor if there is room, otherwise above.
 type Anchored struct {
@@ -53,6 +78,53 @@ func (a Anchored) Resolve(root tui.View, screen geom.Size) geom.Rect {
 	}
 
 	return geom.Rect{X: x, Y: y, W: sz.W, H: sz.H}
+}
+
+// PointAnchored places the overlay relative to a point. It prefers to appear
+// below and to the right of the anchor, flipping above/left when requested
+// and needed to stay on-screen.
+type PointAnchored struct {
+	Anchor geom.Point
+	Offset geom.Point
+	W      int
+	H      int
+	Flip   bool
+}
+
+func (p PointAnchored) Resolve(root tui.View, screen geom.Size) geom.Rect {
+	sz := preferredOrMin(root)
+	if p.W > 0 {
+		sz.W = p.W
+	}
+	if p.H > 0 {
+		sz.H = p.H
+	}
+	sz = clampSize(sz, screen)
+
+	x := p.Anchor.X + p.Offset.X
+	y := p.Anchor.Y + p.Offset.Y
+	if p.Flip {
+		if x+sz.W > screen.W {
+			x = p.Anchor.X - sz.W - p.Offset.X
+		}
+		if y+sz.H > screen.H {
+			y = p.Anchor.Y - sz.H - p.Offset.Y
+		}
+	}
+
+	if x+sz.W > screen.W {
+		x = screen.W - sz.W
+	}
+	if y+sz.H > screen.H {
+		y = screen.H - sz.H
+	}
+
+	return geom.Rect{
+		X: max(x, 0),
+		Y: max(y, 0),
+		W: sz.W,
+		H: sz.H,
+	}
 }
 
 // Fullscreen places the overlay covering the entire screen.

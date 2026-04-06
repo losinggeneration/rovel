@@ -162,8 +162,8 @@ func main() {
 	editor = cellwidgets.NewCanvasOpts(cellwidgets.CanvasOpts{
 		Focusable: true,
 		MinSize:   geom.Size{W: 20, H: 10},
-		Paint: func(p *tui.Painter, rect geom.Rect, ctx *tui.Ctx) {
-			paintEditor(st, p, rect, ctx)
+		Paint: func(d tui.CellDrawer, rect geom.Rect, ctx *tui.Ctx) {
+			paintEditor(st, d, rect, ctx)
 		},
 		Handle: func(e tui.Event, ctx *tui.Ctx) bool {
 			return handleEditor(st, editorRef{canvas: editor}, e, ctx)
@@ -180,7 +180,7 @@ func main() {
 			i int,
 			selected bool,
 			focused bool,
-			p *tui.Painter,
+			d tui.Drawer,
 			r geom.Rect,
 		) {
 			if r.W <= 0 {
@@ -192,26 +192,26 @@ func main() {
 			switch {
 			case selected && focused:
 				// Selected + focused: reverse video
-				p.Fill(r, ' ', tui.Style{Attr: style.AttrReverse})
+				d.FillRect(r, tui.Style{Attr: style.AttrReverse})
 
 				truncated := truncate(row, r.W-1)
 				if r.W > 1 {
-					p.Text(r.X, r.Y, ">"+truncated, tui.Style{Attr: style.AttrReverse})
+					d.DrawText(tui.Point{X: r.X, Y: r.Y}, ">"+truncated, tui.Style{Attr: style.AttrReverse})
 				}
 
 			case selected:
 				// Selected but unfocused: lighter treatment
-				p.Fill(r, ' ', tui.Style{FG: style.ColorWhite, BG: style.ColorBlue})
+				d.FillRect(r, tui.Style{FG: style.ColorWhite, BG: style.ColorBlue})
 
 				truncated := truncate(row, r.W-1)
 				if r.W > 1 {
-					p.Text(r.X, r.Y, ">"+truncated, tui.Style{FG: style.ColorWhite, BG: style.ColorBlue})
+					d.DrawText(tui.Point{X: r.X, Y: r.Y}, ">"+truncated, tui.Style{FG: style.ColorWhite, BG: style.ColorBlue})
 				}
 
 			default:
 				// Normal row
 				truncated := truncate(row, r.W)
-				p.Text(r.X, r.Y, truncated, tui.Style{})
+				d.DrawText(tui.Point{X: r.X, Y: r.Y}, truncated, tui.Style{})
 			}
 		},
 		OnActivate: func(i int, ctx *tui.Ctx) {
@@ -260,7 +260,7 @@ type editorRef struct {
 }
 
 // paintEditor renders the editor canvas.
-func paintEditor(st *appState, p *tui.Painter, rect geom.Rect, ctx *tui.Ctx) {
+func paintEditor(st *appState, d tui.CellDrawer, rect geom.Rect, ctx *tui.Ctx) {
 	if rect.W <= 0 || rect.H <= 0 {
 		return
 	}
@@ -270,7 +270,7 @@ func paintEditor(st *appState, p *tui.Painter, rect geom.Rect, ctx *tui.Ctx) {
 		lineY := rect.Y + i
 		line := truncate(st.lines[i], rect.W)
 		padded := padRight(line, rect.W)
-		p.Text(rect.X, lineY, padded, tui.Style{})
+		d.DrawText(tui.Point{X: rect.X, Y: lineY}, padded, tui.Style{})
 	}
 
 	// Draw cursor
@@ -294,7 +294,7 @@ func paintEditor(st *appState, p *tui.Painter, rect geom.Rect, ctx *tui.Ctx) {
 				ch = string(runes[st.cursorX])
 			}
 
-			p.Text(cx, cy, ch, tui.Style{Attr: style.AttrReverse})
+			d.DrawText(tui.Point{X: cx, Y: cy}, ch, tui.Style{Attr: style.AttrReverse})
 		}
 	}
 }
@@ -633,14 +633,15 @@ func buildFormPane(st *appState) tui.View {
 func buildStatusBar(st *appState) tui.View {
 	statusCanvas := cellwidgets.NewCanvasOpts(cellwidgets.CanvasOpts{
 		MinSize: geom.Size{W: 1, H: 1},
-		Paint: func(p *tui.Painter, rect geom.Rect, ctx *tui.Ctx) {
+		Paint: func(d tui.CellDrawer, rect geom.Rect, ctx *tui.Ctx) {
 			if rect.W <= 0 || rect.H <= 0 {
 				return
 			}
 			// Draw status text with background
 			status := truncate(st.status, rect.W)
-			p.Fill(rect, ' ', tui.Style{FG: style.ColorBlack, BG: style.ColorCyan})
-			p.Text(rect.X, rect.Y, status, tui.Style{FG: style.ColorBlack, BG: style.ColorCyan})
+			sty := tui.Style{FG: style.ColorBlack, BG: style.ColorCyan}
+			d.FillRect(rect, sty)
+			d.DrawText(tui.Point{X: rect.X, Y: rect.Y}, status, sty)
 		},
 		Handle: func(e tui.Event, ctx *tui.Ctx) bool {
 			// Let events bubble up to quitWrapper

@@ -87,61 +87,54 @@ func (v *DemoView) Rect() geom.Rect {
 }
 
 func (v *DemoView) Paint(d tui.Drawer, ctx *tui.Ctx) {
-	p := tui.PainterFromDrawer(d)
-	if p == nil {
-		return
-	}
-
-	// Draw a border box
-	p.Box(v.rect, tui.Style{
-		FG:   tui.ColorCyan,
-		BG:   tui.ColorBlack,
-		Attr: tui.AttrBold,
+	d.DrawBorder(v.rect, tui.BoxStyle{
+		Glyphs: tui.BoxGlyphsLight,
+		Edges:  tui.BoxEdgesAll,
+		Style: tui.Style{
+			FG:   tui.ColorCyan,
+			BG:   tui.ColorBlack,
+			Attr: tui.AttrBold,
+		},
 	})
 
-	// Draw title
-	title := " Demo View "
-	titleX := v.rect.X + (v.rect.W-len(title))/2
-	p.Text(titleX, v.rect.Y, title, tui.Style{
+	titleStyle := tui.Style{
 		FG:   tui.ColorYellow,
 		BG:   tui.ColorBlue,
 		Attr: tui.AttrBold,
-	})
-
-	// Draw counter text
-	counterText := fmt.Sprintf("Counter: %d", v.ctr)
-	p.Text(v.rect.X+2, v.rect.Y+2, counterText, tui.Style{
+	}
+	bodyStyle := tui.Style{
+		FG: tui.ColorWhite,
+		BG: tui.ColorBlack,
+	}
+	emphasisStyle := tui.Style{
 		FG:   tui.ColorGreen,
 		BG:   tui.ColorBlack,
 		Attr: tui.AttrBold,
-	})
+	}
+	helpStyle := tui.Style{
+		FG: tui.ColorBrightWhite,
+		BG: tui.ColorBlack,
+	}
 
-	// Draw instructions
-	p.Text(v.rect.X+2, v.rect.Y+4, "Press:", tui.Style{
-		FG: tui.ColorWhite,
-		BG: tui.ColorBlack,
-	})
-	p.Text(v.rect.X+2, v.rect.Y+5, "  space - increment counter", tui.Style{
-		FG: tui.ColorBrightWhite,
-		BG: tui.ColorBlack,
-	})
-	p.Text(v.rect.X+2, v.rect.Y+6, "  t     - toggle ticker", tui.Style{
-		FG: tui.ColorBrightWhite,
-		BG: tui.ColorBlack,
-	})
-	p.Text(v.rect.X+2, v.rect.Y+7, "  q     - quit", tui.Style{
-		FG: tui.ColorBrightWhite,
-		BG: tui.ColorBlack,
-	})
+	title := " Demo View "
+	titleX := v.rect.X + (v.rect.W-len(title))/2
+	d.DrawText(tui.Point{X: titleX, Y: v.rect.Y}, title, titleStyle)
 
-	// Draw ticker status if enabled
+	counterText := fmt.Sprintf("Counter: %d", v.ctr)
+	d.DrawText(tui.Point{X: v.rect.X + 2, Y: v.rect.Y + 2}, counterText, emphasisStyle)
+
+	d.DrawText(tui.Point{X: v.rect.X + 2, Y: v.rect.Y + 4}, "Press:", bodyStyle)
+	d.DrawText(tui.Point{X: v.rect.X + 2, Y: v.rect.Y + 5}, "  space - increment counter", helpStyle)
+	d.DrawText(tui.Point{X: v.rect.X + 2, Y: v.rect.Y + 6}, "  t     - toggle ticker", helpStyle)
+	d.DrawText(tui.Point{X: v.rect.X + 2, Y: v.rect.Y + 7}, "  q     - quit", helpStyle)
+
 	if v.ticker {
 		tickerText := "[ticker ON]"
-		p.Text(v.rect.X+v.rect.W-len(tickerText)-2, v.rect.Y, tickerText, tui.Style{
-			FG:   tui.ColorGreen,
-			BG:   tui.ColorBlack,
-			Attr: tui.AttrBold,
-		})
+		d.DrawText(
+			tui.Point{X: v.rect.X + v.rect.W - len(tickerText) - 2, Y: v.rect.Y},
+			tickerText,
+			emphasisStyle,
+		)
 	}
 }
 

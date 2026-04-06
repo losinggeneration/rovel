@@ -14,7 +14,7 @@ func mockRenderRow(prefix string) RenderRowFunc {
 		i int,
 		selected bool,
 		focused bool,
-		p *tui.Painter,
+		d tui.Drawer,
 		r geom.Rect,
 	) {
 		if r.W <= 0 || r.H <= 0 {
@@ -35,7 +35,7 @@ func mockRenderRow(prefix string) RenderRowFunc {
 			text = text[:maxLen]
 		}
 
-		p.Text(r.X, r.Y, text, st)
+		d.DrawText(tui.Point{X: r.X, Y: r.Y}, text, st)
 	}
 }
 

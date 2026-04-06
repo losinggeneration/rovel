@@ -29,7 +29,7 @@ type OverlayOpts struct {
 	// Place determines positioning. Caller must set this.
 	Place Placement
 
-	// OnDismiss is called when the overlay is dismissed via ActionCancel.
+	// OnDismiss is called when the overlay is dismissed.
 	OnDismiss func()
 }
 

@@ -13,12 +13,12 @@ import (
 )
 
 // RenderRowFunc is the callback for rendering a single row in the virtual list.
-// It receives the item index, selection state, focus state, painter, and row rect.
+// It receives the item index, selection state, focus state, row drawer, and row rect.
 type RenderRowFunc func(
 	i int,
 	selected bool,
 	focused bool,
-	p *tui.Painter,
+	d tui.Drawer,
 	r geom.Rect,
 )
 
@@ -99,11 +99,8 @@ func (v *VirtualList) Focusable() bool {
 }
 
 // Paint renders the visible items only.
-// VirtualList remains a cell-shaped API because row rendering is explicitly
-// Painter-based, so it extracts the underlying Painter from the Drawer.
 func (v *VirtualList) Paint(d tui.Drawer, ctx *tui.Ctx) {
-	p := tui.PainterFromDrawer(d)
-	if p == nil || v.rect.W <= 0 || v.rect.H <= 0 {
+	if v.rect.W <= 0 || v.rect.H <= 0 {
 		return
 	}
 
@@ -112,7 +109,7 @@ func (v *VirtualList) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	v.clampSelection()
 
 	if n == 0 {
-		v.paintEmpty(p, ctx)
+		v.paintEmpty(d, ctx)
 
 		return
 	}
@@ -125,7 +122,7 @@ func (v *VirtualList) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	end := min(n, v.scrollItem+visible)
 	focused := ctx != nil && ctx.FocusedID == v.id
 
-	p.WithClip(v.rect, func(cp *tui.Painter) {
+	d.WithClip(v.rect, func(cd tui.Drawer) {
 		for i := v.scrollItem; i < end; i++ {
 			rowOffset := (i - v.scrollItem) * v.rowHeight
 			rowY := v.rect.Y + rowOffset
@@ -142,8 +139,8 @@ func (v *VirtualList) Paint(d tui.Drawer, ctx *tui.Ctx) {
 				H: rowH,
 			}
 
-			cp.WithClip(rowRect, func(rp *tui.Painter) {
-				v.renderRow(i, i == v.selectedIndex, focused, rp, rowRect)
+			cd.WithClip(rowRect, func(rd tui.Drawer) {
+				v.renderRow(i, i == v.selectedIndex, focused, rd, rowRect)
 			})
 		}
 	})
@@ -457,7 +454,7 @@ func (v *VirtualList) scrollSelectionIntoView() {
 }
 
 // paintEmpty paints the empty state (intentionally minimal for now).
-func (v *VirtualList) paintEmpty(p *tui.Painter, ctx *tui.Ctx) {
+func (v *VirtualList) paintEmpty(d tui.Drawer, ctx *tui.Ctx) {
 	// Intentionally empty for now.
 	// Paint Contract A already clears damaged regions.
 }

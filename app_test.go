@@ -5,7 +5,9 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
+	"github.com/losinggeneration/tui/backend/headless"
 	"github.com/losinggeneration/tui/event"
 	"github.com/losinggeneration/tui/geom"
 )
@@ -327,6 +329,15 @@ type testView struct {
 	id        ID
 	rect      geom.Rect
 	focusable bool
+	children  []View
+}
+
+type testPlacement struct {
+	rect geom.Rect
+}
+
+func (p testPlacement) Resolve(root View, screenSize geom.Size) geom.Rect {
+	return p.rect
 }
 
 func newTestView(focusable bool) *testView {
@@ -341,7 +352,8 @@ func (v *testView) Paint(d Drawer, ctx *Ctx) {}
 func (v *testView) Handle(e Event, ctx *Ctx) bool {
 	return false
 }
-func (v *testView) Focusable() bool { return v.focusable }
+func (v *testView) Focusable() bool  { return v.focusable }
+func (v *testView) Children() []View { return v.children }
 
 type testRoot struct {
 	id       ID
@@ -510,3 +522,543 @@ func TestCompactEventBatch_NetsQueuedWheelBacklog(t *testing.T) {
 		t.Fatalf("got[1] = %#v, want KeyTab", got[1])
 	}
 }
+
+func TestUpdateCtx_OverlayOperations(t *testing.T) {
+	app, _ := New(AppOpts{})
+	app.running.Store(true)
+
+	ctx := app.mkUpdateCtx()
+
+	// Test that overlay operations are wired up
+	if ctx.ShowOverlay == nil {
+		t.Fatal("UpdateCtx.ShowOverlay is nil")
+	}
+
+	if ctx.DismissOverlay == nil {
+		t.Fatal("UpdateCtx.DismissOverlay is nil")
+	}
+
+	if ctx.DismissOverlayByID == nil {
+		t.Fatal("UpdateCtx.DismissOverlayByID is nil")
+	}
+}
+
+func TestUpdateCtx_ShowOverlayViaPost(t *testing.T) {
+	app, _ := New(AppOpts{})
+
+	var overlayShown bool
+	var overlayID ID
+
+	err := app.Post(func(ctx *UpdateCtx) {
+		o := ctx.ShowOverlay(OverlayOpts{
+			Root:  &testView{id: NewID(), focusable: true},
+			Modal: true,
+			Place: testPlacement{rect: geom.Rect{X: 0, Y: 0, W: 10, H: 5}},
+		})
+		if o != nil {
+			overlayShown = true
+			overlayID = o.ID()
+		}
+	})
+	if err != nil {
+		t.Fatalf("Post failed: %v", err)
+	}
+
+	// Execute the posted callback
+	app.postMu.Lock()
+	for _, fn := range app.postQueue {
+		fn(app.mkUpdateCtx())
+	}
+	app.postQueue = nil
+	app.postMu.Unlock()
+
+	if !overlayShown {
+		t.Error("overlay was not shown via UpdateCtx.ShowOverlay")
+	}
+
+	if overlayID == 0 {
+		t.Error("overlay ID should not be zero")
+	}
+
+	// Verify overlay is on stack
+	if app.overlays.OverlayCount() != 1 {
+		t.Errorf("overlay count = %d, want 1", app.overlays.OverlayCount())
+	}
+}
+
+func TestUpdateCtx_DismissOverlayViaPost(t *testing.T) {
+	app, _ := New(AppOpts{})
+
+	// First show an overlay via app directly
+	o := app.ShowOverlay(OverlayOpts{
+		Root:  &testView{id: NewID(), focusable: true},
+		Modal: true,
+		Place: testPlacement{rect: geom.Rect{X: 0, Y: 0, W: 10, H: 5}},
+	})
+	overlayID := o.ID()
+
+	if app.overlays.OverlayCount() != 1 {
+		t.Fatalf("setup: expected 1 overlay, got %d", app.overlays.OverlayCount())
+	}
+
+	// Dismiss via UpdateCtx
+	var dismissed bool
+	err := app.Post(func(ctx *UpdateCtx) {
+		ctx.DismissOverlay()
+		dismissed = true
+	})
+	if err != nil {
+		t.Fatalf("Post failed: %v", err)
+	}
+
+	// Execute the posted callback
+	app.postMu.Lock()
+	for _, fn := range app.postQueue {
+		fn(app.mkUpdateCtx())
+	}
+	app.postQueue = nil
+	app.postMu.Unlock()
+
+	if !dismissed {
+		t.Error("overlay was not dismissed via UpdateCtx.DismissOverlay")
+	}
+
+	if app.overlays.OverlayCount() != 0 {
+		t.Errorf("overlay count = %d, want 0", app.overlays.OverlayCount())
+	}
+
+	_ = overlayID // suppress unused warning
+}
+
+func TestUpdateCtx_DismissOverlayByIDViaPost(t *testing.T) {
+	app, _ := New(AppOpts{})
+
+	// Show two overlays
+	o1 := app.ShowOverlay(OverlayOpts{
+		Root:  &testView{id: NewID(), focusable: true},
+		Modal: true,
+		Place: testPlacement{rect: geom.Rect{X: 0, Y: 0, W: 10, H: 5}},
+	})
+	o2 := app.ShowOverlay(OverlayOpts{
+		Root:  &testView{id: NewID(), focusable: true},
+		Modal: true,
+		Place: testPlacement{rect: geom.Rect{X: 0, Y: 0, W: 10, H: 5}},
+	})
+
+	if app.overlays.OverlayCount() != 2 {
+		t.Fatalf("setup: expected 2 overlays, got %d", app.overlays.OverlayCount())
+	}
+
+	// Dismiss bottom overlay by ID via UpdateCtx
+	var dismissed bool
+	targetID := o1.ID()
+	err := app.Post(func(ctx *UpdateCtx) {
+		ctx.DismissOverlayByID(targetID)
+		dismissed = true
+	})
+	if err != nil {
+		t.Fatalf("Post failed: %v", err)
+	}
+
+	// Execute the posted callback
+	app.postMu.Lock()
+	for _, fn := range app.postQueue {
+		fn(app.mkUpdateCtx())
+	}
+	app.postQueue = nil
+	app.postMu.Unlock()
+
+	if !dismissed {
+		t.Error("overlay was not dismissed via UpdateCtx.DismissOverlayByID")
+	}
+
+	// Should have one overlay remaining (the top one)
+	if app.overlays.OverlayCount() != 1 {
+		t.Errorf("overlay count = %d, want 1", app.overlays.OverlayCount())
+	}
+
+	// The remaining overlay should be o2
+	remaining := app.overlays.TopOverlay()
+	if remaining == nil || remaining.ID() != o2.ID() {
+		t.Error("wrong overlay remaining after dismiss by ID")
+	}
+}
+
+func TestDismissOverlayByID_NonTopPreservesFocus(t *testing.T) {
+	app, _ := New(AppOpts{})
+
+	// Show two overlays
+	overlay1Focus := &testView{id: NewID(), focusable: true}
+	o1 := app.ShowOverlay(OverlayOpts{
+		Root:  overlay1Focus,
+		Modal: true,
+		Place: testPlacement{rect: geom.Rect{X: 0, Y: 0, W: 10, H: 5}},
+	})
+	overlay2Focus := &testView{id: NewID(), focusable: true}
+	o2 := app.ShowOverlay(OverlayOpts{
+		Root:  overlay2Focus,
+		Modal: true,
+		Place: testPlacement{rect: geom.Rect{X: 0, Y: 0, W: 10, H: 5}},
+	})
+
+	if app.focusedID != overlay2Focus.ID() {
+		t.Fatalf("focusedID after showing top overlay = %v, want %v", app.focusedID, overlay2Focus.ID())
+	}
+
+	// Dismiss bottom overlay by ID
+	// Focus should NOT be restored since o2 is still on top
+	targetID := o1.ID()
+	dismissed := app.DismissOverlayByID(targetID)
+
+	if dismissed == nil {
+		t.Fatal("expected non-nil dismissed overlay")
+	}
+
+	// Should have one overlay remaining (the top one)
+	if app.overlays.OverlayCount() != 1 {
+		t.Errorf("overlay count = %d, want 1", app.overlays.OverlayCount())
+	}
+
+	// The remaining overlay should be o2
+	remaining := app.overlays.TopOverlay()
+	if remaining == nil || remaining.ID() != o2.ID() {
+		t.Error("wrong overlay remaining after dismiss by ID")
+	}
+
+	if app.focusedID != overlay2Focus.ID() {
+		t.Fatalf("focusedID after dismissing non-top overlay = %v, want %v", app.focusedID, overlay2Focus.ID())
+	}
+
+	if app.focusedID == overlay1Focus.ID() {
+		t.Fatal("dismissing a lower overlay restored focus to the wrong overlay")
+	}
+}
+
+func TestDismissOverlayByID_TopRestoresFocus(t *testing.T) {
+	app, _ := New(AppOpts{})
+
+	baseFocus := NewID()
+	app.focusedID = baseFocus
+
+	overlayFocus := &testView{id: NewID(), focusable: true}
+	o := app.ShowOverlay(OverlayOpts{
+		Root:  overlayFocus,
+		Modal: true,
+		Place: testPlacement{rect: geom.Rect{X: 0, Y: 0, W: 10, H: 5}},
+	})
+
+	if app.focusedID != overlayFocus.ID() {
+		t.Fatalf("focusedID after showing modal overlay = %v, want %v", app.focusedID, overlayFocus.ID())
+	}
+
+	dismissed := app.DismissOverlayByID(o.ID())
+	if dismissed == nil {
+		t.Fatal("expected non-nil dismissed overlay")
+	}
+
+	if app.focusedID != baseFocus {
+		t.Fatalf("focusedID after dismissing top overlay by ID = %v, want %v", app.focusedID, baseFocus)
+	}
+}
+
+func TestDismissOverlayByID_CleansUpScopeMemory(t *testing.T) {
+	app, _ := New(AppOpts{})
+
+	// Show an overlay
+	o := app.ShowOverlay(OverlayOpts{
+		Root:  &testView{id: NewID(), focusable: true},
+		Modal: true,
+		Place: testPlacement{rect: geom.Rect{X: 0, Y: 0, W: 10, H: 5}},
+	})
+
+	overlayID := o.ID()
+
+	// Dismiss by ID
+	dismissed := app.DismissOverlayByID(overlayID)
+
+	if dismissed == nil {
+		t.Fatal("expected non-nil dismissed overlay")
+	}
+
+	// Scope memory should be cleaned up
+	if _, exists := app.scopeMemory[overlayID]; exists {
+		t.Error("scope memory not cleaned up after DismissOverlayByID")
+	}
+}
+
+func TestDismissOverlayByID_UnknownIDIsHarmless(t *testing.T) {
+	app, _ := New(AppOpts{})
+
+	// Show an overlay
+	app.ShowOverlay(OverlayOpts{
+		Root:  &testView{id: NewID(), focusable: true},
+		Modal: true,
+		Place: testPlacement{rect: geom.Rect{X: 0, Y: 0, W: 10, H: 5}},
+	})
+
+	// Try to dismiss unknown ID
+	dismissed := app.DismissOverlayByID(ID(999999))
+
+	if dismissed != nil {
+		t.Error("expected nil for unknown ID")
+	}
+
+	// Existing overlay should still be there
+	if app.overlays.OverlayCount() != 1 {
+		t.Errorf("overlay count = %d, want 1", app.overlays.OverlayCount())
+	}
+}
+
+func TestQuit_WakesEventLoop(t *testing.T) {
+	app, _ := New(AppOpts{})
+	app.running.Store(true)
+
+	// Quit should wake the loop (test by checking it sends to wakeCh)
+	select {
+	case app.wakeCh <- struct{}{}:
+		// Already has pending wakeup, that's fine
+	default:
+	}
+
+	// Drain the channel
+	select {
+	case <-app.wakeCh:
+	default:
+	}
+
+	// Quit should wake
+	app.Quit()
+
+	select {
+	case <-app.wakeCh:
+		// Good: Quit woke the loop
+	default:
+		t.Error("Quit did not wake the event loop")
+	}
+}
+
+func TestShowOverlay_NonModalDoesNotStealFocus(t *testing.T) {
+	app, _ := New(AppOpts{})
+	baseFocus := NewID()
+	app.focusedID = baseFocus
+
+	overlayFocus := &testView{id: NewID(), focusable: true}
+	app.ShowOverlay(OverlayOpts{
+		Root:  overlayFocus,
+		Modal: false,
+		Place: testPlacement{rect: geom.Rect{X: 0, Y: 0, W: 10, H: 5}},
+	})
+
+	if app.focusedID != baseFocus {
+		t.Fatalf("focusedID after showing non-modal overlay = %v, want %v", app.focusedID, baseFocus)
+	}
+}
+
+func TestQuit_UnblocksIdleRun(t *testing.T) {
+	be := headless.New(geom.Size{W: 80, H: 24})
+	app, err := New(AppOpts{Backend: be})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	app.SetRoot(&testRoot{id: NewID()})
+	if err := app.Enable(); err != nil {
+		t.Fatalf("Enable: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- app.Run() }()
+
+	time.Sleep(20 * time.Millisecond)
+	app.Quit()
+	be.Close()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Run returned error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Run did not return after Quit while idle")
+	}
+}
+
+func TestQuit_RepeatedCallsAreIdempotent(t *testing.T) {
+	app, _ := New(AppOpts{})
+	app.running.Store(true)
+
+	// Drain channel
+	select {
+	case <-app.wakeCh:
+	default:
+	}
+
+	// Multiple Quit calls should all work
+	app.Quit()
+	app.Quit()
+	app.Quit()
+
+	// All should have sent to wakeCh (but only one survives due to buffer)
+	// This test just verifies no panic or deadlock
+	if app.running.Load() {
+		t.Error("running should be false after Quit")
+	}
+}
+
+func TestQuit_RacesWithQueuedPosts(t *testing.T) {
+	be := headless.New(geom.Size{W: 80, H: 24})
+	app, err := New(AppOpts{Backend: be})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	app.SetRoot(&testRoot{id: NewID()})
+	if err := app.Enable(); err != nil {
+		t.Fatalf("Enable: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- app.Run() }()
+
+	var ran atomic.Int32
+	postErr := make(chan error, 1)
+	go func() {
+		postErr <- app.Post(func(ctx *UpdateCtx) {
+			ran.Add(1)
+			ctx.InvalidateAll()
+		})
+		app.Quit()
+	}()
+
+	select {
+	case err := <-postErr:
+		if err != nil {
+			t.Fatalf("Post failed: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for post result")
+	}
+
+	be.Close()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Run returned error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Run did not return after Quit racing with queued posts")
+	}
+
+	if ran.Load() > 1 {
+		t.Fatalf("queued post ran %d times, want at most 1", ran.Load())
+	}
+}
+
+func TestPostInvalidate_SchedulesRepaint(t *testing.T) {
+	app, _ := New(AppOpts{})
+
+	err := app.PostInvalidate(geom.Rect{X: 0, Y: 0, W: 10, H: 10})
+	if err != nil {
+		t.Fatalf("PostInvalidate failed: %v", err)
+	}
+
+	// Verify it was queued
+	app.postMu.Lock()
+	queued := len(app.postQueue)
+	app.postMu.Unlock()
+
+	if queued != 1 {
+		t.Errorf("expected 1 queued post, got %d", queued)
+	}
+
+	// Execute and verify invalidation
+	app.postMu.Lock()
+	for _, fn := range app.postQueue {
+		fn(app.mkUpdateCtx())
+	}
+	app.postQueue = nil
+	app.postMu.Unlock()
+
+	// Check that the rect was invalidated
+	found := false
+	for _, r := range app.invalidRects {
+		if r == (geom.Rect{X: 0, Y: 0, W: 10, H: 10}) {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Error("expected rect to be invalidated")
+	}
+}
+
+func TestPostInvalidateAll_SchedulesFullRepaint(t *testing.T) {
+	app, _ := New(AppOpts{})
+	app.size = geom.Size{W: 80, H: 24}
+
+	err := app.PostInvalidateAll()
+	if err != nil {
+		t.Fatalf("PostInvalidateAll failed: %v", err)
+	}
+
+	// Verify it was queued
+	app.postMu.Lock()
+	queued := len(app.postQueue)
+	app.postMu.Unlock()
+
+	if queued != 1 {
+		t.Errorf("expected 1 queued post, got %d", queued)
+	}
+
+	// Execute and verify invalidation
+	app.postMu.Lock()
+	for _, fn := range app.postQueue {
+		fn(app.mkUpdateCtx())
+	}
+	app.postQueue = nil
+	app.postMu.Unlock()
+
+	// Check that entire screen was invalidated
+	found := false
+	for _, r := range app.invalidRects {
+		if r == (geom.Rect{X: 0, Y: 0, W: 80, H: 24}) {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Error("expected full screen to be invalidated")
+	}
+}
+
+func TestPostInvalidateFromGoroutine(t *testing.T) {
+	app, _ := New(AppOpts{})
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		err := app.PostInvalidate(geom.Rect{X: 5, Y: 5, W: 20, H: 10})
+		if err != nil {
+			t.Errorf("PostInvalidate from goroutine failed: %v", err)
+		}
+	}()
+
+	wg.Wait()
+
+	// Should have been queued
+	app.postMu.Lock()
+	queued := len(app.postQueue)
+	app.postMu.Unlock()
+
+	if queued != 1 {
+		t.Errorf("expected 1 queued post, got %d", queued)
+	}
+}
+
+// Placement helper tests

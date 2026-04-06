@@ -10,6 +10,10 @@ import (
 // The current implementation adapts the existing cell-oriented Painter. It is
 // a compatibility layer used to pressure-test the v0.2 draw abstraction before
 // changing the public View contract.
+//
+// DrawText is a single-line primitive: it writes text starting at pos and
+// advances horizontally by rune width. It does not interpret '\n' as a line
+// break; callers that need multiline layout must split lines themselves.
 type Drawer interface {
 	FillRect(r geom.Rect, st style.Style)
 	DrawText(pos geom.Point, text string, st style.Style)
@@ -20,8 +24,8 @@ type Drawer interface {
 	WithOffset(x, y int, fn func(Drawer))
 }
 
-// CellDrawer is an optional escape hatch for widgets that need precise cell
-// control on the current cell renderer path.
+// CellDrawer is the preferred escape hatch for widgets that need precise cell
+// control on the current cell renderer path without depending on Painter.
 type CellDrawer interface {
 	Drawer
 	SetCell(x, y int, r rune, s style.Style)
@@ -36,20 +40,9 @@ func NewDrawer(p *Painter) Drawer {
 	return &painterDrawer{p: p}
 }
 
-// PainterFromDrawer returns the underlying Painter for Drawer implementations
-// backed by the current compatibility adapter. It returns nil for other Drawer
-// implementations.
-func PainterFromDrawer(d Drawer) *Painter {
-	pd, ok := d.(*painterDrawer)
-	if !ok {
-		return nil
-	}
-
-	return pd.p
-}
-
 // CellDrawerOf returns a cell-specific drawer when the current Drawer supports
-// exact cell writes.
+// exact cell writes. This is the preferred path for grid-oriented widgets that
+// need rune-by-rune painting while remaining on the Drawer abstraction.
 func CellDrawerOf(d Drawer) (CellDrawer, bool) {
 	cd, ok := d.(CellDrawer)
 

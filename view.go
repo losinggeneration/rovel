@@ -72,4 +72,7 @@ type Ctx struct {
 
 	// DismissOverlay removes the topmost overlay. Nil if not available.
 	DismissOverlay func() *Overlay
+
+	// DismissOverlayByID removes a specific overlay by ID. Nil if not available.
+	DismissOverlayByID func(id ID) *Overlay
 }

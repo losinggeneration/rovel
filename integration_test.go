@@ -97,6 +97,33 @@ func (r *integrationRoot) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	return false
 }
 
+type asyncInvalidateView struct {
+	id    tui.ID
+	rect  geom.Rect
+	value atomic.Int32
+}
+
+func newAsyncInvalidateView(initial int32) *asyncInvalidateView {
+	v := &asyncInvalidateView{id: tui.NewID()}
+	v.value.Store(initial)
+
+	return v
+}
+
+func (v *asyncInvalidateView) ID() tui.ID         { return v.id }
+func (v *asyncInvalidateView) MinSize() geom.Size { return geom.Size{W: 1, H: 1} }
+func (v *asyncInvalidateView) Rect() geom.Rect    { return v.rect }
+func (v *asyncInvalidateView) Layout(r geom.Rect) { v.rect = r }
+func (v *asyncInvalidateView) Paint(d tui.Drawer, ctx *tui.Ctx) {
+	d.FillRect(v.rect, tui.Style{})
+	d.DrawText(
+		tui.Point{X: v.rect.X, Y: v.rect.Y},
+		string(rune('0'+v.value.Load())),
+		tui.Style{},
+	)
+}
+func (v *asyncInvalidateView) Handle(e tui.Event, ctx *tui.Ctx) bool { return false }
+
 func TestIntegration_FullLifecycle(t *testing.T) {
 	be := headless.New(geom.Size{W: 80, H: 24})
 	c := style.Capability{HasBasic: true}
@@ -216,6 +243,82 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 	err = app.Post(func(ctx *tui.UpdateCtx) {})
 	if !errors.Is(err, tui.ErrClosed) {
 		t.Errorf("Post after shutdown: got %v, want ErrClosed", err)
+	}
+}
+
+func TestIntegration_PostInvalidate_RepaintsThroughRunLoop(t *testing.T) {
+	be := memory.New(geom.Size{W: 12, H: 3})
+	opts := tui.AppOpts{Backend: be}
+
+	app, err := tui.New(opts)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	view := newAsyncInvalidateView(1)
+	app.SetRoot(view)
+
+	if err := app.Enable(); err != nil {
+		t.Fatalf("Enable: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- app.Run() }()
+
+	waitFor := func(name string, check func() bool) {
+		t.Helper()
+
+		deadline := time.After(2 * time.Second)
+		for {
+			if check() {
+				return
+			}
+
+			select {
+			case <-deadline:
+				t.Fatalf("timeout waiting for %s", name)
+			default:
+				time.Sleep(5 * time.Millisecond)
+			}
+		}
+	}
+
+	frame, ok := be.LastFrame()
+	if !ok {
+		t.Fatal("expected initial frame")
+	}
+	if got := string(frame.RowRunes(0)[:1]); got != "1" {
+		t.Fatalf("initial top-left rune = %q, want %q", got, "1")
+	}
+
+	framesBefore := be.FrameCount()
+	go func() {
+		view.value.Store(2)
+		_ = app.PostInvalidate(view.Rect())
+	}()
+
+	waitFor("post invalidate repaint", func() bool {
+		return be.FrameCount() > framesBefore
+	})
+
+	frame, ok = be.LastFrame()
+	if !ok {
+		t.Fatal("expected frame after PostInvalidate")
+	}
+	if got := string(frame.RowRunes(0)[:1]); got != "2" {
+		t.Fatalf("updated top-left rune = %q, want %q", got, "2")
+	}
+
+	app.Quit()
+	be.Close()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Run returned error: %v", err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("timeout waiting for Run to return")
 	}
 }
 
@@ -377,7 +480,7 @@ func TestIntegration_MemoryBackendCapturesPostedUpdatesAndOverlays(t *testing.T)
 	framesBeforeOverlay := be.FrameCount()
 
 	err = app.Post(func(ctx *tui.UpdateCtx) {
-		o := app.ShowOverlay(tui.OverlayOpts{
+		o := ctx.ShowOverlay(tui.OverlayOpts{
 			Root:  widgets.NewLabel("OVR"),
 			Modal: false,
 			Place: fixedPlacement{rect: geom.Rect{X: 2, Y: 2, W: 3, H: 1}},
