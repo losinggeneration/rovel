@@ -7,14 +7,17 @@ import (
 	"os/signal"
 	"sync"
 
+	"github.com/losinggeneration/tui/backend"
 	"github.com/losinggeneration/tui/geom"
 	"github.com/losinggeneration/tui/internal/errbuf"
 	"golang.org/x/sys/unix"
 )
 
-// signalHandler handles SIGWINCH for terminal resize events.
+// signalHandler handles SIGWINCH for terminal resize events and, in cbreak
+// mode, SIGINT for translating Ctrl+C into a synthetic KeyCtrlC event.
 type signalHandler struct {
 	resizeCh chan geom.Size
+	sigintCh chan struct{} // capacity 1; nil in raw mode
 	stopCh   chan struct{}
 	once     sync.Once
 	wakeFd   int // write end of wake pipe (raw fd)
@@ -22,10 +25,13 @@ type signalHandler struct {
 	errs     *errbuf.ErrorBuffer
 }
 
-// setupResizeHandler sets up a SIGWINCH signal handler for future resize events.
+// setupSignalHandler sets up signal handlers for terminal events:
+//   - SIGWINCH for resize events (all modes)
+//   - SIGINT for Ctrl+C translation (cbreak mode only)
+//
 // It does not synthesize an initial ResizeEvent; the initial terminal size is
 // obtained synchronously from Enable() / Size().
-func setupResizeHandler(wakeFd int, outFd int, errs *errbuf.ErrorBuffer) (*signalHandler, error) {
+func setupSignalHandler(wakeFd int, outFd int, mode backend.TerminalMode, errs *errbuf.ErrorBuffer) (*signalHandler, error) {
 	h := &signalHandler{
 		resizeCh: make(chan geom.Size, 1),
 		stopCh:   make(chan struct{}),
@@ -34,27 +40,49 @@ func setupResizeHandler(wakeFd int, outFd int, errs *errbuf.ErrorBuffer) (*signa
 		errs:     errs,
 	}
 
+	// In cbreak mode, ISIG is on so Ctrl+C delivers SIGINT instead of
+	// appearing as input. We catch it and translate to a synthetic event.
+	if mode == backend.ModeCBreak {
+		h.sigintCh = make(chan struct{}, 1)
+	}
+
 	// Start signal listener
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, unix.SIGWINCH)
 
+	if mode == backend.ModeCBreak {
+		signal.Notify(sigCh, unix.SIGINT)
+	}
+
 	go func() {
 		for {
 			select {
-			case <-sigCh:
-				if newSize, err := getTerminalSize(h.outFd); err == nil {
-					select {
-					case h.resizeCh <- newSize:
-						h.wakePoll()
-					default:
-						// Channel full, drop old size
+			case sig := <-sigCh:
+				switch sig {
+				case unix.SIGWINCH:
+					if newSize, err := getTerminalSize(h.outFd); err == nil {
 						select {
-						case <-h.resizeCh:
-							h.resizeCh <- newSize
-
+						case h.resizeCh <- newSize:
 							h.wakePoll()
 						default:
+							// Channel full, drop old size
+							select {
+							case <-h.resizeCh:
+								h.resizeCh <- newSize
+
+								h.wakePoll()
+							default:
+							}
 						}
+					}
+				case unix.SIGINT:
+					if h.sigintCh != nil {
+						select {
+						case h.sigintCh <- struct{}{}:
+						default:
+						}
+
+						h.wakePoll()
 					}
 				}
 			case <-h.stopCh:
@@ -72,6 +100,11 @@ func setupResizeHandler(wakeFd int, outFd int, errs *errbuf.ErrorBuffer) (*signa
 // ResizeChan returns the read-only channel for resize events.
 func (h *signalHandler) ResizeChan() <-chan geom.Size {
 	return h.resizeCh
+}
+
+// SigintChan returns the SIGINT notification channel, or nil in raw mode.
+func (h *signalHandler) SigintChan() <-chan struct{} {
+	return h.sigintCh
 }
 
 // Stop stops the signal handler.

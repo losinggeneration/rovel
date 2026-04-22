@@ -53,9 +53,10 @@ import (
 
 // App represents a TUI application.
 type App struct {
-	opts AppOpts
-	host runtimeHost
-	size geom.Size
+	opts         AppOpts
+	host         runtimeHost
+	size         geom.Size // render region size (may be <= terminalSize)
+	terminalSize geom.Size // physical terminal size
 
 	renderer  runtimeRenderer
 	presenter runtimePresenter
@@ -170,11 +171,47 @@ func (a *App) SetRoot(v View) {
 	a.layoutDirty = true
 }
 
+// resolveRenderSize chooses the render region size. Explicit RenderSize wins.
+// In cbreak mode, fall back to the root's PreferredSize (or MinSize if that
+// is unavailable). Otherwise use the full terminal size. All results are
+// clamped to the terminal.
+func (a *App) resolveRenderSize(terminal geom.Size) geom.Size {
+	clamp := func(s geom.Size) geom.Size {
+		if s.W > terminal.W {
+			s.W = terminal.W
+		}
+		if s.H > terminal.H {
+			s.H = terminal.H
+		}
+		return s
+	}
+
+	if a.opts.RenderSize.W > 0 && a.opts.RenderSize.H > 0 {
+		return clamp(a.opts.RenderSize)
+	}
+
+	if a.opts.TerminalMode == backend.ModeCBreak && a.root != nil {
+		if ps, ok := a.root.(PreferredSizer); ok {
+			pref := ps.PreferredSize()
+			if pref.W > 0 && pref.H > 0 {
+				return clamp(pref)
+			}
+		}
+
+		min := a.root.MinSize()
+		if min.W > 0 && min.H > 0 {
+			return clamp(min)
+		}
+	}
+
+	return terminal
+}
+
 // Enable enables the terminal and starts the application.
 func (a *App) Enable() error {
 	// Create backend if not provided
 	if a.opts.Backend == nil {
-		b, err := defaultBackend(a.errs)
+		b, err := defaultBackend(a.errs, a.opts.TerminalMode)
 		if err != nil {
 			return err
 		}
@@ -185,12 +222,13 @@ func (a *App) Enable() error {
 	a.host = newAppHost(a.opts.Backend)
 
 	// Enable the backend
-	size, err := a.host.Enable()
+	terminalSize, err := a.host.Enable()
 	if err != nil {
 		return err
 	}
 
-	a.size = size
+	a.terminalSize = terminalSize
+	a.size = a.resolveRenderSize(terminalSize)
 
 	// Detect or use provided capability
 	providedCap := a.opts.Capability
@@ -216,18 +254,18 @@ func (a *App) Enable() error {
 	// Resolve theme for capability
 	a.resolvedTheme = a.opts.Theme.Resolved(a.capability)
 
-	// Resize buffers to terminal size
-	a.resizeBuffers(size.W, size.H)
+	// Resize buffers to the render region size.
+	a.resizeBuffers(a.size.W, a.size.H)
 
 	// Choose the presenter for the concrete backend.
-	presenter, err := presenterForBackend(a.opts.Backend)
+	presenter, err := presenterForBackend(a.opts.Backend, a.opts.TerminalMode, a.opts.ClearOnExit)
 	if err != nil {
 		return err
 	}
 
 	a.presenter = presenter
 
-	if err := a.presenter.InitScreen(); err != nil {
+	if err := a.presenter.InitScreen(a.size); err != nil {
 		return err
 	}
 
@@ -1121,8 +1159,15 @@ func (a *App) handleClipboardResponseEvent(e ClipboardResponseEvent) {
 
 // handleResizeEvent processes a resize event.
 func (a *App) handleResizeEvent(e ResizeEvent) {
-	// Resize buffers
-	a.resizeBuffers(e.W, e.H)
+	a.terminalSize = geom.Size{W: e.W, H: e.H}
+
+	// Re-derive the render region from the new terminal size. For explicit
+	// RenderSize / cbreak mode, the region may stay the same; for full-screen
+	// (raw) mode it tracks the terminal.
+	newSize := a.resolveRenderSize(a.terminalSize)
+
+	// Resize buffers to the new render region.
+	a.resizeBuffers(newSize.W, newSize.H)
 
 	// Clear front buffer so every cell diffs as changed, forcing full redraw.
 	// The terminal garbles content during resize (reflow), so the front buffer
@@ -1133,8 +1178,8 @@ func (a *App) handleResizeEvent(e ResizeEvent) {
 	// Full layout pass
 	a.layout()
 
-	// Mark entire screen as damaged
-	a.Invalidate(geom.Rect{X: 0, Y: 0, W: e.W, H: e.H})
+	// Mark entire render region as damaged
+	a.Invalidate(geom.Rect{X: 0, Y: 0, W: newSize.W, H: newSize.H})
 }
 
 // mkCtx creates a context for a view.

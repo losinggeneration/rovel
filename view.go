@@ -33,6 +33,13 @@ type CompositeView interface {
 	Children() []View
 }
 
+// PreferredSizer is an optional interface views may implement to expose a
+// preferred size hint. The app uses it, when set, to derive a default render
+// region in cbreak mode (see AppOpts.RenderSize).
+type PreferredSizer interface {
+	PreferredSize() geom.Size
+}
+
 // Ctx provides context methods for views during Paint and Handle.
 type Ctx struct {
 	// Theme is the app-wide theme.

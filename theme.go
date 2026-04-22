@@ -2,6 +2,7 @@ package tui
 
 import (
 	"github.com/losinggeneration/tui/backend"
+	"github.com/losinggeneration/tui/geom"
 	"github.com/losinggeneration/tui/style"
 )
 
@@ -245,6 +246,28 @@ type AppOpts struct {
 	Backend    backend.Backend   // Optional: custom backend, nil uses default backend/ansi
 	Capability *style.Capability // nil => auto-detect from env
 	Input      InputOpts
+
+	// TerminalMode selects the terminal input mode. The zero value (ModeRaw)
+	// puts the terminal into full raw mode for interactive TUI apps.
+	// ModeCBreak puts the terminal into cbreak mode (character-at-a-time
+	// input with ECHO disabled but ISIG/OPOST intact), suitable for
+	// interactive CLI tools like dialog boxes, prompts, and script-driven
+	// TUI components that draw inline without clearing the screen.
+	TerminalMode TerminalMode
+
+	// RenderSize optionally bounds the render region. When zero, the app
+	// uses the root view's PreferredSize (if it implements PreferredSizer)
+	// in cbreak mode, otherwise the full terminal size. When non-zero,
+	// both dimensions are clamped to the current terminal size.
+	RenderSize geom.Size
+
+	// ClearOnExit controls what happens to the rendered content on
+	// Restore(). When false (the default), the region is left intact and
+	// the cursor parks just below it — subsequent output appears on a new
+	// line. When true, the region is erased and the cursor returns to
+	// where rendering began, so subsequent output replaces the rendered
+	// content. Only meaningful in cbreak (inline) mode.
+	ClearOnExit bool
 
 	// ResolveAction is an optional closure that maps a key event + focused view
 	// to a semantic action. Used by the keybinding system (ui package) to inject

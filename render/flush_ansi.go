@@ -17,6 +17,12 @@ type ANSIFlusher struct {
 
 	curStyle style.Style
 	hasStyle bool
+
+	// relative, when true, causes cursor positioning to use relative moves
+	// (CR + CUU/CUD/CUF) from the tracked position instead of absolute
+	// positioning (CUP). Used for inline rendering anchored at the cursor
+	// position at startup rather than the top of the terminal.
+	relative bool
 }
 
 func NewANSIFlusher(w io.Writer) *ANSIFlusher {
@@ -35,6 +41,106 @@ func (f *ANSIFlusher) ResetStyle() {
 func (f *ANSIFlusher) ResetCursor() {
 	f.curX = -1
 	f.curY = -1
+}
+
+// SetRelative switches the flusher between absolute and relative cursor
+// positioning. In relative mode, the anchor is the current cursor position
+// when the first move is emitted (use SetupInlineRegion to establish it).
+func (f *ANSIFlusher) SetRelative(rel bool) {
+	f.relative = rel
+}
+
+// SetupInlineRegion prepares an inline rendering region of the given height
+// below the current cursor position. It emits enough newlines to force a
+// scroll if necessary, then moves back up so the cursor sits at the top of
+// the region. After this call the flusher's tracked position is (0, 0) and
+// relative mode is engaged. h must be >= 1.
+func (f *ANSIFlusher) SetupInlineRegion(h int) error {
+	if h < 1 {
+		h = 1
+	}
+
+	// Go to column 0 of the current row; avoid clobbering content to the left.
+	if _, err := f.w.WriteString("\r"); err != nil {
+		return err
+	}
+
+	// Emit (h-1) newlines to create vertical room (may scroll).
+	for range h - 1 {
+		if _, err := f.w.WriteString("\n"); err != nil {
+			return err
+		}
+	}
+
+	// Move back up to the top of the region.
+	if h > 1 {
+		if _, err := fmt.Fprintf(f.w, "\x1b[%dA", h-1); err != nil {
+			return err
+		}
+	}
+
+	f.curX = 0
+	f.curY = 0
+	f.relative = true
+
+	return nil
+}
+
+// LeaveInlineRegion parks the cursor just below the inline rendering
+// region (row h, col 0 relative to the anchor) so subsequent shell output
+// appears beneath the rendered content without disturbing it. Only
+// meaningful in relative mode; a no-op otherwise.
+func (f *ANSIFlusher) LeaveInlineRegion(h int) error {
+	if !f.relative {
+		return nil
+	}
+
+	if _, err := f.w.WriteString("\r"); err != nil {
+		return err
+	}
+
+	down := h - f.curY
+	for range down {
+		if _, err := f.w.WriteString("\n"); err != nil {
+			return err
+		}
+	}
+
+	f.curX = 0
+	f.curY = h
+	f.relative = false
+
+	return nil
+}
+
+// ClearInlineRegion erases the inline rendering region and parks the cursor
+// at its top-left (row 0, col 0 relative to the anchor) so the next output
+// starts exactly where the rendered content began. Content above the
+// region is preserved. Only meaningful in relative mode; a no-op otherwise.
+func (f *ANSIFlusher) ClearInlineRegion(_ int) error {
+	if !f.relative {
+		return nil
+	}
+
+	if _, err := f.w.WriteString("\r"); err != nil {
+		return err
+	}
+
+	if f.curY > 0 {
+		if _, err := fmt.Fprintf(f.w, "\x1b[%dA", f.curY); err != nil {
+			return err
+		}
+	}
+
+	if _, err := f.w.WriteString("\x1b[J"); err != nil {
+		return err
+	}
+
+	f.curX = 0
+	f.curY = 0
+	f.relative = false
+
+	return nil
 }
 
 func (f *ANSIFlusher) FlushRuns(back, front *Buffer, runs []Run) error {
@@ -204,9 +310,45 @@ func (f *ANSIFlusher) moveCursorTo(y, x int) error {
 		return nil
 	}
 
+	if f.relative {
+		return f.moveCursorRelative(y, x)
+	}
+
 	_, err := fmt.Fprintf(f.w, "\x1b[%d;%dH", y+1, x+1)
 	if err != nil {
 		return err
+	}
+
+	f.curX = x
+	f.curY = y
+
+	return nil
+}
+
+// moveCursorRelative emits relative moves to go from (curX, curY) to (x, y)
+// without leaving the inline region. Uses CR + CUU/CUD + CUF from col 0 so
+// horizontal position is unambiguous across terminal widths.
+func (f *ANSIFlusher) moveCursorRelative(y, x int) error {
+	if _, err := f.w.WriteString("\r"); err != nil {
+		return err
+	}
+
+	dy := y - f.curY
+	switch {
+	case dy > 0:
+		if _, err := fmt.Fprintf(f.w, "\x1b[%dB", dy); err != nil {
+			return err
+		}
+	case dy < 0:
+		if _, err := fmt.Fprintf(f.w, "\x1b[%dA", -dy); err != nil {
+			return err
+		}
+	}
+
+	if x > 0 {
+		if _, err := fmt.Fprintf(f.w, "\x1b[%dC", x); err != nil {
+			return err
+		}
 	}
 
 	f.curX = x

@@ -11,7 +11,13 @@ type inputFeatures struct {
 }
 
 // InputCapabilities reports which input features this backend supports.
+// In cbreak mode all capabilities are disabled: mouse tracking and bracketed
+// paste are suppressed so text in the terminal remains selectable.
 func (b *Backend) InputCapabilities() backend.InputCapabilities {
+	if b.mode == backend.ModeCBreak {
+		return backend.InputCapabilities{}
+	}
+
 	return backend.InputCapabilities{
 		Mouse:          true,
 		MouseMotion:    true,

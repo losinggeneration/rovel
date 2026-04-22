@@ -65,6 +65,73 @@ func TestRawModeIntegration(t *testing.T) {
 	}
 }
 
+// TestCBreakModeIntegration tests that enableCBreak clears ECHO and ICANON
+// but preserves ISIG and OPOST, and that restore brings back the original
+// state.
+func TestCBreakModeIntegration(t *testing.T) {
+	if !isTerminal(int(os.Stdin.Fd())) {
+		t.Skip("not a terminal")
+	}
+
+	fd := int(os.Stdin.Fd())
+
+	var orig unix.Termios
+	if err := unix.IoctlSetTermios(fd, unix.TCGETS, &orig); err != nil {
+		t.Fatalf("failed to get terminal state: %v", err)
+	}
+
+	regOrig, err := enableCBreak(fd)
+	if err != nil {
+		t.Fatalf("enableCBreak failed: %v", err)
+	}
+
+	var current unix.Termios
+	if err := unix.IoctlSetTermios(fd, unix.TCGETS, &current); err != nil {
+		t.Fatalf("failed to get terminal state after enableCBreak: %v", err)
+	}
+
+	if current.Lflag&unix.ECHO != 0 {
+		t.Error("ECHO not cleared in cbreak mode")
+	}
+
+	if current.Lflag&unix.ECHONL != 0 {
+		t.Error("ECHONL not cleared in cbreak mode")
+	}
+
+	if current.Lflag&unix.ICANON != 0 {
+		t.Error("ICANON not cleared in cbreak mode")
+	}
+
+	if current.Lflag&unix.IEXTEN != 0 {
+		t.Error("IEXTEN not cleared in cbreak mode")
+	}
+
+	if current.Lflag&unix.ISIG == 0 {
+		t.Error("ISIG should remain set in cbreak mode")
+	}
+
+	if current.Oflag&unix.OPOST == 0 {
+		t.Error("OPOST should remain set in cbreak mode")
+	}
+
+	// Restore terminal
+	if err := restore(fd, regOrig); err != nil {
+		t.Fatalf("restore failed: %v", err)
+	}
+
+	// Verify original state is restored
+	if err := unix.IoctlSetTermios(fd, unix.TCGETS, &current); err != nil {
+		t.Fatalf("failed to get terminal state after restore: %v", err)
+	}
+
+	if current.Lflag != orig.Lflag ||
+		current.Iflag != orig.Iflag ||
+		current.Oflag != orig.Oflag ||
+		current.Cflag != orig.Cflag {
+		t.Error("terminal state not properly restored after cbreak mode")
+	}
+}
+
 // TestGetTerminalSize tests getting terminal size.
 func TestGetTerminalSize(t *testing.T) {
 	if !isTerminal(int(os.Stdout.Fd())) {

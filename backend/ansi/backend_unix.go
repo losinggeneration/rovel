@@ -11,6 +11,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/losinggeneration/tui/backend"
 	"github.com/losinggeneration/tui/event"
 	"github.com/losinggeneration/tui/geom"
 	"github.com/losinggeneration/tui/internal/errbuf"
@@ -35,10 +36,19 @@ type Options struct {
 	// Output overrides the file used for writing terminal output.
 	// If nil, os.Stdout is used. The file must be a terminal (tty).
 	Output *os.File
+
+	// Mode selects the terminal input mode. The zero value (ModeRaw) puts the
+	// terminal into full raw mode for interactive TUI apps. ModeCBreak puts
+	// the terminal into cbreak mode (character-at-a-time input with ECHO
+	// disabled but ISIG/OPOST intact), suitable for interactive CLI tools
+	// like dialog boxes, prompts, and script-driven TUI components that draw
+	// inline without clearing the screen.
+	Mode backend.TerminalMode
 }
 
 // Backend implements the backend.Backend interface for Unix terminals using ANSI escape sequences.
 type Backend struct {
+	mode        backend.TerminalMode
 	origTermios *unix.Termios
 	r           *os.File
 	out         *os.File // underlying output file (for fd-based operations)
@@ -97,6 +107,7 @@ func New(errs *errbuf.ErrorBuffer, opts Options) (*Backend, error) {
 	}
 
 	b := &Backend{
+		mode:    opts.Mode,
 		r:       in,
 		out:     out,
 		w:       w,
@@ -110,11 +121,27 @@ func New(errs *errbuf.ErrorBuffer, opts Options) (*Backend, error) {
 	return b, nil
 }
 
+// Mode returns the terminal mode this backend was configured with.
+func (b *Backend) Mode() backend.TerminalMode {
+	return b.mode
+}
+
 // Enable enables the terminal and returns the initial size.
 func (b *Backend) Enable() (geom.Size, error) {
-	orig, err := enableRaw(int(b.r.Fd()))
-	if err != nil {
-		return geom.Size{}, fmt.Errorf("enableRaw: %w", err)
+	var orig *unix.Termios
+	var err error
+
+	switch b.mode {
+	case backend.ModeCBreak:
+		orig, err = enableCBreak(int(b.r.Fd()))
+		if err != nil {
+			return geom.Size{}, fmt.Errorf("enableCBreak: %w", err)
+		}
+	default:
+		orig, err = enableRaw(int(b.r.Fd()))
+		if err != nil {
+			return geom.Size{}, fmt.Errorf("enableRaw: %w", err)
+		}
 	}
 
 	b.origTermios = orig
@@ -130,8 +157,8 @@ func (b *Backend) Enable() (geom.Size, error) {
 	b.pipeR = pipeFds[0]
 	b.pipeW = pipeFds[1]
 
-	// Setup signal handler for resize events
-	signals, err := setupResizeHandler(b.pipeW, int(b.out.Fd()), b.errs)
+	// Setup signal handler for resize events (and SIGINT in cooked mode)
+	signals, err := setupSignalHandler(b.pipeW, int(b.out.Fd()), b.mode, b.errs)
 	if err != nil {
 		b.errs.Add(unix.Close(b.pipeR))
 		b.errs.Add(unix.Close(b.pipeW))
@@ -384,6 +411,21 @@ func (b *Backend) readEvents() {
 					}
 				default:
 					break drainResize
+				}
+			}
+
+			// In cooked mode, check for SIGINT and emit a synthetic KeyCtrlC.
+			if sigintCh := b.signals.SigintChan(); sigintCh != nil {
+			drainSigint:
+				for {
+					select {
+					case <-sigintCh:
+						if !b.sendEvent(event.KeyEvent{Key: event.KeyCtrlC}) {
+							return
+						}
+					default:
+						break drainSigint
+					}
 				}
 			}
 		}

@@ -27,7 +27,7 @@ type runtimeRenderer interface {
 }
 
 type runtimePresenter interface {
-	InitScreen() error
+	InitScreen(size geom.Size) error
 	RestoreScreen() error
 	ResetCursor()
 	ResetStyle()
@@ -142,25 +142,39 @@ func makeBackendCellFrame(f *cellFrame) backend.CellFrame {
 }
 
 type ansiPresenter struct {
-	transport backend.ANSITransport
-	flusher   *render.ANSIFlusher
+	transport   backend.ANSITransport
+	flusher     *render.ANSIFlusher
+	mode        backend.TerminalMode
+	regionH     int // inline-region height, set in InitScreen for cbreak
+	clearOnExit bool
 }
 
-func newANSIPresenter(t backend.ANSITransport) *ansiPresenter {
+func newANSIPresenter(t backend.ANSITransport, mode backend.TerminalMode, clearOnExit bool) *ansiPresenter {
 	return &ansiPresenter{
-		transport: t,
-		flusher:   render.NewANSIFlusher(&transportWriter{t: t}),
+		transport:   t,
+		flusher:     render.NewANSIFlusher(&transportWriter{t: t}),
+		mode:        mode,
+		clearOnExit: clearOnExit,
 	}
 }
 
-func (p *ansiPresenter) InitScreen() error {
-	err := p.flusher.ClearScreen()
-	if err != nil {
-		return err
+func (p *ansiPresenter) InitScreen(size geom.Size) error {
+	if p.mode == backend.ModeCBreak {
+		// Create an inline region of size.H rows anchored at the current
+		// cursor position. Relative positioning keeps the region stable.
+		p.regionH = size.H
+
+		if err := p.flusher.SetupInlineRegion(size.H); err != nil {
+			return err
+		}
+	} else {
+		// Raw mode: clear the screen so rendering starts from a blank state.
+		if err := p.flusher.ClearScreen(); err != nil {
+			return err
+		}
 	}
 
-	err = p.flusher.HideCursor()
-	if err != nil {
+	if err := p.flusher.HideCursor(); err != nil {
 		return err
 	}
 
@@ -168,6 +182,27 @@ func (p *ansiPresenter) InitScreen() error {
 }
 
 func (p *ansiPresenter) RestoreScreen() error {
+	// In cbreak mode, either clear the inline region (erase the rendered
+	// content and reset the cursor to where rendering began) or park the
+	// cursor just below it so the next shell prompt lands on a fresh line.
+	if p.mode == backend.ModeCBreak && p.regionH > 0 {
+		var err error
+		if p.clearOnExit {
+			err = p.flusher.ClearInlineRegion(p.regionH)
+		} else {
+			err = p.flusher.LeaveInlineRegion(p.regionH)
+		}
+
+		if err != nil {
+			return err
+		}
+	}
+
+	// Reset SGR so we don't leak styles into the shell after exit.
+	if _, err := p.transport.Write([]byte("\x1b[0m")); err != nil {
+		return err
+	}
+
 	err := p.flusher.ShowCursor()
 	if err != nil {
 		return err
@@ -209,7 +244,7 @@ func newCellFramePresenter(sink backend.CellFrameSink) *cellFramePresenter {
 	return &cellFramePresenter{sink: sink}
 }
 
-func (p *cellFramePresenter) InitScreen() error {
+func (p *cellFramePresenter) InitScreen(_ geom.Size) error {
 	return nil
 }
 
@@ -234,13 +269,13 @@ func (p *cellFramePresenter) PresentFrame(frame runtimeFrame) error {
 	return p.sink.PresentCellFrame(makeBackendCellFrame(f))
 }
 
-func presenterForBackend(b backend.Backend) (runtimePresenter, error) {
+func presenterForBackend(b backend.Backend, mode backend.TerminalMode, clearOnExit bool) (runtimePresenter, error) {
 	if sink, ok := b.(backend.CellFrameSink); ok {
 		return newCellFramePresenter(sink), nil
 	}
 
 	if t, ok := b.(backend.ANSITransport); ok {
-		return newANSIPresenter(t), nil
+		return newANSIPresenter(t, mode, clearOnExit), nil
 	}
 
 	return nil, fmt.Errorf("%w: %T", errNoSinkOrTransport, b)

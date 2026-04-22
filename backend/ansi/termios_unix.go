@@ -43,6 +43,38 @@ func enableRaw(fd int) (*unix.Termios, error) {
 	return &orig, nil
 }
 
+// enableCBreak puts the terminal into cbreak mode: character-at-a-time
+// input with ECHO disabled. ICANON and IEXTEN are cleared so keys like
+// Tab and arrows reach the application immediately without waiting for
+// Enter. ISIG stays on so Ctrl+C delivers SIGINT, and OPOST stays on so
+// output is line-processed (text remains selectable). Suitable for
+// interactive CLI tools like dialog boxes, prompts, and script-driven
+// TUI components.
+func enableCBreak(fd int) (*unix.Termios, error) {
+	if !isTerminal(fd) {
+		return nil, syscall.EINVAL
+	}
+
+	var orig unix.Termios
+
+	err := unix.IoctlSetTermios(fd, unix.TCGETS, &orig)
+	if err != nil {
+		return nil, err
+	}
+
+	cbreak := orig
+	cbreak.Lflag &^= unix.ECHO | unix.ECHONL | unix.ICANON | unix.IEXTEN
+	cbreak.Cc[unix.VMIN] = 1
+	cbreak.Cc[unix.VTIME] = 0
+
+	err = unix.IoctlSetTermios(fd, unix.TCSETS, &cbreak)
+	if err != nil {
+		return nil, err
+	}
+
+	return &orig, nil
+}
+
 // restore restores the terminal to its original state.
 func restore(fd int, orig *unix.Termios) error {
 	if orig == nil {

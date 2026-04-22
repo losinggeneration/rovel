@@ -6,6 +6,26 @@ import (
 	"github.com/losinggeneration/tui/style"
 )
 
+// TerminalMode controls how the backend configures the terminal's input mode.
+type TerminalMode uint8
+
+const (
+	// ModeRaw puts the terminal into full raw mode (default). Character-at-a-time
+	// input, no echo, no signal keys. Required for full-featured TUI apps.
+	ModeRaw TerminalMode = iota
+
+	// ModeCBreak puts the terminal into cbreak mode: character-at-a-time
+	// input with ECHO disabled, but ISIG stays on so Ctrl+C delivers SIGINT
+	// and OPOST stays on so output is line-processed. Mouse tracking and
+	// bracketed paste are unavailable; text remains selectable in the
+	// terminal. The screen is not cleared on startup; output is drawn
+	// inline at the current cursor position. Suitable for interactive CLI
+	// tools — dialog boxes, prompts, script-driven TUI components — that
+	// use the full rendering pipeline without taking over the entire
+	// terminal.
+	ModeCBreak
+)
+
 // Backend is the host-facing interface for backends. It handles lifecycle,
 // input, and size — but not rendering transport.
 type Backend interface {
