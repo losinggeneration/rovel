@@ -260,6 +260,36 @@ func TestInputDecoder_CSI_ParamArrow_Normalized(t *testing.T) {
 	}
 }
 
+func TestInputDecoder_CSIU_ModifiedEnter(t *testing.T) {
+	tests := []struct {
+		name string
+		seq  string
+		mod  event.ModMask
+	}{
+		{"Enter", "\x1b[13u", 0},
+		{"Shift+Enter", "\x1b[13;2u", event.ModShift},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &InputDecoder{}
+			evs := pushAll(d, []byte(tt.seq))
+
+			if len(evs) != 1 {
+				t.Fatalf("got %d events, want 1: %#v", len(evs), evs)
+			}
+
+			k := ke(t, evs[0], 0)
+			if k.Key != event.KeyEnter {
+				t.Fatalf("got key %v, want KeyEnter", k.Key)
+			}
+			if k.Mod != tt.mod {
+				t.Fatalf("got mod %d, want %d", k.Mod, tt.mod)
+			}
+		})
+	}
+}
+
 func TestInputDecoder_CSI_ShiftArrow_Modifiers(t *testing.T) {
 	tests := []struct {
 		name  string

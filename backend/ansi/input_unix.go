@@ -160,6 +160,21 @@ func dispatchCSI(final byte) event.Key {
 	}
 }
 
+func dispatchCSIU(p0 int) event.Key {
+	switch p0 {
+	case 8, 127:
+		return event.KeyBackspace
+	case 9:
+		return event.KeyTab
+	case 13:
+		return event.KeyEnter
+	case 27:
+		return event.KeyEsc
+	default:
+		return event.KeyNone
+	}
+}
+
 func dispatchCSITilde(p0 int) event.Key {
 	switch p0 {
 	case 1:
@@ -626,6 +641,9 @@ func acceptsCSIKey(final byte, p0, _ /* mod */, n int) bool {
 		}
 
 		return false
+	case 'u':
+		// Accept CSI-u encoded control keys, e.g. CSI 13;2u for Shift+Enter.
+		return (n == 1 || n == 2) && dispatchCSIU(p0) != event.KeyNone
 	default:
 		return false
 	}
@@ -680,6 +698,13 @@ func (d *InputDecoder) pushCSI(
 
 			if b == '~' {
 				if key := dispatchCSITilde(p0); key != event.KeyNone {
+					d.state = stateGround
+					d.csiN = 0
+
+					return append(dst, event.KeyEvent{Key: key, Mod: mod})
+				}
+			} else if b == 'u' {
+				if key := dispatchCSIU(p0); key != event.KeyNone {
 					d.state = stateGround
 					d.csiN = 0
 
