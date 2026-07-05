@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"os"
 
-	"golang.org/x/sys/unix"
-
 	"github.com/losinggeneration/tui/backend"
 	"github.com/losinggeneration/tui/backend/ansi"
 	"github.com/losinggeneration/tui/internal/errbuf"
@@ -20,7 +18,7 @@ import (
 func defaultBackend(errs *errbuf.ErrorBuffer, mode backend.TerminalMode) (backend.Backend, error) {
 	opts := ansi.Options{Mode: mode}
 
-	if !isTerminalFd(os.Stdin.Fd()) || !isTerminalFd(os.Stdout.Fd()) {
+	if !ansi.IsTerminal(int(os.Stdin.Fd())) || !ansi.IsTerminal(int(os.Stdout.Fd())) {
 		tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
 		if err != nil {
 			return nil, fmt.Errorf("opening /dev/tty: %w", err)
@@ -31,10 +29,4 @@ func defaultBackend(errs *errbuf.ErrorBuffer, mode backend.TerminalMode) (backen
 	}
 
 	return ansi.New(errs, opts)
-}
-
-func isTerminalFd(fd uintptr) bool {
-	var t unix.Termios
-
-	return unix.IoctlSetTermios(int(fd), unix.TCGETS, &t) == nil
 }

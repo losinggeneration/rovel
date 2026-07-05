@@ -22,8 +22,8 @@ func TestRawModeIntegration(t *testing.T) {
 	// Get original state
 	fd := int(os.Stdin.Fd())
 
-	var orig unix.Termios
-	if err := unix.IoctlSetTermios(fd, unix.TCGETS, &orig); err != nil {
+	orig, err := unix.IoctlGetTermios(fd, ioctlReadTermios)
+	if err != nil {
 		t.Fatalf("failed to get terminal state: %v", err)
 	}
 
@@ -34,8 +34,8 @@ func TestRawModeIntegration(t *testing.T) {
 	}
 
 	// Verify raw mode is set (check that ICANON is cleared)
-	var current unix.Termios
-	if err := unix.IoctlSetTermios(fd, unix.TCGETS, &current); err != nil {
+	current, err := unix.IoctlGetTermios(fd, ioctlReadTermios)
+	if err != nil {
 		t.Fatalf("failed to get terminal state after enableRaw: %v", err)
 	}
 
@@ -53,7 +53,8 @@ func TestRawModeIntegration(t *testing.T) {
 	}
 
 	// Verify original state is restored
-	if err := unix.IoctlSetTermios(fd, unix.TCGETS, &current); err != nil {
+	current, err = unix.IoctlGetTermios(fd, ioctlReadTermios)
+	if err != nil {
 		t.Fatalf("failed to get terminal state after restore: %v", err)
 	}
 
@@ -75,8 +76,8 @@ func TestCBreakModeIntegration(t *testing.T) {
 
 	fd := int(os.Stdin.Fd())
 
-	var orig unix.Termios
-	if err := unix.IoctlSetTermios(fd, unix.TCGETS, &orig); err != nil {
+	orig, err := unix.IoctlGetTermios(fd, ioctlReadTermios)
+	if err != nil {
 		t.Fatalf("failed to get terminal state: %v", err)
 	}
 
@@ -85,8 +86,8 @@ func TestCBreakModeIntegration(t *testing.T) {
 		t.Fatalf("enableCBreak failed: %v", err)
 	}
 
-	var current unix.Termios
-	if err := unix.IoctlSetTermios(fd, unix.TCGETS, &current); err != nil {
+	current, err := unix.IoctlGetTermios(fd, ioctlReadTermios)
+	if err != nil {
 		t.Fatalf("failed to get terminal state after enableCBreak: %v", err)
 	}
 
@@ -120,7 +121,8 @@ func TestCBreakModeIntegration(t *testing.T) {
 	}
 
 	// Verify original state is restored
-	if err := unix.IoctlSetTermios(fd, unix.TCGETS, &current); err != nil {
+	current, err = unix.IoctlGetTermios(fd, ioctlReadTermios)
+	if err != nil {
 		t.Fatalf("failed to get terminal state after restore: %v", err)
 	}
 

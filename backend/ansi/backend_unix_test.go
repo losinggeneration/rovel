@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/losinggeneration/tui/event"
-	"golang.org/x/sys/unix"
 )
 
 // testBackend creates a test backend with a pipe for input.
@@ -34,7 +33,7 @@ func newTestBackend(t *testing.T) (*testBackend, error) {
 
 	// Create wake pipe using raw fds (matches production)
 	var pipeFds [2]int
-	if err := unix.Pipe2(pipeFds[:], unix.O_NONBLOCK|unix.O_CLOEXEC); err != nil {
+	if err := newWakePipe(pipeFds[:]); err != nil {
 		closer(t, r)
 		closer(t, w)
 

@@ -148,7 +148,7 @@ func (b *Backend) Enable() (geom.Size, error) {
 
 	// Create self-pipe for waking poll using raw fds (no Go runtime involvement)
 	var pipeFds [2]int
-	if err := unix.Pipe2(pipeFds[:], unix.O_NONBLOCK|unix.O_CLOEXEC); err != nil {
+	if err := newWakePipe(pipeFds[:]); err != nil {
 		b.errs.Add(restore(int(b.r.Fd()), orig))
 
 		return geom.Size{}, err

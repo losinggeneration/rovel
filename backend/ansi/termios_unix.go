@@ -3,9 +3,6 @@
 package ansi
 
 import (
-	"syscall"
-	"unsafe"
-
 	"github.com/losinggeneration/tui/geom"
 	"golang.org/x/sys/unix"
 )
@@ -13,19 +10,16 @@ import (
 // enableRaw puts the terminal into raw mode and returns the original state.
 func enableRaw(fd int) (*unix.Termios, error) {
 	if !isTerminal(fd) {
-		return nil, syscall.EINVAL
+		return nil, unix.EINVAL
 	}
 
-	// Get current terminal settings
-	var orig unix.Termios
-
-	err := unix.IoctlSetTermios(fd, unix.TCGETS, &orig)
+	orig, err := unix.IoctlGetTermios(fd, ioctlReadTermios)
 	if err != nil {
 		return nil, err
 	}
 
-	// Copy and modify for raw mode
-	raw := orig
+	// Copy and modify for raw mode.
+	raw := *orig
 	raw.Iflag &^= unix.IGNBRK | unix.BRKINT | unix.PARMRK | unix.ISTRIP |
 		unix.INLCR | unix.IGNCR | unix.ICRNL | unix.IXON
 	raw.Oflag &^= unix.OPOST
@@ -35,12 +29,11 @@ func enableRaw(fd int) (*unix.Termios, error) {
 	raw.Cc[unix.VMIN] = 1
 	raw.Cc[unix.VTIME] = 0
 
-	err = unix.IoctlSetTermios(fd, unix.TCSETS, &raw)
-	if err != nil {
+	if err := unix.IoctlSetTermios(fd, ioctlWriteTermios, &raw); err != nil {
 		return nil, err
 	}
 
-	return &orig, nil
+	return orig, nil
 }
 
 // enableCBreak puts the terminal into cbreak mode: character-at-a-time
@@ -52,27 +45,24 @@ func enableRaw(fd int) (*unix.Termios, error) {
 // TUI components.
 func enableCBreak(fd int) (*unix.Termios, error) {
 	if !isTerminal(fd) {
-		return nil, syscall.EINVAL
+		return nil, unix.EINVAL
 	}
 
-	var orig unix.Termios
-
-	err := unix.IoctlSetTermios(fd, unix.TCGETS, &orig)
+	orig, err := unix.IoctlGetTermios(fd, ioctlReadTermios)
 	if err != nil {
 		return nil, err
 	}
 
-	cbreak := orig
+	cbreak := *orig
 	cbreak.Lflag &^= unix.ECHO | unix.ECHONL | unix.ICANON | unix.IEXTEN
 	cbreak.Cc[unix.VMIN] = 1
 	cbreak.Cc[unix.VTIME] = 0
 
-	err = unix.IoctlSetTermios(fd, unix.TCSETS, &cbreak)
-	if err != nil {
+	if err := unix.IoctlSetTermios(fd, ioctlWriteTermios, &cbreak); err != nil {
 		return nil, err
 	}
 
-	return &orig, nil
+	return orig, nil
 }
 
 // restore restores the terminal to its original state.
@@ -81,21 +71,14 @@ func restore(fd int, orig *unix.Termios) error {
 		return nil
 	}
 
-	return unix.IoctlSetTermios(fd, unix.TCSETS, orig)
+	return unix.IoctlSetTermios(fd, ioctlWriteTermios, orig)
 }
 
 // getTerminalSize returns the current terminal size using the given output fd.
 func getTerminalSize(fd int) (geom.Size, error) {
-	var ws unix.Winsize
-
-	_, _, errno := syscall.Syscall(
-		syscall.SYS_IOCTL,
-		uintptr(fd),
-		unix.TIOCGWINSZ,
-		uintptr(unsafe.Pointer(&ws)),
-	)
-	if errno != 0 {
-		return geom.Size{}, errno
+	ws, err := unix.IoctlGetWinsize(fd, unix.TIOCGWINSZ)
+	if err != nil {
+		return geom.Size{}, err
 	}
 
 	return geom.Size{
@@ -104,9 +87,14 @@ func getTerminalSize(fd int) (geom.Size, error) {
 	}, nil
 }
 
-// isTerminal returns true if fd refers to a terminal.
+// isTerminal reports whether fd refers to a terminal.
 func isTerminal(fd int) bool {
-	var termios unix.Termios
+	_, err := unix.IoctlGetTermios(fd, ioctlReadTermios)
 
-	return unix.IoctlSetTermios(fd, unix.TCGETS, &termios) == nil
+	return err == nil
+}
+
+// IsTerminal reports whether the file descriptor refers to a terminal (tty).
+func IsTerminal(fd int) bool {
+	return isTerminal(fd)
 }
