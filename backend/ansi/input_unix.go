@@ -359,6 +359,16 @@ func (d *InputDecoder) handleEsc(
 
 		return dst
 
+	// ESC + CR / LF is the xterm Alt-prefix encoding of a modified Enter,
+	// consistent with ESC + rune -> Alt+rune handled below. Emit Alt+Enter so
+	// the meta convention is uniform. Terminals with a real Shift+Enter send
+	// CSI-u (13;2u), which the decoder handles separately; apps that want
+	// "modified Enter = newline" can bind both ModAlt and ModShift.
+	case 0x0a, 0x0d:
+		d.state = stateGround
+
+		return append(dst, event.KeyEvent{Key: event.KeyEnter, Mod: event.ModAlt})
+
 	case ']':
 		d.state = stateOSC
 		d.oscBuf = d.oscBuf[:0]

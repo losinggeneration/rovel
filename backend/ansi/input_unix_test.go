@@ -260,6 +260,64 @@ func TestInputDecoder_CSI_ParamArrow_Normalized(t *testing.T) {
 	}
 }
 
+func TestInputDecoder_ESCLFCombinesAsAltEnter(t *testing.T) {
+	t.Run("ESC+LF", func(t *testing.T) {
+		d := &InputDecoder{}
+
+		// ESC + LF is the Alt-prefix encoding of a modified Enter, consistent
+		// with ESC + rune -> Alt+rune. It must be a single modified-Enter
+		// event, not KeyEsc + KeyEnter (which would quit the app via the
+		// ActionCancel dispatch).
+		var evs []event.Event
+		evs = d.PushByte(evs, 0x1b)
+		if len(evs) != 0 {
+			t.Fatalf("ESC alone should buffer, got %d events: %#v", len(evs), evs)
+		}
+
+		evs = d.PushByte(evs, 0x0a)
+		if len(evs) != 1 {
+			t.Fatalf("ESC+LF produced %d events, want 1: %#v", len(evs), evs)
+		}
+		k := ke(t, evs[0], 0)
+		if k.Key != event.KeyEnter {
+			t.Fatalf("got key %v, want KeyEnter", k.Key)
+		}
+		if k.Mod != event.ModAlt {
+			t.Fatalf("got mod %d, want ModAlt (%d)", k.Mod, event.ModAlt)
+		}
+	})
+
+	t.Run("ESC+CR", func(t *testing.T) {
+		d := &InputDecoder{}
+
+		var evs []event.Event
+		evs = d.PushByte(evs, 0x1b)
+		evs = d.PushByte(evs, 0x0d)
+		if len(evs) != 1 {
+			t.Fatalf("ESC+CR produced %d events, want 1: %#v", len(evs), evs)
+		}
+		k := ke(t, evs[0], 0)
+		if k.Key != event.KeyEnter || k.Mod != event.ModAlt {
+			t.Fatalf("ESC+CR got (%v, mod=%d), want (KeyEnter, ModAlt)", k.Key, k.Mod)
+		}
+	})
+
+	t.Run("StandaloneEscapeFlushes", func(t *testing.T) {
+		d := &InputDecoder{}
+
+		var evs []event.Event
+		evs = d.PushByte(evs, 0x1b)
+		if len(evs) != 0 {
+			t.Fatalf("ESC alone should buffer, got %d events", len(evs))
+		}
+		evs = d.Finalize(evs)
+		k := ke(t, evs[0], 0)
+		if k.Key != event.KeyEsc {
+			t.Fatalf("flushed ESC got key %v, want KeyEsc", k.Key)
+		}
+	})
+}
+
 func TestInputDecoder_CSIU_ModifiedEnter(t *testing.T) {
 	tests := []struct {
 		name string
