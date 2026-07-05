@@ -379,3 +379,147 @@ func TestTextArea_Backspace_JoinsLines(t *testing.T) {
 		t.Errorf("after backspace: want 1 line, got %d", len(ta.lines))
 	}
 }
+
+// textAreaCallbackLog records OnChange/OnCursorMove invocations in fire order
+// so the OnCursorMove contract can be asserted precisely.
+type textAreaCallbackLog struct {
+	cursorMoves []int
+	changes     []string
+	order       []string // "change" or "cursor", in the order fired
+}
+
+// newLoggedTextArea builds a focused TextArea with the initial text applied
+// BEFORE the callbacks are registered, so setup does not pollute the log.
+func newLoggedTextArea(t *testing.T, initial string) (*TextArea, *tui.Ctx, *textAreaCallbackLog) {
+	t.Helper()
+
+	ta := NewTextArea()
+	ctx := mkTextAreaCtx(ta)
+	ta.SetText(ctx, initial)
+	ta.rect = tui.Rect{X: 0, Y: 0, W: 20, H: 5}
+
+	log := &textAreaCallbackLog{}
+	ta.SetOnChange(func(s string, _ *tui.Ctx) {
+		log.changes = append(log.changes, s)
+		log.order = append(log.order, "change")
+	})
+	ta.SetOnCursorMove(func(c int, _ *tui.Ctx) {
+		log.cursorMoves = append(log.cursorMoves, c)
+		log.order = append(log.order, "cursor")
+	})
+
+	return ta, ctx, log
+}
+
+func TestTextArea_OnCursorMove_NavigationFires(t *testing.T) {
+	ta, ctx, log := newLoggedTextArea(t, "hello")
+	ta.cursor = 0
+
+	ta.HandleAction(int(ui.ActionMoveRight), ctx)
+
+	if len(log.cursorMoves) != 1 || log.cursorMoves[0] != 1 {
+		t.Fatalf("MoveRight: cursorMoves = %v, want [1]", log.cursorMoves)
+	}
+
+	if len(log.changes) != 0 {
+		t.Errorf("navigation must not fire OnChange, got %v", log.changes)
+	}
+}
+
+func TestTextArea_OnCursorMove_NoSpuriousFireAtBoundary(t *testing.T) {
+	ta, ctx, log := newLoggedTextArea(t, "hi")
+
+	ta.cursor = 0
+	ta.HandleAction(int(ui.ActionMoveLeft), ctx)
+
+	ta.cursor = len(ta.text)
+	ta.HandleAction(int(ui.ActionMoveRight), ctx)
+
+	if len(log.cursorMoves) != 0 {
+		t.Fatalf("no-op moves must not fire OnCursorMove, got %v", log.cursorMoves)
+	}
+}
+
+func TestTextArea_OnCursorMove_ClickFires(t *testing.T) {
+	ta, ctx, log := newLoggedTextArea(t, "hello\nworld")
+	ta.cursor = 0
+
+	press := tui.MouseEvent{Button: tui.MouseButtonLeft, Action: tui.MousePress, X: 3, Y: 0}
+	ta.Handle(press, ctx)
+
+	if len(log.cursorMoves) != 1 || log.cursorMoves[0] != 3 {
+		t.Fatalf("click: cursorMoves = %v, want [3]", log.cursorMoves)
+	}
+
+	// Clicking the same position must not re-fire.
+	ta.Handle(press, ctx)
+
+	if len(log.cursorMoves) != 1 {
+		t.Fatalf("click at same position re-fired: %v", log.cursorMoves)
+	}
+}
+
+func TestTextArea_OnCursorMove_DragFires(t *testing.T) {
+	ta, ctx, log := newLoggedTextArea(t, "hello\nworld")
+	ta.cursor = 0
+
+	drag := tui.MouseEvent{Action: tui.MouseDrag, X: 2, Y: 1}
+	ta.Handle(drag, ctx)
+
+	// Line 1 ("world") starts at byte 6; column 2 -> byte 8.
+	if len(log.cursorMoves) != 1 || log.cursorMoves[0] != 8 {
+		t.Fatalf("drag: cursorMoves = %v, want [8]", log.cursorMoves)
+	}
+}
+
+func TestTextArea_OnCursorMove_SelectAllFires(t *testing.T) {
+	ta, ctx, log := newLoggedTextArea(t, "hello")
+	ta.cursor = 0
+
+	ta.HandleAction(int(ui.ActionSelectAll), ctx)
+
+	if len(log.cursorMoves) != 1 || log.cursorMoves[0] != len(ta.text) {
+		t.Fatalf("select-all: cursorMoves = %v, want [%d]", log.cursorMoves, len(ta.text))
+	}
+
+	if len(log.changes) != 0 {
+		t.Errorf("select-all must not fire OnChange, got %v", log.changes)
+	}
+}
+
+func TestTextArea_OnCursorMove_EditFiresAfterChange(t *testing.T) {
+	ta, ctx, log := newLoggedTextArea(t, "")
+	ta.cursor = 0
+
+	ta.Handle(tui.KeyEvent{Key: tui.KeyRune, Rune: 'a'}, ctx)
+
+	if len(log.changes) != 1 || log.changes[0] != "a" {
+		t.Fatalf("typing: changes = %v, want [a]", log.changes)
+	}
+
+	if len(log.cursorMoves) != 1 || log.cursorMoves[0] != 1 {
+		t.Fatalf("typing: cursorMoves = %v, want [1]", log.cursorMoves)
+	}
+
+	// Contract: OnChange fires before OnCursorMove for a cursor-moving edit.
+	want := []string{"change", "cursor"}
+	if len(log.order) != 2 || log.order[0] != want[0] || log.order[1] != want[1] {
+		t.Fatalf("fire order = %v, want %v", log.order, want)
+	}
+}
+
+func TestTextArea_OnCursorMove_ForwardDeleteChangesWithoutCursorMove(t *testing.T) {
+	ta, ctx, log := newLoggedTextArea(t, "ab")
+	ta.cursor = 0
+
+	// Forward-delete removes the char at the cursor; the cursor offset is unchanged.
+	ta.HandleAction(int(ui.ActionDeleteForward), ctx)
+
+	if len(log.changes) != 1 || log.changes[0] != "b" {
+		t.Fatalf("forward-delete: changes = %v, want [b]", log.changes)
+	}
+
+	if len(log.cursorMoves) != 0 {
+		t.Fatalf("forward-delete at cursor must not fire OnCursorMove, got %v", log.cursorMoves)
+	}
+}

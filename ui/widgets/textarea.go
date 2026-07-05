@@ -20,6 +20,27 @@ type TextAreaOpts struct {
 	StyleNormal    *style.Style
 	StyleFocused   *style.Style
 	StyleSelection *style.Style
+
+	// OnChange, if non-nil, fires after any text mutation (typed rune,
+	// paste, undo, programmatic SetText, newline insert). It receives the
+	// full current text and the same paint/event context that triggered
+	// the mutation, so callers can do invalidation or focus work
+	// synchronously without re-querying the widget.
+	OnChange func(text string, ctx *tui.Ctx)
+
+	// OnCursorMove, if non-nil, fires whenever the cursor's byte offset
+	// changes: navigation (arrow keys, Home, End, PageUp, PageDown,
+	// click, drag, select-all) as well as edits that move the cursor
+	// (typing, delete, paste, newline, SetText). It receives the new
+	// cursor offset (in bytes into the text) and the paint/event context,
+	// so callers can keep view state — a line:col readout, an external
+	// caret — in sync without polling.
+	//
+	// OnChange and OnCursorMove are independent and both may fire for a
+	// single input: an edit that moves the cursor fires OnChange first,
+	// then OnCursorMove. OnCursorMove is suppressed when an input leaves
+	// the cursor offset unchanged (e.g. Left at the start of the text).
+	OnCursorMove func(cursor int, ctx *tui.Ctx)
 }
 
 // TextArea is a multi-line text editing widget with cursor navigation.
@@ -33,16 +54,17 @@ type TextArea struct {
 
 	lines   []lineEntry
 	scrollY int
-	scrollX int
 
-	wordWrap bool
 	readOnly bool
 
-	anchor int // -1 = no selection (used in Gap 4)
+	anchor int // -1 = no selection
 
 	stNormal    *style.Style
 	stFocused   *style.Style
 	stSelection *style.Style
+
+	onChange     func(text string, ctx *tui.Ctx)
+	onCursorMove func(cursor int, ctx *tui.Ctx)
 }
 
 // lineEntry tracks byte offsets for a single logical line.
@@ -62,19 +84,62 @@ func NewTextAreaOpts(opts TextAreaOpts) *TextArea {
 	}
 
 	ta := &TextArea{
-		id:          id,
-		desiredCol:  -1,
-		anchor:      -1,
-		stNormal:    opts.StyleNormal,
-		stFocused:   opts.StyleFocused,
-		stSelection: opts.StyleSelection,
+		id:           id,
+		desiredCol:   -1,
+		anchor:       -1,
+		stNormal:     opts.StyleNormal,
+		stFocused:    opts.StyleFocused,
+		stSelection:  opts.StyleSelection,
+		onChange:     opts.OnChange,
+		onCursorMove: opts.OnCursorMove,
 	}
 	ta.rebuildLineIndex()
 
 	return ta
 }
 
+// SetOnChange registers (or clears) a callback fired after every text
+// mutation. Safe to call any time after construction.
+func (ta *TextArea) SetOnChange(fn func(string, *tui.Ctx)) {
+	ta.onChange = fn
+}
+
+// SetOnCursorMove registers (or clears) a callback fired whenever the
+// cursor's byte offset changes (navigation or a cursor-moving edit).
+// See TextAreaOpts.OnCursorMove for the full contract. Safe to call any
+// time after construction.
+func (ta *TextArea) SetOnCursorMove(fn func(int, *tui.Ctx)) {
+	ta.onCursorMove = fn
+}
+
+// notifyCursorMove fires the OnCursorMove callback if registered, with the
+// cursor's current byte offset. Prefer notifyCursorMoveIfChanged from handlers
+// so no-op moves don't spuriously notify.
+func (ta *TextArea) notifyCursorMove(ctx *tui.Ctx) {
+	if ta.onCursorMove != nil {
+		ta.onCursorMove(ta.cursor, ctx)
+	}
+}
+
+// notifyCursorMoveIfChanged fires OnCursorMove only when the cursor moved from
+// old. Cursor-moving paths capture the pre-move offset and call this so no-op
+// inputs (e.g. Left at offset 0, Right at end of text) don't notify.
+func (ta *TextArea) notifyCursorMoveIfChanged(old int, ctx *tui.Ctx) {
+	if ta.cursor != old {
+		ta.notifyCursorMove(ctx)
+	}
+}
+
+// notifyChange fires the OnChange callback if registered. Called from each
+// text-mutating path so the callback sees the post-mutation value.
+func (ta *TextArea) notifyChange(ctx *tui.Ctx) {
+	if ta.onChange != nil {
+		ta.onChange(ta.text, ctx)
+	}
+}
+
 func (ta *TextArea) SetText(ctx *tui.Ctx, s string) {
+	old := ta.cursor
 	ta.text = text.Sanitize(s)
 	ta.rebuildLineIndex()
 	ta.cursor = len(ta.text)
@@ -86,14 +151,12 @@ func (ta *TextArea) SetText(ctx *tui.Ctx, s string) {
 	if ctx != nil {
 		ctx.Invalidate(ta.rect)
 	}
+	ta.notifyChange(ctx)
+	ta.notifyCursorMoveIfChanged(old, ctx)
 }
 
 func (ta *TextArea) Text() string {
 	return ta.text
-}
-
-func (ta *TextArea) SetWordWrap(enabled bool) {
-	ta.wordWrap = enabled
 }
 
 func (ta *TextArea) SetReadOnly(ro bool) {
@@ -259,6 +322,7 @@ func (ta *TextArea) Handle(e tui.Event, ctx *tui.Ctx) bool {
 				ctx.RequestFocus(ta.id)
 			}
 
+			old := ta.cursor
 			ta.positionCursorFromClick(me.X, me.Y)
 			ta.anchor = ta.cursor // Set anchor for potential drag
 
@@ -269,14 +333,17 @@ func (ta *TextArea) Handle(e tui.Event, ctx *tui.Ctx) bool {
 
 			ta.scrollToCursor()
 			ctx.Invalidate(ta.rect)
+			ta.notifyCursorMoveIfChanged(old, ctx)
 
 			return true
 		case me.Action == tui.MouseDrag:
+			old := ta.cursor
 			ta.positionCursorFromClick(me.X, me.Y)
 			// anchor stays fixed from press
 			ta.desiredCol = -1
 			ta.scrollToCursor()
 			ctx.Invalidate(ta.rect)
+			ta.notifyCursorMoveIfChanged(old, ctx)
 
 			return true
 		}
@@ -308,6 +375,7 @@ func (ta *TextArea) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			return true
 		}
 
+		old := ta.cursor
 		if ta.hasSelection() {
 			ta.deleteSelection()
 		}
@@ -317,6 +385,8 @@ func (ta *TextArea) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		ta.desiredCol = -1
 		ta.scrollToCursor()
 		ctx.Invalidate(ta.rect)
+		ta.notifyChange(ctx)
+		ta.notifyCursorMoveIfChanged(old, ctx)
 
 		return true
 	}
@@ -330,6 +400,8 @@ func (ta *TextArea) HandleAction(act int, ctx *tui.Ctx) bool {
 		return false
 	}
 
+	oldCursor := ta.cursor
+
 	switch ui.Action(act) {
 	case ui.ActionMoveLeft:
 		if isShift(ctx) {
@@ -342,6 +414,7 @@ func (ta *TextArea) HandleAction(act int, ctx *tui.Ctx) bool {
 		ta.desiredCol = -1
 		ta.scrollToCursor()
 		ctx.Invalidate(ta.rect)
+		ta.notifyCursorMoveIfChanged(oldCursor, ctx)
 
 		return true
 	case ui.ActionMoveRight:
@@ -355,6 +428,7 @@ func (ta *TextArea) HandleAction(act int, ctx *tui.Ctx) bool {
 		ta.desiredCol = -1
 		ta.scrollToCursor()
 		ctx.Invalidate(ta.rect)
+		ta.notifyCursorMoveIfChanged(oldCursor, ctx)
 
 		return true
 	case ui.ActionMoveUp:
@@ -367,6 +441,7 @@ func (ta *TextArea) HandleAction(act int, ctx *tui.Ctx) bool {
 		ta.moveCursorVertical(-1)
 		ta.scrollToCursor()
 		ctx.Invalidate(ta.rect)
+		ta.notifyCursorMoveIfChanged(oldCursor, ctx)
 
 		return true
 	case ui.ActionMoveDown:
@@ -379,6 +454,7 @@ func (ta *TextArea) HandleAction(act int, ctx *tui.Ctx) bool {
 		ta.moveCursorVertical(1)
 		ta.scrollToCursor()
 		ctx.Invalidate(ta.rect)
+		ta.notifyCursorMoveIfChanged(oldCursor, ctx)
 
 		return true
 	case ui.ActionHome:
@@ -393,6 +469,7 @@ func (ta *TextArea) HandleAction(act int, ctx *tui.Ctx) bool {
 		ta.desiredCol = -1
 		ta.scrollToCursor()
 		ctx.Invalidate(ta.rect)
+		ta.notifyCursorMoveIfChanged(oldCursor, ctx)
 
 		return true
 	case ui.ActionEnd:
@@ -407,6 +484,7 @@ func (ta *TextArea) HandleAction(act int, ctx *tui.Ctx) bool {
 		ta.desiredCol = -1
 		ta.scrollToCursor()
 		ctx.Invalidate(ta.rect)
+		ta.notifyCursorMoveIfChanged(oldCursor, ctx)
 
 		return true
 	case ui.ActionDeleteBackward:
@@ -425,6 +503,8 @@ func (ta *TextArea) HandleAction(act int, ctx *tui.Ctx) bool {
 		ta.desiredCol = -1
 		ta.scrollToCursor()
 		ctx.Invalidate(ta.rect)
+		ta.notifyChange(ctx)
+		ta.notifyCursorMoveIfChanged(oldCursor, ctx)
 
 		return true
 	case ui.ActionDeleteForward:
@@ -443,6 +523,8 @@ func (ta *TextArea) HandleAction(act int, ctx *tui.Ctx) bool {
 		ta.desiredCol = -1
 		ta.scrollToCursor()
 		ctx.Invalidate(ta.rect)
+		ta.notifyChange(ctx)
+		ta.notifyCursorMoveIfChanged(oldCursor, ctx)
 
 		return true
 	case ui.ActionSelectAll:
@@ -451,6 +533,7 @@ func (ta *TextArea) HandleAction(act int, ctx *tui.Ctx) bool {
 		ta.desiredCol = -1
 		ta.scrollToCursor()
 		ctx.Invalidate(ta.rect)
+		ta.notifyCursorMoveIfChanged(oldCursor, ctx)
 
 		return true
 	case ui.ActionCopy:
@@ -473,6 +556,8 @@ func (ta *TextArea) HandleAction(act int, ctx *tui.Ctx) bool {
 			ta.desiredCol = -1
 			ta.scrollToCursor()
 			ctx.Invalidate(ta.rect)
+			ta.notifyChange(ctx)
+			ta.notifyCursorMoveIfChanged(oldCursor, ctx)
 		}
 
 		return true
@@ -486,6 +571,8 @@ func (ta *TextArea) HandleAction(act int, ctx *tui.Ctx) bool {
 		ta.desiredCol = -1
 		ta.scrollToCursor()
 		ctx.Invalidate(ta.rect)
+		ta.notifyChange(ctx)
+		ta.notifyCursorMoveIfChanged(oldCursor, ctx)
 
 		return true
 	case ui.ActionPageUp:
@@ -500,6 +587,7 @@ func (ta *TextArea) HandleAction(act int, ctx *tui.Ctx) bool {
 
 		ta.scrollToCursor()
 		ctx.Invalidate(ta.rect)
+		ta.notifyCursorMoveIfChanged(oldCursor, ctx)
 
 		return true
 	case ui.ActionPageDown:
@@ -514,6 +602,7 @@ func (ta *TextArea) HandleAction(act int, ctx *tui.Ctx) bool {
 
 		ta.scrollToCursor()
 		ctx.Invalidate(ta.rect)
+		ta.notifyCursorMoveIfChanged(oldCursor, ctx)
 
 		return true
 	default:
@@ -605,10 +694,13 @@ func (ta *TextArea) handlePaste(e event.PasteEvent, ctx *tui.Ctx) bool {
 		return true
 	}
 
+	old := ta.cursor
 	ta.insertText(insert)
 	ta.desiredCol = -1
 	ta.scrollToCursor()
 	ctx.Invalidate(ta.rect)
+	ta.notifyChange(ctx)
+	ta.notifyCursorMoveIfChanged(old, ctx)
 
 	return true
 }
@@ -744,7 +836,7 @@ func (ta *TextArea) positionCursorFromClick(clickX, clickY int) {
 		lineIdx = len(ta.lines) - 1
 	}
 
-	col := clickX - ta.rect.X + ta.scrollX
+	col := clickX - ta.rect.X
 	if col < 0 {
 		col = 0
 	}
