@@ -108,10 +108,16 @@ func (h *signalHandler) SigintChan() <-chan struct{} {
 }
 
 // Stop stops the signal handler.
+//
+// resizeCh is deliberately NOT closed: the signal goroutine may be mid-SIGWINCH
+// (having already selected the resize case) and about to send to resizeCh when
+// Stop runs, so closing it here would race into a send-on-closed-channel panic.
+// The goroutine stops sending once it observes stopCh, and resizeCh is garbage
+// collected with the handler. The reader tolerates a never-closed channel (it
+// drains via a non-blocking select).
 func (h *signalHandler) Stop() {
 	h.once.Do(func() {
 		close(h.stopCh)
-		close(h.resizeCh)
 	})
 }
 

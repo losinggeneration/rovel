@@ -181,3 +181,43 @@ func TestNestedScopes(t *testing.T) {
 		t.Errorf("tab from inner2: got %v, want inner1 (%v)", app.focusedID, inner1.ID())
 	}
 }
+
+// When nothing is focused (focusedID not among the scope's targets), Tab must
+// land on the first focusable rather than skipping it, and Shift+Tab must land
+// on the last. Regression test for indexOf returning 0 ("found at index 0")
+// for the not-found case.
+func TestFocusNextInScope_FromNoFocus_SelectsFirst(t *testing.T) {
+	app, _ := New(AppOpts{})
+	app.size = geom.Size{W: 80, H: 24}
+
+	a1 := newMockNode(true)
+	a2 := newMockNode(true)
+	a3 := newMockNode(true)
+	app.root = newMockContainer(a1, a2, a3)
+	app.rebuildTree()
+
+	app.focusedID = 0
+	app.focusNextInScope()
+
+	if app.focusedID != a1.ID() {
+		t.Errorf("focusNext from no focus: got %v, want a1 (%v)", app.focusedID, a1.ID())
+	}
+}
+
+func TestFocusPrevInScope_FromNoFocus_SelectsLast(t *testing.T) {
+	app, _ := New(AppOpts{})
+	app.size = geom.Size{W: 80, H: 24}
+
+	a1 := newMockNode(true)
+	a2 := newMockNode(true)
+	a3 := newMockNode(true)
+	app.root = newMockContainer(a1, a2, a3)
+	app.rebuildTree()
+
+	app.focusedID = 0
+	app.focusPrevInScope()
+
+	if app.focusedID != a3.ID() {
+		t.Errorf("focusPrev from no focus: got %v, want a3 (%v)", app.focusedID, a3.ID())
+	}
+}

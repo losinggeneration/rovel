@@ -67,8 +67,13 @@ func (a *App) focusNextInScope() {
 		return
 	}
 
-	idx := indexOf(targets, a.focusedID)
-	next := (idx + 1) % len(targets)
+	// When focus isn't among the targets (e.g. nothing focused yet, or the
+	// focused view is unfocusable), start from the first target.
+	next := 0
+	if idx := indexOf(targets, a.focusedID); idx >= 0 {
+		next = (idx + 1) % len(targets)
+	}
+
 	a.setRequestFocus(targets[next])
 }
 
@@ -81,8 +86,12 @@ func (a *App) focusPrevInScope() {
 		return
 	}
 
-	idx := indexOf(targets, a.focusedID)
-	prev := (idx - 1 + len(targets)) % len(targets)
+	// When focus isn't among the targets, wrap to the last target.
+	prev := len(targets) - 1
+	if idx := indexOf(targets, a.focusedID); idx >= 0 {
+		prev = (idx - 1 + len(targets)) % len(targets)
+	}
+
 	a.setRequestFocus(targets[prev])
 }
 
@@ -145,6 +154,7 @@ func (a *App) ensureValidFocusScoped() {
 	a.setRequestFocus(0)
 }
 
+// indexOf returns the position of target in ids, or -1 if not present.
 func indexOf(ids []ID, target ID) int {
 	for i, id := range ids {
 		if id == target {
@@ -152,5 +162,5 @@ func indexOf(ids []ID, target ID) int {
 		}
 	}
 
-	return 0
+	return -1
 }

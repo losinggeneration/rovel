@@ -84,6 +84,7 @@ type App struct {
 	running atomic.Bool
 	closed  bool
 	closeMu sync.RWMutex
+	done    chan struct{} // closed once when the app loop exits; unblocks readEvents' send
 
 	mouse          mouseState
 	lastRenderTime time.Time
@@ -158,6 +159,7 @@ func New(opts AppOpts) (*App, error) {
 		eventCh:     make(chan Event, 256),
 		postQueue:   make([]func(*UpdateCtx), 0, 64),
 		wakeCh:      make(chan struct{}, 1),
+		done:        make(chan struct{}),
 		errs:        errbuf.New(50),
 	}
 
@@ -301,6 +303,9 @@ func (a *App) Restore() error {
 func (a *App) Run() (err error) {
 	defer func() {
 		if r := recover(); r != nil {
+			// Signal the forwarder before restoring so it can't leak on a
+			// blocked send while the panic unwinds.
+			a.setClosed()
 			_ = a.Restore()
 
 			panic(r)
@@ -685,8 +690,17 @@ func (a *App) layout() {
 
 func (a *App) setClosed() {
 	a.closeMu.Lock()
+	defer a.closeMu.Unlock()
+
+	if a.closed {
+		return
+	}
+
 	a.closed = true
-	a.closeMu.Unlock()
+	// Unblock readEvents if it is parked on a send into a no-longer-drained
+	// eventCh, so the forwarding goroutine (and eventCh) can't leak after Run
+	// returns.
+	close(a.done)
 }
 
 // readEvents reads events from the backend and sends them to the event channel.
@@ -701,7 +715,14 @@ func (a *App) readEvents() {
 			return
 		}
 
-		a.eventCh <- e
+		// Abort a blocked send once the app loop has exited: after Run returns
+		// nothing drains eventCh, so an undrained send would park this goroutine
+		// forever.
+		select {
+		case a.eventCh <- e:
+		case <-a.done:
+			return
+		}
 	}
 }
 

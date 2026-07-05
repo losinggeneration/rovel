@@ -2,6 +2,7 @@ package tui
 
 import (
 	"errors"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -1058,6 +1059,56 @@ func TestPostInvalidateFromGoroutine(t *testing.T) {
 
 	if queued != 1 {
 		t.Errorf("expected 1 queued post, got %d", queued)
+	}
+}
+
+// floodBackend is a backend.Backend whose ReadEvent never blocks: it returns an
+// endless stream of key events. This lets a test force App.readEvents to fill
+// eventCh and park on a send.
+type floodBackend struct{}
+
+func (floodBackend) Enable() (geom.Size, error) { return geom.Size{W: 80, H: 24}, nil }
+func (floodBackend) Restore() error             { return nil }
+func (floodBackend) ReadEvent() event.Event     { return event.KeyEvent{Key: event.KeyRune, Rune: 'x'} }
+func (floodBackend) Size() geom.Size            { return geom.Size{W: 80, H: 24} }
+
+// After the app loop exits, App.readEvents must not park forever on a send into
+// an eventCh that no one drains. With an endless input stream the forwarder
+// fills eventCh and blocks on a send; setClosed must then unblock it so the
+// goroutine (and eventCh) can't leak.
+func TestReadEvents_ForwarderExitsAfterClose(t *testing.T) {
+	app, _ := New(AppOpts{Backend: floodBackend{}})
+	app.host = newAppHost(floodBackend{})
+	app.running.Store(true)
+
+	go app.readEvents()
+
+	// Wait until the forwarder has filled eventCh and is blocked on a send.
+	deadline := time.Now().Add(2 * time.Second)
+	for len(app.eventCh) < cap(app.eventCh) {
+		if time.Now().After(deadline) {
+			t.Fatal("forwarder never filled eventCh")
+		}
+
+		runtime.Gosched()
+	}
+
+	// Simulate the app loop exiting; this must release the blocked send.
+	app.setClosed()
+
+	closed := make(chan struct{})
+	go func() {
+		for range app.eventCh { //nolint:revive // drain until closed
+		}
+
+		close(closed)
+	}()
+
+	select {
+	case <-closed:
+		// Forwarder exited and closed eventCh: no leak.
+	case <-time.After(2 * time.Second):
+		t.Fatal("readEvents leaked: eventCh not closed after setClosed")
 	}
 }
 
