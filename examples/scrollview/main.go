@@ -26,8 +26,8 @@ type Root struct {
 	tui.CompositeView
 }
 
-func (r *Root) HandleAction(act int, ctx *tui.Ctx) bool {
-	if ui.Action(act) == ActionQuit {
+func (r *Root) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+	if act == ActionQuit {
 		ctx.Quit()
 
 		return true

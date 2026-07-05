@@ -257,12 +257,12 @@ func (b *Button) Handle(e tui.Event, ctx *tui.Ctx) bool {
 }
 
 // HandleAction handles semantic actions.
-func (b *Button) HandleAction(act int, ctx *tui.Ctx) bool {
+func (b *Button) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
 	if b.disabled {
 		return false
 	}
 
-	if ui.Action(act) == ui.ActionActivate {
+	if act == ui.ActionActivate {
 		if b.onPress != nil {
 			b.onPress(ctx)
 		}

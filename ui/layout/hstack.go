@@ -207,8 +207,8 @@ func (s *HStack) Paint(d tui.Drawer, ctx *tui.Ctx) {
 }
 
 // HandleAction handles semantic actions for focus navigation.
-func (s *HStack) HandleAction(act int, ctx *tui.Ctx) bool {
-	switch ui.Action(act) {
+func (s *HStack) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+	switch act {
 	case ui.ActionFocusNext:
 		focusables := s.collectFocusable()
 

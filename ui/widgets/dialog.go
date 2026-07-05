@@ -271,12 +271,12 @@ func (d *Dialog) Handle(e tui.Event, ctx *tui.Ctx) bool {
 }
 
 // HandleAction handles semantic actions.
-func (d *Dialog) HandleAction(act int, ctx *tui.Ctx) bool {
+func (d *Dialog) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
 	if len(d.buttons) == 0 {
 		return false
 	}
 
-	switch ui.Action(act) {
+	switch act {
 	case ui.ActionActivate:
 		d.pressButton(ctx)
 

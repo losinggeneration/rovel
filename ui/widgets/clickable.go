@@ -2,6 +2,7 @@ package widgets
 
 import (
 	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/tui/ui"
 )
 
 // Clickable wraps any View to add mouse click handling.
@@ -14,7 +15,7 @@ type Clickable struct {
 }
 
 type actionHandler interface {
-	HandleAction(act int, ctx *tui.Ctx) bool
+	HandleAction(act ui.Action, ctx *tui.Ctx) bool
 }
 
 func (c *Clickable) Handle(e tui.Event, ctx *tui.Ctx) bool {
@@ -53,7 +54,7 @@ func (c *Clickable) Focusable() bool {
 	return false
 }
 
-func (c *Clickable) HandleAction(act int, ctx *tui.Ctx) bool {
+func (c *Clickable) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
 	if ah, ok := c.View.(actionHandler); ok {
 		return ah.HandleAction(act, ctx)
 	}

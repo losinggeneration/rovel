@@ -194,12 +194,12 @@ func (r *RadioGroup) Handle(e tui.Event, ctx *tui.Ctx) bool {
 }
 
 // HandleAction handles semantic actions.
-func (r *RadioGroup) HandleAction(act int, ctx *tui.Ctx) bool {
+func (r *RadioGroup) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
 	if r.disabled || len(r.items) == 0 {
 		return false
 	}
 
-	switch ui.Action(act) {
+	switch act {
 	case ui.ActionActivate:
 		r.selectFocused(ctx)
 

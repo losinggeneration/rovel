@@ -157,8 +157,8 @@ func (s *ScrollView) Paint(d tui.Drawer, ctx *tui.Ctx) {
 }
 
 // HandleAction handles semantic actions.
-func (s *ScrollView) HandleAction(act int, ctx *tui.Ctx) bool {
-	switch ui.Action(act) {
+func (s *ScrollView) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+	switch act {
 	case ui.ActionMoveUp:
 		s.ScrollBy(ctx, -1)
 

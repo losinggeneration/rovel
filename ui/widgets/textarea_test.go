@@ -106,7 +106,7 @@ func TestTextArea_UpDown_Basic(t *testing.T) {
 	ta.desiredCol = -1
 
 	// Move down to line 1
-	ta.HandleAction(int(ui.ActionMoveDown), ctx)
+	ta.HandleAction(ui.ActionMoveDown, ctx)
 
 	if ta.cursorLine() != 1 {
 		t.Errorf("after down: want line 1, got %d", ta.cursorLine())
@@ -117,14 +117,14 @@ func TestTextArea_UpDown_Basic(t *testing.T) {
 	}
 
 	// Move down to line 2
-	ta.HandleAction(int(ui.ActionMoveDown), ctx)
+	ta.HandleAction(ui.ActionMoveDown, ctx)
 
 	if ta.cursorLine() != 2 {
 		t.Errorf("after 2nd down: want line 2, got %d", ta.cursorLine())
 	}
 
 	// Move up back to line 1
-	ta.HandleAction(int(ui.ActionMoveUp), ctx)
+	ta.HandleAction(ui.ActionMoveUp, ctx)
 
 	if ta.cursorLine() != 1 {
 		t.Errorf("after up: want line 1, got %d", ta.cursorLine())
@@ -141,7 +141,7 @@ func TestTextArea_DesiredCol_Stickiness(t *testing.T) {
 	ta.desiredCol = -1
 
 	// Move down to short line — should clamp to end (col 2)
-	ta.HandleAction(int(ui.ActionMoveDown), ctx)
+	ta.HandleAction(ui.ActionMoveDown, ctx)
 
 	if ta.cursorLine() != 1 {
 		t.Fatalf("want line 1, got %d", ta.cursorLine())
@@ -152,7 +152,7 @@ func TestTextArea_DesiredCol_Stickiness(t *testing.T) {
 	}
 
 	// Move down again to long line — should restore col 4
-	ta.HandleAction(int(ui.ActionMoveDown), ctx)
+	ta.HandleAction(ui.ActionMoveDown, ctx)
 
 	if ta.cursorLine() != 2 {
 		t.Fatalf("want line 2, got %d", ta.cursorLine())
@@ -194,7 +194,7 @@ func TestTextArea_Delete_And_LineIndex(t *testing.T) {
 
 	// Delete \n to join lines: cursor at byte 3 (the \n)
 	ta.cursor = 3
-	ta.HandleAction(int(ui.ActionDeleteForward), ctx)
+	ta.HandleAction(ui.ActionDeleteForward, ctx)
 
 	if ta.text != "abcdef" {
 		t.Errorf("after delete: got %q, want %q", ta.text, "abcdef")
@@ -213,13 +213,13 @@ func TestTextArea_Home_End(t *testing.T) {
 	// Cursor in middle of line 1
 	ta.cursor = 5 // 'e'
 
-	ta.HandleAction(int(ui.ActionHome), ctx)
+	ta.HandleAction(ui.ActionHome, ctx)
 
 	if ta.cursor != 4 { // start of "def"
 		t.Errorf("Home: want cursor 4, got %d", ta.cursor)
 	}
 
-	ta.HandleAction(int(ui.ActionEnd), ctx)
+	ta.HandleAction(ui.ActionEnd, ctx)
 
 	if ta.cursor != 7 { // end of "def"
 		t.Errorf("End: want cursor 7, got %d", ta.cursor)
@@ -249,7 +249,7 @@ func TestTextArea_Enter_SplitsLine(t *testing.T) {
 
 	// Insert newline at position 2
 	ta.cursor = 2
-	ta.HandleAction(int(ui.ActionSubmit), ctx)
+	ta.HandleAction(ui.ActionSubmit, ctx)
 
 	if ta.text != "ab\ncd" {
 		t.Errorf("after Enter: got %q, want %q", ta.text, "ab\ncd")
@@ -275,7 +275,7 @@ func TestTextArea_ShiftRight_CreatesSelection(t *testing.T) {
 
 	// Simulate shift+right
 	ctx.Mod = tui.ModShift
-	ta.HandleAction(int(ui.ActionMoveRight), ctx)
+	ta.HandleAction(ui.ActionMoveRight, ctx)
 
 	if !ta.hasSelection() {
 		t.Fatal("expected selection after shift+right")
@@ -319,7 +319,7 @@ func TestTextArea_BackspaceWithSelection_DeletesRange(t *testing.T) {
 	ta.anchor = 3
 	ta.cursor = 8
 
-	ta.HandleAction(int(ui.ActionDeleteBackward), ctx)
+	ta.HandleAction(ui.ActionDeleteBackward, ctx)
 
 	if ta.text != "helrld" {
 		t.Errorf("after backspace with selection: got %q, want %q", ta.text, "helrld")
@@ -350,7 +350,7 @@ func TestTextArea_SelectAll(t *testing.T) {
 	ta.SetText(ctx, "abc\ndef")
 	ta.rect = tui.Rect{X: 0, Y: 0, W: 20, H: 5}
 
-	ta.HandleAction(int(ui.ActionSelectAll), ctx)
+	ta.HandleAction(ui.ActionSelectAll, ctx)
 
 	if ta.anchor != 0 || ta.cursor != len(ta.text) {
 		t.Errorf("select all: anchor=%d cursor=%d, want 0 and %d", ta.anchor, ta.cursor, len(ta.text))
@@ -369,7 +369,7 @@ func TestTextArea_Backspace_JoinsLines(t *testing.T) {
 
 	// Cursor at start of line 1 (byte 3, first char of "cd")
 	ta.cursor = 3
-	ta.HandleAction(int(ui.ActionDeleteBackward), ctx)
+	ta.HandleAction(ui.ActionDeleteBackward, ctx)
 
 	if ta.text != "abcd" {
 		t.Errorf("after backspace: got %q, want %q", ta.text, "abcd")
@@ -415,7 +415,7 @@ func TestTextArea_OnCursorMove_NavigationFires(t *testing.T) {
 	ta, ctx, log := newLoggedTextArea(t, "hello")
 	ta.cursor = 0
 
-	ta.HandleAction(int(ui.ActionMoveRight), ctx)
+	ta.HandleAction(ui.ActionMoveRight, ctx)
 
 	if len(log.cursorMoves) != 1 || log.cursorMoves[0] != 1 {
 		t.Fatalf("MoveRight: cursorMoves = %v, want [1]", log.cursorMoves)
@@ -430,10 +430,10 @@ func TestTextArea_OnCursorMove_NoSpuriousFireAtBoundary(t *testing.T) {
 	ta, ctx, log := newLoggedTextArea(t, "hi")
 
 	ta.cursor = 0
-	ta.HandleAction(int(ui.ActionMoveLeft), ctx)
+	ta.HandleAction(ui.ActionMoveLeft, ctx)
 
 	ta.cursor = len(ta.text)
-	ta.HandleAction(int(ui.ActionMoveRight), ctx)
+	ta.HandleAction(ui.ActionMoveRight, ctx)
 
 	if len(log.cursorMoves) != 0 {
 		t.Fatalf("no-op moves must not fire OnCursorMove, got %v", log.cursorMoves)
@@ -476,7 +476,7 @@ func TestTextArea_OnCursorMove_SelectAllFires(t *testing.T) {
 	ta, ctx, log := newLoggedTextArea(t, "hello")
 	ta.cursor = 0
 
-	ta.HandleAction(int(ui.ActionSelectAll), ctx)
+	ta.HandleAction(ui.ActionSelectAll, ctx)
 
 	if len(log.cursorMoves) != 1 || log.cursorMoves[0] != len(ta.text) {
 		t.Fatalf("select-all: cursorMoves = %v, want [%d]", log.cursorMoves, len(ta.text))
@@ -513,7 +513,7 @@ func TestTextArea_OnCursorMove_ForwardDeleteChangesWithoutCursorMove(t *testing.
 	ta.cursor = 0
 
 	// Forward-delete removes the char at the cursor; the cursor offset is unchanged.
-	ta.HandleAction(int(ui.ActionDeleteForward), ctx)
+	ta.HandleAction(ui.ActionDeleteForward, ctx)
 
 	if len(log.changes) != 1 || log.changes[0] != "b" {
 		t.Fatalf("forward-delete: changes = %v, want [b]", log.changes)

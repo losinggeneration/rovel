@@ -167,8 +167,8 @@ func (s *Select) Handle(e tui.Event, ctx *tui.Ctx) bool {
 }
 
 // HandleAction handles semantic actions.
-func (s *Select) HandleAction(act int, ctx *tui.Ctx) bool {
-	if ui.Action(act) == ui.ActionActivate {
+func (s *Select) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+	if act == ui.ActionActivate {
 		s.openDropdown(ctx)
 
 		return true
@@ -350,8 +350,8 @@ func (l *selectList) Handle(e tui.Event, ctx *tui.Ctx) bool {
 }
 
 // HandleAction handles semantic actions for the select list.
-func (l *selectList) HandleAction(act int, ctx *tui.Ctx) bool {
-	switch ui.Action(act) {
+func (l *selectList) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+	switch act {
 	case ui.ActionActivate:
 		if l.onSelect != nil {
 			l.onSelect(l.focused, ctx)

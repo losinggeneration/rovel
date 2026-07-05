@@ -133,8 +133,8 @@ func (q *QuitHandler) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	})
 }
 
-func (q *QuitHandler) HandleAction(act int, ctx *tui.Ctx) bool {
-	if ui.Action(act) == ActionQuit {
+func (q *QuitHandler) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+	if act == ActionQuit {
 		q.app.Quit()
 
 		return true

@@ -66,8 +66,8 @@ type Root struct {
 	app   *tui.App
 }
 
-func (r *Root) HandleAction(act int, ctx *tui.Ctx) bool {
-	switch ui.Action(act) {
+func (r *Root) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+	switch act {
 	case ActionQuit:
 		r.app.Quit()
 

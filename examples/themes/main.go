@@ -584,8 +584,8 @@ type Root struct {
 	state *appState
 }
 
-func (r *Root) HandleAction(act int, ctx *tui.Ctx) bool {
-	switch ui.Action(act) {
+func (r *Root) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+	switch act {
 	case ActionTheme1:
 		r.state.switchTheme(ctx, 0)
 

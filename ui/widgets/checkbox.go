@@ -156,12 +156,12 @@ func (c *Checkbox) Handle(e tui.Event, ctx *tui.Ctx) bool {
 }
 
 // HandleAction handles semantic actions.
-func (c *Checkbox) HandleAction(act int, ctx *tui.Ctx) bool {
+func (c *Checkbox) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
 	if c.disabled {
 		return false
 	}
 
-	if ui.Action(act) == ui.ActionActivate {
+	if act == ui.ActionActivate {
 		c.toggle(ctx)
 
 		return true

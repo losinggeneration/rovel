@@ -8,8 +8,8 @@ import (
 // NewResolver creates a ResolveAction closure that detects KeyContext from
 // the focused view and resolves keystrokes via the given keymap.
 // The returned closure is suitable for AppOpts.ResolveAction.
-func NewResolver(keymap Keymap) func(event.KeyEvent, tui.View) (int, bool) {
-	return func(e event.KeyEvent, focused tui.View) (int, bool) {
+func NewResolver(keymap Keymap) func(event.KeyEvent, tui.View) (Action, bool) {
+	return func(e event.KeyEvent, focused tui.View) (Action, bool) {
 		ctx := KeyCtxGlobal
 		if tim, ok := focused.(TextInputMode); ok && tim.IsTextInputMode() {
 			ctx = KeyCtxTextInput
@@ -17,16 +17,16 @@ func NewResolver(keymap Keymap) func(event.KeyEvent, tui.View) (int, bool) {
 
 		ks := KeystrokeOf(e)
 
-		action, ok := keymap.Resolve(ctx, ks)
+		act, ok := keymap.Resolve(ctx, ks)
 		if !ok {
-			return 0, false
+			return ActionNone, false
 		}
 
-		return int(action), true
+		return act, true
 	}
 }
 
 // DefaultAppResolver returns a ResolveAction closure using the DefaultKeymap.
-func DefaultAppResolver() func(event.KeyEvent, tui.View) (int, bool) {
+func DefaultAppResolver() func(event.KeyEvent, tui.View) (Action, bool) {
 	return NewResolver(DefaultKeymap{})
 }

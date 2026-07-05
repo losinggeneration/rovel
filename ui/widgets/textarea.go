@@ -395,14 +395,14 @@ func (ta *TextArea) Handle(e tui.Event, ctx *tui.Ctx) bool {
 }
 
 // HandleAction handles semantic actions.
-func (ta *TextArea) HandleAction(act int, ctx *tui.Ctx) bool {
+func (ta *TextArea) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
 	if ctx.FocusedID != ta.id {
 		return false
 	}
 
 	oldCursor := ta.cursor
 
-	switch ui.Action(act) {
+	switch act {
 	case ui.ActionMoveLeft:
 		if isShift(ctx) {
 			ta.ensureAnchor()

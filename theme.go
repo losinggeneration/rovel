@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/losinggeneration/tui/action"
 	"github.com/losinggeneration/tui/backend"
 	"github.com/losinggeneration/tui/geom"
 	"github.com/losinggeneration/tui/style"
@@ -272,8 +273,9 @@ type AppOpts struct {
 	// ResolveAction is an optional closure that maps a key event + focused view
 	// to a semantic action. Used by the keybinding system (ui package) to inject
 	// action resolution without creating an import cycle.
-	// Returns (action, true) if the key maps to an action, (0, false) otherwise.
-	ResolveAction func(e KeyEvent, focused View) (action int, ok bool)
+	// Returns (act, true) if the key maps to an action, (action.None, false)
+	// otherwise.
+	ResolveAction func(e KeyEvent, focused View) (act action.Action, ok bool)
 }
 
 // DefaultAppOpts returns default application options.

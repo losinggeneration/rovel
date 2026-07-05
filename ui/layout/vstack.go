@@ -206,8 +206,8 @@ func (s *VStack) Paint(d tui.Drawer, ctx *tui.Ctx) {
 }
 
 // HandleAction handles semantic actions for focus navigation.
-func (s *VStack) HandleAction(act int, ctx *tui.Ctx) bool {
-	switch ui.Action(act) {
+func (s *VStack) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+	switch act {
 	case ui.ActionFocusNext:
 		focusables := s.collectFocusable()
 

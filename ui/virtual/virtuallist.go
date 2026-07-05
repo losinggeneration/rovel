@@ -204,7 +204,7 @@ func (v *VirtualList) Handle(e tui.Event, ctx *tui.Ctx) bool {
 }
 
 // HandleAction handles semantic actions for navigation and activation.
-func (v *VirtualList) HandleAction(act int, ctx *tui.Ctx) bool {
+func (v *VirtualList) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
 	n := v.safeCount()
 	if n == 0 {
 		return false
@@ -212,7 +212,7 @@ func (v *VirtualList) HandleAction(act int, ctx *tui.Ctx) bool {
 
 	visible := v.visibleItems()
 
-	switch ui.Action(act) {
+	switch act {
 	case ui.ActionMoveUp:
 		if v.selectedIndex == -1 {
 			v.SelectIndex(ctx, 0)

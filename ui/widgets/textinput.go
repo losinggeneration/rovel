@@ -282,7 +282,7 @@ func (t *TextInput) Handle(e tui.Event, ctx *tui.Ctx) bool {
 }
 
 // HandleAction handles semantic actions.
-func (t *TextInput) HandleAction(act int, ctx *tui.Ctx) bool {
+func (t *TextInput) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
 	if ctx.FocusedID != t.id {
 		return false
 	}
@@ -290,7 +290,7 @@ func (t *TextInput) HandleAction(act int, ctx *tui.Ctx) bool {
 	// Handle shift+move for selection extension.
 	isShift := ctx.Mod&tui.ModShift != 0
 
-	switch ui.Action(act) {
+	switch act {
 	case ui.ActionMoveLeft:
 		if isShift {
 			if t.anchor < 0 {

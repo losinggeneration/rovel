@@ -44,6 +44,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/losinggeneration/tui/action"
 	"github.com/losinggeneration/tui/backend"
 	"github.com/losinggeneration/tui/event"
 	"github.com/losinggeneration/tui/geom"
@@ -108,14 +109,6 @@ type mouseState struct {
 	clickCount      int
 }
 
-// Action constants mirror ui/action.go values to avoid an import cycle.
-// These must stay in sync with the values in ui/action.go.
-const (
-	actionFocusNext = 1
-	actionFocusPrev = 2
-	actionCancel    = 6
-)
-
 const maxFrameInterval = 16 * time.Millisecond
 
 type viewChildren interface {
@@ -139,7 +132,7 @@ type transportWriter struct {
 }
 
 type actionHandler interface {
-	HandleAction(act int, ctx *Ctx) bool
+	HandleAction(act action.Action, ctx *Ctx) bool
 }
 
 func (w *transportWriter) Write(p []byte) (int, error) {
@@ -864,24 +857,24 @@ func (a *App) handleKeyEvent(e KeyEvent) {
 	// like quit to work before anything has focus.
 	if a.opts.ResolveAction != nil {
 		focused := a.findFocusedView() // walks live tree as fallback
-		if action, ok := a.opts.ResolveAction(e, focused); ok {
-			// If overlays are present and ActionCancel, dismiss the topmost overlay
-			if a.overlays.HasOverlays() && action == actionCancel {
+		if act, ok := a.opts.ResolveAction(e, focused); ok {
+			// If overlays are present and Cancel, dismiss the topmost overlay.
+			if a.overlays.HasOverlays() && act == action.Cancel {
 				a.DismissOverlay()
 
 				return
 			}
 
-			if a.dispatchAction(action, ctx) {
+			if a.dispatchAction(act, ctx) {
 				return
 			}
 			// App-level fallback for focus navigation (scope-aware).
-			switch action {
-			case actionFocusNext:
+			switch act {
+			case action.FocusNext:
 				a.focusNextInScope()
 
 				return
-			case actionFocusPrev:
+			case action.FocusPrev:
 				a.focusPrevInScope()
 
 				return
@@ -938,12 +931,12 @@ func (a *App) findViewInTree(v View, id ID) View {
 
 // dispatchAction routes a semantic action through the view tree: focused view
 // first, then ancestors up to the root. Returns true if any handler consumed it.
-func (a *App) dispatchAction(action int, ctx *Ctx) bool {
+func (a *App) dispatchAction(act action.Action, ctx *Ctx) bool {
 	// Try focused view first.
 	focused := a.findFocusedView()
 	if focused != nil {
 		if ah, ok := focused.(actionHandler); ok {
-			if ah.HandleAction(action, ctx) {
+			if ah.HandleAction(act, ctx) {
 				return true
 			}
 		}
@@ -959,7 +952,7 @@ func (a *App) dispatchAction(action int, ctx *Ctx) bool {
 			}
 
 			if ah, ok := entry.view.(actionHandler); ok {
-				if ah.HandleAction(action, ctx) {
+				if ah.HandleAction(act, ctx) {
 					return true
 				}
 			}
@@ -974,7 +967,7 @@ func (a *App) dispatchAction(action int, ctx *Ctx) bool {
 
 	walk = func(v View) bool {
 		if ah, ok := v.(actionHandler); ok {
-			if ah.HandleAction(action, ctx) {
+			if ah.HandleAction(act, ctx) {
 				return true
 			}
 		}

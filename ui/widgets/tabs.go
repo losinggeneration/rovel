@@ -182,7 +182,7 @@ func (t *Tabs) Handle(e tui.Event, ctx *tui.Ctx) bool {
 
 // HandleAction handles semantic actions.
 // Left/Right and Activate only apply when the tab bar itself has focus.
-func (t *Tabs) HandleAction(act int, ctx *tui.Ctx) bool {
+func (t *Tabs) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
 	if len(t.tabs) == 0 {
 		return false
 	}
@@ -191,7 +191,7 @@ func (t *Tabs) HandleAction(act int, ctx *tui.Ctx) bool {
 		return false
 	}
 
-	switch ui.Action(act) {
+	switch act {
 	case ui.ActionMoveLeft:
 		if t.selected > 0 {
 			t.switchTab(ctx, t.selected-1)
