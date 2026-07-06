@@ -44,20 +44,29 @@ type Options struct {
 	// like dialog boxes, prompts, and script-driven TUI components that draw
 	// inline without clearing the screen.
 	Mode backend.TerminalMode
+
+	// HandleSignals enables built-in handling of the terminal lifecycle
+	// signals SIGTSTP (suspend/resume) and SIGTERM/SIGHUP (surfaced as
+	// SignalTerminate). When set, the backend catches these signals and
+	// exposes them via the SignalController interface (Signals/Suspend) for
+	// the app loop to orchestrate. SIGWINCH and (in cbreak mode) SIGINT are
+	// always handled regardless of this flag.
+	HandleSignals bool
 }
 
 // Backend implements the backend.Backend interface for Unix terminals using ANSI escape sequences.
 type Backend struct {
-	mode        backend.TerminalMode
-	origTermios *unix.Termios
-	r           *os.File
-	out         *os.File // underlying output file (for fd-based operations)
-	w           *bufio.Writer
-	decoder     InputDecoder
-	inputFeats  inputFeatures
-	signals     *signalHandler
-	eventCh     chan event.Event
-	errs        *errbuf.ErrorBuffer
+	mode          backend.TerminalMode
+	handleSignals bool
+	origTermios   *unix.Termios
+	r             *os.File
+	out           *os.File // underlying output file (for fd-based operations)
+	w             *bufio.Writer
+	decoder       InputDecoder
+	inputFeats    inputFeatures
+	signals       *signalHandler
+	eventCh       chan event.Event
+	errs          *errbuf.ErrorBuffer
 
 	// Self-pipe for waking poll on resize/shutdown (raw fds, -1 = unset)
 	pipeR int // read end; owned/closed by readEvents()
@@ -107,15 +116,16 @@ func New(errs *errbuf.ErrorBuffer, opts Options) (*Backend, error) {
 	}
 
 	b := &Backend{
-		mode:    opts.Mode,
-		r:       in,
-		out:     out,
-		w:       w,
-		size:    size,
-		eventCh: make(chan event.Event, 8),
-		errs:    errs,
-		pipeR:   -1,
-		pipeW:   -1,
+		mode:          opts.Mode,
+		handleSignals: opts.HandleSignals,
+		r:             in,
+		out:           out,
+		w:             w,
+		size:          size,
+		eventCh:       make(chan event.Event, 8),
+		errs:          errs,
+		pipeR:         -1,
+		pipeW:         -1,
 	}
 
 	return b, nil
@@ -158,7 +168,7 @@ func (b *Backend) Enable() (geom.Size, error) {
 	b.pipeW = pipeFds[1]
 
 	// Setup signal handler for resize events (and SIGINT in cooked mode)
-	signals, err := setupSignalHandler(b.pipeW, int(b.out.Fd()), b.mode, b.errs)
+	signals, err := setupSignalHandler(b.pipeW, int(b.out.Fd()), b.mode, b.handleSignals, b.errs)
 	if err != nil {
 		b.errs.Add(unix.Close(b.pipeR))
 		b.errs.Add(unix.Close(b.pipeW))
@@ -291,6 +301,98 @@ func (b *Backend) Size() geom.Size {
 	defer b.sizeMu.RUnlock()
 
 	return b.size
+}
+
+// Signals returns the lifecycle-signal channel, or nil when signal handling is
+// disabled (Options.HandleSignals is false) or the backend is not enabled. It
+// implements backend.SignalController.
+func (b *Backend) Signals() <-chan backend.LifecycleSignal {
+	if b.signals == nil {
+		return nil
+	}
+
+	return b.signals.LifecycleChan()
+}
+
+// Suspend restores cooked terminal state, stops the process via SIGTSTP, and on
+// resume re-enters raw/cbreak mode and refreshes the cached terminal size. It
+// blocks while the process is stopped. It implements backend.SignalController.
+//
+// The size re-query on resume is deliberate: the terminal is commonly resized
+// while the process is stopped, and a pending SIGWINCH delivered on continue
+// would otherwise race the app loop's resume repaint.
+func (b *Backend) Suspend() error {
+	fd := int(b.r.Fd())
+
+	// Restore cooked terminal state before stopping so the shell behaves
+	// normally while the process is suspended.
+	if err := restore(fd, b.origTermios); err != nil {
+		return fmt.Errorf("restore termios for suspend: %w", err)
+	}
+
+	// Remove our SIGTSTP handler (if armed) so the re-raised signal takes the
+	// default disposition — actually stopping the process — instead of being
+	// delivered back to the signal goroutine.
+	if b.handleSignals && b.signals != nil {
+		b.signals.disarmSuspend()
+	}
+
+	// Stop the process. Execution blocks here until SIGCONT (fg) resumes it.
+	if err := unix.Kill(unix.Getpid(), unix.SIGTSTP); err != nil {
+		// Best-effort recovery: re-arm and re-enter raw mode so the terminal
+		// is not left cooked.
+		if b.handleSignals && b.signals != nil {
+			b.signals.rearmSuspend()
+		}
+
+		b.errs.Add(b.reenterRawMode(fd))
+
+		return fmt.Errorf("kill SIGTSTP: %w", err)
+	}
+
+	// --- resumed here on SIGCONT ---
+
+	if b.handleSignals && b.signals != nil {
+		b.signals.rearmSuspend()
+	}
+
+	if err := b.reenterRawMode(fd); err != nil {
+		return err
+	}
+
+	// Refresh the cached size; the terminal may have been resized while stopped.
+	size, err := getTerminalSize(int(b.out.Fd()))
+	if err != nil {
+		return fmt.Errorf("getTerminalSize after resume: %w", err)
+	}
+
+	b.sizeMu.Lock()
+	b.size = size
+	b.sizeMu.Unlock()
+
+	return nil
+}
+
+// reenterRawMode re-applies the configured terminal mode after a resume. The
+// original termios (captured at Enable) is preserved; the state returned by
+// enableRaw/enableCBreak here is the cooked state and is discarded.
+func (b *Backend) reenterRawMode(fd int) error {
+	var err error
+
+	switch b.mode {
+	case backend.ModeCBreak:
+		_, err = enableCBreak(fd)
+		if err != nil {
+			return fmt.Errorf("enableCBreak after resume: %w", err)
+		}
+	default:
+		_, err = enableRaw(fd)
+		if err != nil {
+			return fmt.Errorf("enableRaw after resume: %w", err)
+		}
+	}
+
+	return nil
 }
 
 // sendEvent sends an event to the event channel, aborting if shutdown has started.

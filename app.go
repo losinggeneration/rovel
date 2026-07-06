@@ -77,6 +77,11 @@ type App struct {
 
 	eventCh chan Event
 
+	// signalCh delivers terminal lifecycle signals (suspend/terminate) from
+	// the backend. Nil when the backend does not catch lifecycle signals or
+	// signal handling is disabled; a nil channel in the Run select never fires.
+	signalCh <-chan backend.LifecycleSignal
+
 	postMu    sync.Mutex
 	postQueue []func(*UpdateCtx)
 
@@ -206,7 +211,7 @@ func (a *App) resolveRenderSize(terminal geom.Size) geom.Size {
 func (a *App) Enable() error {
 	// Create backend if not provided
 	if a.opts.Backend == nil {
-		b, err := defaultBackend(a.errs, a.opts.TerminalMode)
+		b, err := defaultBackend(a.errs, a.opts)
 		if err != nil {
 			return err
 		}
@@ -221,6 +226,11 @@ func (a *App) Enable() error {
 	if err != nil {
 		return err
 	}
+
+	// Capture the lifecycle-signal channel. Nil when the backend does not
+	// catch lifecycle signals (custom backend or handling disabled); the
+	// corresponding Run select arm then never fires.
+	a.signalCh = a.host.Signals()
 
 	a.terminalSize = terminalSize
 	a.size = a.resolveRenderSize(terminalSize)
@@ -377,6 +387,20 @@ func (a *App) Run() (err error) {
 			a.render()
 			a.lastRenderTime = time.Now()
 
+		case sig := <-a.signalCh:
+			switch sig {
+			case backend.SignalSuspend:
+				if err := a.suspend(); err != nil {
+					a.setClosed()
+
+					return err
+				}
+			case backend.SignalTerminate:
+				// Convert termination into a graceful quit so the terminal is
+				// restored through the caller's normal Restore path.
+				a.running.Store(false)
+			}
+
 		case <-a.wakeCh:
 			a.render()
 			a.lastRenderTime = time.Now()
@@ -386,6 +410,70 @@ func (a *App) Run() (err error) {
 	a.setClosed()
 
 	return nil
+}
+
+// suspend runs the orchestrated suspend/resume sequence on the app-loop
+// goroutine (the sole terminal writer). It tears down the screen, hands off to
+// the backend to restore cooked termios and stop the process, then — on resume
+// — re-inits the screen at the current size and repaints. It is shared by the
+// SignalSuspend select arm and the public App.Suspend.
+//
+// On any error the terminal is in an unknown state; the caller (Run) stops the
+// loop and returns the error rather than continuing to render.
+func (a *App) suspend() error {
+	if a.host == nil || !a.host.Suspendable() {
+		return ErrSuspendUnsupported
+	}
+
+	// Tear down the screen: show cursor, reset SGR, leave/clear region.
+	if err := a.presenter.RestoreScreen(); err != nil {
+		return err
+	}
+
+	// Restore cooked termios, stop the process, and on resume re-enter raw
+	// mode and refresh the cached terminal size. Blocks while stopped.
+	if err := a.host.Suspend(); err != nil {
+		return err
+	}
+
+	// Re-derive the render region from the (possibly changed) terminal size.
+	a.terminalSize = a.host.Size()
+	a.size = a.resolveRenderSize(a.terminalSize)
+	a.resizeBuffers(a.size.W, a.size.H)
+
+	// The terminal was cooked and the shell may have scrolled; treat the front
+	// buffer as stale so every cell repaints.
+	a.renderer.ResetFrontBuffer()
+
+	// Re-init the screen (new inline region in cbreak / clear in raw) and
+	// force a full repaint.
+	if err := a.presenter.InitScreen(a.size); err != nil {
+		return err
+	}
+
+	a.presenter.ResetCursor()
+	a.layout()
+	a.InvalidateAll()
+	a.render()
+
+	return nil
+}
+
+// Suspend suspends the application: it restores the terminal to its pre-Enable
+// state, stops the process (as if by Ctrl+Z under job control), and on resume
+// (fg/SIGCONT) re-enters raw mode and repaints.
+//
+// It must be called from the app loop — an event handler (via ctx.Suspend) or a
+// posted callback. In raw mode Ctrl+Z arrives as a key event rather than a
+// signal, so apps wanting the conventional behavior bind a key to it:
+//
+//	if ev.Key == someSuspendKey {
+//		_ = ctx.Suspend()
+//	}
+//
+// Returns ErrSuspendUnsupported if the backend does not support suspension.
+func (a *App) Suspend() error {
+	return a.suspend()
 }
 
 // Invalidate marks a rect as needing repaint.
@@ -1212,6 +1300,10 @@ func (a *App) mkCtx(v View) *Ctx {
 		DismissOverlay:     func() *Overlay { return a.DismissOverlay() },
 		DismissOverlayByID: func(id ID) *Overlay { return a.DismissOverlayByID(id) },
 	}
+	if a.host != nil && a.host.Suspendable() {
+		ctx.Suspend = func() error { return a.Suspend() }
+	}
+
 	if a.host != nil {
 		ctx.ClipboardWrite = func(s string) {
 			_ = a.host.ClipboardWrite(s)

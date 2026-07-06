@@ -262,6 +262,20 @@ type AppOpts struct {
 	// both dimensions are clamped to the current terminal size.
 	RenderSize geom.Size
 
+	// DisableSignalHandling turns off the built-in handling of SIGTSTP
+	// (suspend/resume) and SIGTERM/SIGHUP (graceful quit). By default the app
+	// catches these, restoring the terminal across suspend and on termination.
+	// Set true to manage these signals yourself.
+	//
+	// The built-in suspend handler calls signal.Reset(SIGTSTP) during the stop
+	// handshake, which unregisters ALL Notify channels for that signal
+	// process-wide — applications installing their own SIGTSTP handling must
+	// set this flag.
+	//
+	// Ignored when a custom Backend is supplied or on platforms without signal
+	// support.
+	DisableSignalHandling bool
+
 	// ClearOnExit controls what happens to the rendered content on
 	// Restore(). When false (the default), the region is left intact and
 	// the cursor parks just below it — subsequent output appears on a new

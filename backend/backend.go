@@ -50,6 +50,39 @@ type ANSITransport interface {
 	Flush() error
 }
 
+// LifecycleSignal identifies a terminal lifecycle signal surfaced to the app
+// loop.
+type LifecycleSignal uint8
+
+const (
+	// SignalSuspend indicates SIGTSTP: the app should suspend (restore the
+	// terminal, stop the process, and repaint on resume).
+	SignalSuspend LifecycleSignal = iota
+
+	// SignalTerminate indicates SIGTERM/SIGHUP: the app should quit gracefully
+	// so the terminal is restored through the normal path.
+	SignalTerminate
+)
+
+// SignalController is implemented by backends that catch terminal lifecycle
+// signals and can drive the process-suspend handshake. Backends that do not
+// implement it get no built-in signal handling (the app loop leaves the
+// terminal-lifecycle behavior to the caller).
+type SignalController interface {
+	// Signals delivers lifecycle notifications to the app loop. It returns nil
+	// when signal handling is disabled, in which case the app loop performs no
+	// automatic suspend/terminate handling.
+	Signals() <-chan LifecycleSignal
+
+	// Suspend restores cooked terminal state, stops the process (SIGTSTP), and
+	// on resume re-establishes raw state and refreshes the cached terminal size
+	// (the terminal is commonly resized while stopped; a pending SIGWINCH would
+	// otherwise race the resume repaint). It blocks while the process is
+	// stopped. The app loop calls it after saving screen state and re-inits the
+	// screen when it returns.
+	Suspend() error
+}
+
 // InputCapabilities describes what input features the backend supports.
 type InputCapabilities struct {
 	Mouse          bool

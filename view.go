@@ -60,6 +60,12 @@ type Ctx struct {
 	// Quit requests the application to stop.
 	Quit func()
 
+	// Suspend suspends the application (restore terminal, stop the process,
+	// repaint on resume). Nil if the backend does not support suspension.
+	// Useful for binding a suspend key in raw mode, where Ctrl+Z arrives as a
+	// key event rather than a signal.
+	Suspend func() error
+
 	// Mod holds the modifier keys active for the current key event.
 	Mod ModMask
 

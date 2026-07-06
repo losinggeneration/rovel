@@ -12,6 +12,9 @@ type runtimeHost interface {
 	ClipboardWrite(text string) bool
 	CanClipboardReadAsync() bool
 	ClipboardReadRequest() bool
+	Signals() <-chan backend.LifecycleSignal
+	Suspendable() bool
+	Suspend() error
 }
 
 type appHost struct {
@@ -80,4 +83,33 @@ func (h *appHost) ClipboardReadRequest() bool {
 	_ = ar.ClipboardReadRequest()
 
 	return true
+}
+
+// Signals returns the backend's lifecycle-signal channel, or nil when the
+// backend does not catch terminal lifecycle signals.
+func (h *appHost) Signals() <-chan backend.LifecycleSignal {
+	sc, ok := h.raw.(backend.SignalController)
+	if !ok {
+		return nil
+	}
+
+	return sc.Signals()
+}
+
+// Suspendable reports whether the backend can perform an orchestrated suspend.
+func (h *appHost) Suspendable() bool {
+	_, ok := h.raw.(backend.SignalController)
+
+	return ok
+}
+
+// Suspend runs the backend's suspend handshake, returning ErrSuspendUnsupported
+// when the backend does not implement backend.SignalController.
+func (h *appHost) Suspend() error {
+	sc, ok := h.raw.(backend.SignalController)
+	if !ok {
+		return ErrSuspendUnsupported
+	}
+
+	return sc.Suspend()
 }

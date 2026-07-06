@@ -134,6 +134,71 @@ func TestCBreakModeIntegration(t *testing.T) {
 	}
 }
 
+// TestSuspendTermiosHandshake exercises the termios transitions the suspend
+// handshake performs (cooked on stop, raw on resume) without the intervening
+// Kill(SIGTSTP) that would stop the test binary.
+func TestSuspendTermiosHandshake(t *testing.T) {
+	if !isTerminal(int(os.Stdin.Fd())) {
+		t.Skip("not a terminal")
+	}
+
+	fd := int(os.Stdin.Fd())
+
+	orig, err := unix.IoctlGetTermios(fd, ioctlReadTermios)
+	if err != nil {
+		t.Fatalf("failed to get terminal state: %v", err)
+	}
+
+	// Enter raw mode (as Enable does).
+	cooked, err := enableRaw(fd)
+	if err != nil {
+		t.Fatalf("enableRaw failed: %v", err)
+	}
+
+	defer func() {
+		if err := restore(fd, cooked); err != nil {
+			t.Error("final restore:", err)
+		}
+	}()
+
+	// Suspend leg: restore cooked termios before the process would stop.
+	if err := restore(fd, cooked); err != nil {
+		t.Fatalf("restore to cooked failed: %v", err)
+	}
+
+	current, err := unix.IoctlGetTermios(fd, ioctlReadTermios)
+	if err != nil {
+		t.Fatalf("get termios after cooked restore: %v", err)
+	}
+
+	if current.Lflag&unix.ICANON == 0 {
+		t.Error("ICANON should be set after restoring cooked state on suspend")
+	}
+
+	if current.Lflag != orig.Lflag || current.Iflag != orig.Iflag ||
+		current.Oflag != orig.Oflag || current.Cflag != orig.Cflag {
+		t.Error("cooked state on suspend does not match original terminal state")
+	}
+
+	// Resume leg: re-enter raw mode.
+	if _, err := enableRaw(fd); err != nil {
+		t.Fatalf("enableRaw on resume failed: %v", err)
+	}
+
+	current, err = unix.IoctlGetTermios(fd, ioctlReadTermios)
+	if err != nil {
+		t.Fatalf("get termios after resume: %v", err)
+	}
+
+	if current.Lflag&unix.ICANON != 0 {
+		t.Error("ICANON should be cleared after re-entering raw mode on resume")
+	}
+
+	if current.Lflag&unix.ECHO != 0 {
+		t.Error("ECHO should be cleared after re-entering raw mode on resume")
+	}
+}
+
 // TestGetTerminalSize tests getting terminal size.
 func TestGetTerminalSize(t *testing.T) {
 	if !isTerminal(int(os.Stdout.Fd())) {
