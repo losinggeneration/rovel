@@ -18,7 +18,9 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-var ErrEmitKeyEventsShutdown = errors.New("emitKeyEvents already shutdown")
+// errKeyEventsAfterShutdown is an internal diagnostic recorded when key event
+// emission is attempted after the backend has begun shutting down.
+var errKeyEventsAfterShutdown = errors.New("ansi: key event emitted after shutdown")
 
 // ErrInputNotTerminal is returned when the input file descriptor is not a terminal.
 var ErrInputNotTerminal = errors.New("input fd is not a terminal")
@@ -52,6 +54,12 @@ type Options struct {
 	// the app loop to orchestrate. SIGWINCH and (in cbreak mode) SIGINT are
 	// always handled regardless of this flag.
 	HandleSignals bool
+
+	// OwnFiles indicates that the backend owns Input and Output and must close
+	// them on Restore. Set this when the caller opened the files itself (for
+	// example /dev/tty). Leave it false when passing os.Stdin/os.Stdout or
+	// files whose lifetime the caller manages.
+	OwnFiles bool
 }
 
 // Backend implements the backend.Backend interface for Unix terminals using ANSI escape sequences.
@@ -81,6 +89,10 @@ type Backend struct {
 	// Terminal size, protected by sizeMu
 	sizeMu sync.RWMutex
 	size   geom.Size
+
+	// ownedFiles are files the backend must close on Restore (deduplicated).
+	// Populated from Options.OwnFiles; nil when the caller owns the files.
+	ownedFiles []*os.File
 }
 
 // New creates a new ANSI backend. The provided ErrorBuffer is used to record
@@ -126,6 +138,13 @@ func New(errs *errbuf.ErrorBuffer, opts Options) (*Backend, error) {
 		errs:          errs,
 		pipeR:         -1,
 		pipeW:         -1,
+	}
+
+	if opts.OwnFiles {
+		b.ownedFiles = append(b.ownedFiles, in)
+		if out != in {
+			b.ownedFiles = append(b.ownedFiles, out)
+		}
 	}
 
 	return b, nil
@@ -269,13 +288,24 @@ func (b *Backend) Restore() error {
 		b.pipeR = -1
 	}
 
-	// 7. Restore terminal settings last.
+	// 7. Restore terminal settings last (uses the fd, so before closing files).
 	if b.origTermios != nil {
 		err := restore(int(b.r.Fd()), b.origTermios)
 		if err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
+
+	// 8. Close any files the backend owns (e.g. an opened /dev/tty). Cleared
+	//    afterward so a second Restore does not double-close.
+	for _, f := range b.ownedFiles {
+		err := f.Close()
+		if err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+
+	b.ownedFiles = nil
 
 	return firstErr
 }
@@ -428,7 +458,7 @@ func (b *Backend) readEvents() {
 
 		alive := b.emitEvents(evs)
 		if !alive {
-			b.errs.Add(ErrEmitKeyEventsShutdown)
+			b.errs.Add(errKeyEventsAfterShutdown)
 		}
 
 		// Stop resize handling if the read loop exits before Restore() runs.

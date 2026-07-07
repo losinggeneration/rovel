@@ -14,7 +14,7 @@ func benchCtx() *tui.Ctx {
 	return &tui.Ctx{
 		Invalidate:       func(r geom.Rect) {},
 		InvalidateAll:    func() {},
-		InvalidateLayout: func(id tui.ID) {},
+		InvalidateLayout: func() {},
 		RequestFocus:     func(id tui.ID) {},
 	}
 }

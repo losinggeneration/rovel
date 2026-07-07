@@ -6,9 +6,9 @@ import "sync/atomic"
 type ID uint64
 
 // idCounter is the global counter for generating unique IDs.
-var idCounter uint64
+var idCounter atomic.Uint64
 
 // NewID generates a new unique ID.
 func NewID() ID {
-	return ID(atomic.AddUint64(&idCounter, 1))
+	return ID(idCounter.Add(1))
 }

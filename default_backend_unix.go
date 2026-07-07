@@ -29,6 +29,7 @@ func defaultBackend(errs *errbuf.ErrorBuffer, appOpts AppOpts) (backend.Backend,
 
 		opts.Input = tty
 		opts.Output = tty
+		opts.OwnFiles = true // the backend closes the tty we opened, on Restore
 	}
 
 	return ansi.New(errs, opts)

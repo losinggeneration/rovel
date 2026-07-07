@@ -48,8 +48,8 @@ func BenchmarkPostInvalidateBurst(b *testing.B) {
 	}
 }
 
-// BenchmarkMkCtx guards the M7 fix: the shared dispatch context is built once
-// and reused, so per-event/per-paint context creation must not allocate.
+// BenchmarkMkCtx guards that the shared dispatch context is built once and
+// reused, so per-event/per-paint context creation does not allocate.
 func BenchmarkMkCtx(b *testing.B) {
 	app, err := New(AppOpts{Backend: headless.New(geom.Size{W: 80, H: 24})})
 	if err != nil {
@@ -68,8 +68,8 @@ func BenchmarkMkCtx(b *testing.B) {
 	}
 }
 
-// BenchmarkCellFramePresent guards the M7 fix: presenting a cell frame reuses
-// its cell buffer instead of allocating a W×H slice per frame.
+// BenchmarkCellFramePresent guards that presenting a cell frame reuses its
+// cell buffer instead of allocating a W×H slice per frame.
 func BenchmarkCellFramePresent(b *testing.B) {
 	size := geom.Size{W: 80, H: 24}
 	p := newCellFramePresenter(discardCellSink{})

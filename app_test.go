@@ -248,7 +248,7 @@ func TestUpdateCtx_InvalidateLayout(t *testing.T) {
 
 	ctx := app.mkUpdateCtx()
 
-	ctx.InvalidateLayout(ID(123))
+	ctx.InvalidateLayout()
 
 	if !app.layoutDirty {
 		t.Error("InvalidateLayout did not set layoutDirty")

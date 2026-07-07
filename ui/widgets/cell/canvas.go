@@ -135,7 +135,7 @@ func (c *Canvas) SetMinSize(ctx *tui.Ctx, sz geom.Size) {
 	c.minSize = sz
 
 	if ctx != nil && ctx.InvalidateLayout != nil {
-		ctx.InvalidateLayout(c.id)
+		ctx.InvalidateLayout()
 	}
 }
 

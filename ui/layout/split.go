@@ -14,7 +14,7 @@ const (
 )
 
 // Split is a split-pane container with two children and a fixed ratio divider.
-// For M4, the ratio is static at 50/50. Interactive resizing is deferred to later.
+// The ratio is static at 50/50. Interactive resizing is deferred to later.
 type Split struct {
 	id          tui.ID
 	first       tui.View

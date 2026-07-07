@@ -495,8 +495,10 @@ func (a *App) InvalidateAll() {
 	a.Invalidate(geom.Rect{X: 0, Y: 0, W: a.size.W, H: a.size.H})
 }
 
-// InvalidateLayout marks that a layout pass is needed.
-func (a *App) InvalidateLayout(id ID) {
+// InvalidateLayout marks that a layout pass is needed. Layout is currently
+// global (the whole tree is re-laid out on the next frame), so no subtree
+// argument is taken.
+func (a *App) InvalidateLayout() {
 	a.layoutDirty = true
 }
 
@@ -578,9 +580,18 @@ func (a *App) PostInvalidateAll() error {
 	})
 }
 
-// Size returns the current terminal size.
+// Size returns the render region size. This equals the terminal size in the
+// common full-screen case, but is smaller when a reduced render region is in
+// use (AppOpts.RenderSize or cbreak mode); use TerminalSize for the physical
+// terminal dimensions.
 func (a *App) Size() geom.Size {
 	return a.size
+}
+
+// TerminalSize returns the physical terminal size, which may be larger than
+// Size when a smaller render region is in use (RenderSize or cbreak mode).
+func (a *App) TerminalSize() geom.Size {
+	return a.terminalSize
 }
 
 // ShowOverlay pushes an overlay onto the stack. The overlay is laid out
@@ -1300,7 +1311,7 @@ func (a *App) buildCtx() *Ctx {
 	ctx := &Ctx{
 		Invalidate:         func(r geom.Rect) { a.Invalidate(r) },
 		InvalidateAll:      func() { a.InvalidateAll() },
-		InvalidateLayout:   func(id ID) { a.InvalidateLayout(id) },
+		InvalidateLayout:   func() { a.InvalidateLayout() },
 		RequestFocus:       func(id ID) { a.setRequestFocus(id) },
 		Quit:               func() { a.Quit() },
 		InputCaps:          a.inputCaps,
@@ -1315,7 +1326,9 @@ func (a *App) buildCtx() *Ctx {
 
 	if a.host != nil {
 		ctx.ClipboardWrite = func(s string) {
-			_ = a.host.ClipboardWrite(s)
+			if err := a.host.ClipboardWrite(s); err != nil {
+				a.errs.Add(err)
+			}
 		}
 	}
 
@@ -1351,7 +1364,7 @@ func (a *App) mkUpdateCtx() *UpdateCtx {
 	return &UpdateCtx{
 		Invalidate:         func(r geom.Rect) { a.Invalidate(r) },
 		InvalidateAll:      func() { a.InvalidateAll() },
-		InvalidateLayout:   func(id ID) { a.InvalidateLayout(id) },
+		InvalidateLayout:   func() { a.InvalidateLayout() },
 		RequestFocus:       func(id ID) { a.setRequestFocus(id) },
 		Quit:               func() { a.Quit() },
 		ShowOverlay:        func(opts OverlayOpts) *Overlay { return a.ShowOverlay(opts) },

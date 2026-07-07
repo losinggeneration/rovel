@@ -16,7 +16,7 @@ type Key = event.Key
 //
 // F1–F4 are encoded as SS3 P/Q/R/S sequences.
 // F5–F12 are encoded as CSI tilde sequences (e.g. ESC [ 15 ~).
-// KeyShiftTab constant exists but decoder wiring is not yet implemented.
+// KeyShiftTab is decoded from CSI Z (ESC [ Z).
 const (
 	KeyNone      = event.KeyNone
 	KeyRune      = event.KeyRune

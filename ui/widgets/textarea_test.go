@@ -13,7 +13,7 @@ func mkTextAreaCtx(ta *TextArea) *tui.Ctx {
 		FocusedID:        ta.ID(),
 		Invalidate:       func(r geom.Rect) {},
 		InvalidateAll:    func() {},
-		InvalidateLayout: func(id tui.ID) {},
+		InvalidateLayout: func() {},
 		RequestFocus:     func(id tui.ID) {},
 		Quit:             func() {},
 	}

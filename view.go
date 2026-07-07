@@ -51,7 +51,7 @@ type Ctx struct {
 	// Invalidation callbacks (exported to match design doc API).
 	Invalidate       func(r geom.Rect)
 	InvalidateAll    func()
-	InvalidateLayout func(id ID)
+	InvalidateLayout func()
 
 	// Focus callbacks (exported to match design doc API).
 	RequestFocus func(id ID)

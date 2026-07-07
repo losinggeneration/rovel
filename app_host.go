@@ -9,7 +9,7 @@ type runtimeHost interface {
 	Size() Size
 	InputCapabilities() backend.InputCapabilities
 	SetInputFeatures(f backend.InputFeatures) error
-	ClipboardWrite(text string) bool
+	ClipboardWrite(text string) error
 	CanClipboardReadAsync() bool
 	ClipboardReadRequest() bool
 	Signals() <-chan backend.LifecycleSignal
@@ -57,15 +57,16 @@ func (h *appHost) SetInputFeatures(f backend.InputFeatures) error {
 	return nil
 }
 
-func (h *appHost) ClipboardWrite(text string) bool {
+// ClipboardWrite writes to the system clipboard. It returns nil (a no-op) when
+// the backend has no clipboard support, and otherwise propagates the backend's
+// error so the caller can route it into the error buffer.
+func (h *appHost) ClipboardWrite(text string) error {
 	cb, ok := h.raw.(backend.ClipboardBackend)
 	if !ok {
-		return false
+		return nil
 	}
 
-	_ = cb.ClipboardWrite(text)
-
-	return true
+	return cb.ClipboardWrite(text)
 }
 
 func (h *appHost) CanClipboardReadAsync() bool {
