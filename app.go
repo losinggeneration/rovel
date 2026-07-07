@@ -98,6 +98,12 @@ type App struct {
 	resolvedTheme Theme
 	capability    style.Capability
 	inputCaps     backend.InputCapabilities
+
+	// ctx is the shared per-App dispatch context, built once (its closures and
+	// host-derived fields never change) and reused across every event and paint
+	// pass. mkCtx refreshes only the volatile fields. All access is on the app
+	// loop goroutine, so no synchronization is needed.
+	ctx *Ctx
 }
 
 // mouseState tracks press/drag/click state for mouse event enrichment.
@@ -258,6 +264,9 @@ func (a *App) Enable() error {
 
 	// Resolve theme for capability
 	a.resolvedTheme = a.opts.Theme.Resolved(a.capability)
+
+	// Build the shared dispatch context now that host capabilities are known.
+	a.ctx = a.buildCtx()
 
 	// Resize buffers to the render region size.
 	a.resizeBuffers(a.size.W, a.size.H)
@@ -933,7 +942,7 @@ func (a *App) handleKeyEvent(e KeyEvent) {
 		return
 	}
 
-	ctx := a.mkCtx(a.root)
+	ctx := a.mkCtx()
 	ctx.Mod = e.Mod
 
 	// Try semantic action resolution if configured.
@@ -1087,7 +1096,7 @@ func (a *App) handleMouseEvent(e MouseEvent) {
 	// Enrich the event with drag/click state.
 	a.enrichMouseEvent(&e)
 
-	ctx := a.mkCtx(a.root)
+	ctx := a.mkCtx()
 
 	// Check overlays first
 	if target, blocked := a.overlays.overlayHitTest(e.X, e.Y); target != nil {
@@ -1211,7 +1220,7 @@ func (a *App) handlePasteEvent(e PasteEvent) {
 		return
 	}
 
-	ctx := a.mkCtx(a.root)
+	ctx := a.mkCtx()
 
 	if top := a.overlays.TopOverlay(); top != nil {
 		top.root.Handle(e, ctx)
@@ -1239,7 +1248,7 @@ func (a *App) handleClipboardResponseEvent(e ClipboardResponseEvent) {
 		return
 	}
 
-	ctx := a.mkCtx(a.root)
+	ctx := a.mkCtx()
 
 	if top := a.overlays.TopOverlay(); top != nil {
 		top.root.Handle(e, ctx)
@@ -1284,22 +1293,22 @@ func (a *App) handleResizeEvent(e ResizeEvent) {
 	a.Invalidate(geom.Rect{X: 0, Y: 0, W: newSize.W, H: newSize.H})
 }
 
-// mkCtx creates a context for a view.
-func (a *App) mkCtx(v View) *Ctx {
+// buildCtx constructs the shared dispatch context. Its closures capture the
+// App and its host-derived fields (Suspend/Clipboard/InputCaps) reflect
+// capabilities fixed at Enable time, so it is built once and cached in a.ctx.
+func (a *App) buildCtx() *Ctx {
 	ctx := &Ctx{
-		Theme:              a.resolvedTheme,
-		Cap:                a.capability,
 		Invalidate:         func(r geom.Rect) { a.Invalidate(r) },
 		InvalidateAll:      func() { a.InvalidateAll() },
 		InvalidateLayout:   func(id ID) { a.InvalidateLayout(id) },
 		RequestFocus:       func(id ID) { a.setRequestFocus(id) },
 		Quit:               func() { a.Quit() },
-		FocusedID:          a.focusedID,
 		InputCaps:          a.inputCaps,
 		ShowOverlay:        func(opts OverlayOpts) *Overlay { return a.ShowOverlay(opts) },
 		DismissOverlay:     func() *Overlay { return a.DismissOverlay() },
 		DismissOverlayByID: func(id ID) *Overlay { return a.DismissOverlayByID(id) },
 	}
+
 	if a.host != nil && a.host.Suspendable() {
 		ctx.Suspend = func() error { return a.Suspend() }
 	}
@@ -1317,6 +1326,24 @@ func (a *App) mkCtx(v View) *Ctx {
 	}
 
 	return ctx
+}
+
+// mkCtx returns the shared dispatch context with its volatile fields refreshed
+// for the current event or paint pass. The context is built once (see buildCtx)
+// and reused, so no allocation happens on the hot path. Callers that dispatch a
+// key event set Mod afterward; other paths leave it zero. Not safe to retain
+// across dispatches — the next mkCtx call reuses the same struct.
+func (a *App) mkCtx() *Ctx {
+	if a.ctx == nil {
+		a.ctx = a.buildCtx()
+	}
+
+	a.ctx.Theme = a.resolvedTheme
+	a.ctx.Cap = a.capability
+	a.ctx.FocusedID = a.focusedID
+	a.ctx.Mod = 0
+
+	return a.ctx
 }
 
 // mkUpdateCtx creates an update context for posted callbacks.

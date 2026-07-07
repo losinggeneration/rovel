@@ -138,6 +138,9 @@ type CellFrame struct {
 
 // CellFrameSink is implemented by backends that accept logical cell frames
 // directly instead of terminal byte streams.
+//
+// The frame's Cells slice is owned by the caller and valid only for the
+// duration of the call; implementations that retain the frame must copy it.
 type CellFrameSink interface {
 	PresentCellFrame(frame CellFrame) error
 }

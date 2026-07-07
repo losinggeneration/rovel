@@ -154,7 +154,7 @@ func TestCtx_Quit(t *testing.T) {
 	app, _ := New(AppOpts{})
 	app.running.Store(true)
 
-	ctx := app.mkCtx(nil)
+	ctx := app.mkCtx()
 
 	if ctx.Quit == nil {
 		t.Fatal("Ctx.Quit is nil")

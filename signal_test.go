@@ -259,7 +259,7 @@ func TestSignal_CtxSuspendWiring(t *testing.T) {
 	be := newSignalBackend(geom.Size{W: 80, H: 24})
 	app := enableSignalApp(t, be, newCountingRoot())
 
-	if ctx := app.mkCtx(nil); ctx.Suspend == nil {
+	if ctx := app.mkCtx(); ctx.Suspend == nil {
 		t.Fatal("ctx.Suspend should be non-nil for a suspendable backend")
 	}
 
@@ -267,7 +267,7 @@ func TestSignal_CtxSuspendWiring(t *testing.T) {
 	plain := headless.New(geom.Size{W: 80, H: 24})
 	app2 := enableSignalApp(t, plain, newCountingRoot())
 
-	if ctx := app2.mkCtx(nil); ctx.Suspend != nil {
+	if ctx := app2.mkCtx(); ctx.Suspend != nil {
 		t.Fatal("ctx.Suspend should be nil for a non-suspendable backend")
 	}
 }

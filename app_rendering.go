@@ -119,13 +119,21 @@ func (f *cellFrame) Drawer() Drawer {
 	return NewDrawer(NewPainter(rp, f.base))
 }
 
-func makeBackendCellFrame(f *cellFrame) backend.CellFrame {
-	cells := make([]backend.FrameCell, f.size.W*f.size.H)
+// cellFrameFor fills the presenter's reusable cell buffer from f and returns a
+// CellFrame borrowing it. The returned Cells slice is valid only until the next
+// call; sinks that retain the frame must copy it.
+func (p *cellFramePresenter) cellFrameFor(f *cellFrame) backend.CellFrame {
+	n := f.size.W * f.size.H
+	if cap(p.cells) < n {
+		p.cells = make([]backend.FrameCell, n)
+	}
+
+	p.cells = p.cells[:n]
 
 	for y := range f.size.H {
 		for x := range f.size.W {
 			cell := f.backBuf.At(x, y)
-			cells[y*f.size.W+x] = backend.FrameCell{
+			p.cells[y*f.size.W+x] = backend.FrameCell{
 				R:        cell.R,
 				Style:    cell.Style,
 				Wide:     cell.Wide,
@@ -137,7 +145,7 @@ func makeBackendCellFrame(f *cellFrame) backend.CellFrame {
 	return backend.CellFrame{
 		W:     f.size.W,
 		H:     f.size.H,
-		Cells: cells,
+		Cells: p.cells,
 	}
 }
 
@@ -238,6 +246,10 @@ func (p *ansiPresenter) PresentFrame(frame runtimeFrame) error {
 
 type cellFramePresenter struct {
 	sink backend.CellFrameSink
+	// cells is reused across frames to avoid allocating a W×H slice per
+	// present. The CellFrame handed to the sink borrows it, so sinks that
+	// retain the frame must copy (the memory and SDL backends do).
+	cells []backend.FrameCell
 }
 
 func newCellFramePresenter(sink backend.CellFrameSink) *cellFramePresenter {
@@ -266,7 +278,7 @@ func (p *cellFramePresenter) PresentFrame(frame runtimeFrame) error {
 		return nil
 	}
 
-	return p.sink.PresentCellFrame(makeBackendCellFrame(f))
+	return p.sink.PresentCellFrame(p.cellFrameFor(f))
 }
 
 func presenterForBackend(b backend.Backend, mode backend.TerminalMode, clearOnExit bool) (runtimePresenter, error) {
@@ -296,7 +308,7 @@ func (a *App) paintFramePass() {
 	a.renderer.ClearDamaged(a.resolvedTheme.Base)
 	frame := a.renderer.Frame(a.size, a.resolvedTheme.Base)
 
-	ctx := a.mkCtx(a.root)
+	ctx := a.mkCtx()
 	d := frame.Drawer()
 	a.paintView(a.root, d, ctx)
 	a.overlays.paintOverlays(d, ctx)
