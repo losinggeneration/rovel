@@ -114,13 +114,27 @@ const ColorDefault Color = 0
 
 // Capability describes terminal color capabilities.
 type Capability struct {
-	HasBasic     bool // always true
+	HasBasic     bool // false only under NO_COLOR or TERM=dumb (the no-color floor)
 	Has256Color  bool
 	HasTrueColor bool
 }
 
 // DetectCapabilityFromEnv detects color capabilities from environment variables.
+//
+// The no-color floor is checked first: if NO_COLOR is set to a non-empty value
+// (per https://no-color.org) or TERM is "dumb", the zero Capability is returned
+// so every color degrades to ColorDefault in Resolve.
 func DetectCapabilityFromEnv() Capability {
+	// NO_COLOR: present and non-empty disables color regardless of TERM/COLORTERM.
+	if noColor, ok := os.LookupEnv("NO_COLOR"); ok && noColor != "" {
+		return Capability{}
+	}
+
+	// TERM=dumb advertises no color (nor cursor addressing) support.
+	if os.Getenv("TERM") == "dumb" {
+		return Capability{}
+	}
+
 	result := Capability{HasBasic: true}
 
 	// Check COLORTERM for truecolor indicator
@@ -143,6 +157,11 @@ func DetectCapabilityFromEnv() Capability {
 // Resolve resolves color to supported capability level.
 func (c Color) Resolve(capability Capability) Color {
 	kind := c.Kind()
+
+	// No-color floor: without even basic color, everything degrades to default.
+	if !capability.HasBasic {
+		return ColorDefault
+	}
 
 	// Already supported or default
 	if kind == ColorKindDefault || kind == ColorKindBasic {
