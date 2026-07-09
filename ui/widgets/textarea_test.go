@@ -95,6 +95,46 @@ func TestTextArea_LineIndex_ConsecutiveNewlines(t *testing.T) {
 	}
 }
 
+func TestTextArea_HorizontalScroll(t *testing.T) {
+	ta := NewTextArea()
+	ctx := mkTextAreaCtx(ta)
+	ta.Layout(geom.Rect{X: 0, Y: 0, W: 10, H: 3})
+	ta.SetText(ctx, "0123456789ABCDEFGHIJ") // 20 columns, one line
+
+	// Moving to the end of a line wider than the view scrolls right so the
+	// cursor stays visible: column 20 in a width-10 view => scrollX 11.
+	ta.HandleAction(ui.ActionEnd, ctx)
+
+	if col := ta.cursorCol(); col != 20 {
+		t.Fatalf("cursorCol after End = %d, want 20", col)
+	}
+
+	if got := ta.ScrollX(); got != 11 {
+		t.Fatalf("ScrollX after End = %d, want 11", got)
+	}
+
+	// Home scrolls back to the start of the line.
+	ta.HandleAction(ui.ActionHome, ctx)
+
+	if got := ta.ScrollX(); got != 0 {
+		t.Fatalf("ScrollX after Home = %d, want 0", got)
+	}
+}
+
+func TestTextArea_ClickWithHorizontalScroll(t *testing.T) {
+	ta := NewTextArea()
+	ta.Layout(geom.Rect{X: 0, Y: 0, W: 4, H: 1})
+	ta.SetText(nil, "0123456789")
+	ta.scrollX = 3 // view shows columns 3..6
+
+	// A click at screen column 1 maps to logical column 3+1 = 4 ('4' at byte 4).
+	ta.positionCursorFromClick(ta.rect.X+1, ta.rect.Y)
+
+	if ta.cursor != 4 {
+		t.Fatalf("cursor after click = %d, want 4", ta.cursor)
+	}
+}
+
 func TestTextArea_UpDown_Basic(t *testing.T) {
 	ta := NewTextArea()
 	ctx := mkTextAreaCtx(ta)

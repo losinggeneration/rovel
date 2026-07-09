@@ -50,6 +50,32 @@ func TestTextAreaPaint_DrawerAdapterScrollAndCursor(t *testing.T) {
 	}
 }
 
+func TestTextAreaPaint_HorizontalScroll(t *testing.T) {
+	ta := NewTextArea()
+	ta.Layout(geom.Rect{X: 0, Y: 0, W: 4, H: 1})
+	ta.SetText(nil, "0123456789")
+	ta.scrollX = 3 // view shows columns 3..6
+	ta.cursor = 0  // off-screen; no cursor cell expected in the view
+
+	base := style.Style{}
+	buf := render.NewBuffer(4, 1)
+	buf.Clear(render.Cell{R: ' ', Style: base})
+	rp := render.NewPainter(buf, geom.Rect{X: 0, Y: 0, W: 4, H: 1}, base)
+	p := tui.NewPainter(rp, base)
+	ctx := &tui.Ctx{
+		Theme:     tui.DefaultTheme(),
+		FocusedID: ta.ID(),
+	}
+
+	ta.Paint(tui.NewDrawer(p), ctx)
+
+	for i, w := range []rune{'3', '4', '5', '6'} {
+		if got := buf.At(i, 0).R; got != w {
+			t.Fatalf("col %d = %q, want %q", i, got, w)
+		}
+	}
+}
+
 func TestTextAreaPaint_DrawerAdapterSelectionStyle(t *testing.T) {
 	ta := NewTextArea()
 	ta.Layout(geom.Rect{X: 0, Y: 0, W: 4, H: 2})

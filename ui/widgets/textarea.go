@@ -54,6 +54,7 @@ type TextArea struct {
 
 	lines   []lineEntry
 	scrollY int
+	scrollX int // horizontal scroll in cells, cursor-driven
 
 	readOnly bool
 
@@ -175,6 +176,11 @@ func (ta *TextArea) IsTextInputMode() bool { return !ta.readOnly }
 // ScrollY returns the current vertical scroll offset (line index).
 func (ta *TextArea) ScrollY() int { return ta.scrollY }
 
+// ScrollX returns the current horizontal scroll offset (in cells). Horizontal
+// scrolling is cursor-driven: it follows the cursor to keep it visible on lines
+// wider than the view.
+func (ta *TextArea) ScrollX() int { return ta.scrollX }
+
 // LineCount returns the number of lines in the text.
 func (ta *TextArea) LineCount() int { return len(ta.lines) }
 
@@ -234,8 +240,22 @@ func (ta *TextArea) Paint(d tui.Drawer, ctx *tui.Ctx) {
 			selEnd = sr.End
 		}
 
-		// Render line content
-		byteOff := 0
+		// Start rendering at the horizontal scroll offset. When scrollX lands
+		// inside a wide cluster, leave a blank cell so the split glyph isn't
+		// drawn clipped.
+		startLeft := text.OffsetAtColumnBias(lineText, ta.scrollX, text.BiasLeft)
+		startRight := text.OffsetAtColumnBias(lineText, ta.scrollX, text.BiasRight)
+
+		byteOff := startLeft
+
+		if startRight != startLeft {
+			cd.SetCell(x, y, ' ', resolveStyle(ta.stNormal, ctx.Theme.Base))
+
+			x++
+			availW--
+			byteOff = startRight
+		}
+
 		for byteOff < len(lineText) && availW > 0 {
 			next := text.NextCluster(lineText, byteOff)
 			if next <= byteOff {
@@ -667,19 +687,33 @@ func (ta *TextArea) clampScrollY() {
 	}
 }
 
-// scrollToCursor ensures the cursor line is visible.
+// scrollToCursor ensures the cursor is visible, scrolling vertically to its
+// line and horizontally to its column as needed.
 func (ta *TextArea) scrollToCursor() {
-	if ta.rect.H <= 0 {
-		return
+	if ta.rect.H > 0 {
+		line := ta.cursorLine()
+		if line < ta.scrollY {
+			ta.scrollY = line
+		}
+
+		if line >= ta.scrollY+ta.rect.H {
+			ta.scrollY = line - ta.rect.H + 1
+		}
 	}
 
-	line := ta.cursorLine()
-	if line < ta.scrollY {
-		ta.scrollY = line
-	}
+	if ta.rect.W > 0 {
+		col := ta.cursorCol()
+		if col < ta.scrollX {
+			ta.scrollX = col
+		}
 
-	if line >= ta.scrollY+ta.rect.H {
-		ta.scrollY = line - ta.rect.H + 1
+		if col >= ta.scrollX+ta.rect.W {
+			ta.scrollX = col - ta.rect.W + 1
+		}
+
+		if ta.scrollX < 0 {
+			ta.scrollX = 0
+		}
 	}
 }
 
@@ -836,7 +870,7 @@ func (ta *TextArea) positionCursorFromClick(clickX, clickY int) {
 		lineIdx = len(ta.lines) - 1
 	}
 
-	col := clickX - ta.rect.X
+	col := clickX - ta.rect.X + ta.scrollX
 	if col < 0 {
 		col = 0
 	}
