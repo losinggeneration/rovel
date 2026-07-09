@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/tui/event"
 	"github.com/losinggeneration/tui/geom"
 	"github.com/losinggeneration/tui/ui"
 )
@@ -424,6 +425,7 @@ func TestTextArea_Backspace_JoinsLines(t *testing.T) {
 // so the OnCursorMove contract can be asserted precisely.
 type textAreaCallbackLog struct {
 	cursorMoves []int
+	reasons     []CursorMoveReason
 	changes     []string
 	order       []string // "change" or "cursor", in the order fired
 }
@@ -443,8 +445,9 @@ func newLoggedTextArea(t *testing.T, initial string) (*TextArea, *tui.Ctx, *text
 		log.changes = append(log.changes, s)
 		log.order = append(log.order, "change")
 	})
-	ta.SetOnCursorMove(func(c int, _ *tui.Ctx) {
-		log.cursorMoves = append(log.cursorMoves, c)
+	ta.SetOnCursorMove(func(ev CursorMoveEvent, _ *tui.Ctx) {
+		log.cursorMoves = append(log.cursorMoves, ev.Cursor)
+		log.reasons = append(log.reasons, ev.Reason)
 		log.order = append(log.order, "cursor")
 	})
 
@@ -562,4 +565,65 @@ func TestTextArea_OnCursorMove_ForwardDeleteChangesWithoutCursorMove(t *testing.
 	if len(log.cursorMoves) != 0 {
 		t.Fatalf("forward-delete at cursor must not fire OnCursorMove, got %v", log.cursorMoves)
 	}
+}
+
+func TestTextArea_OnCursorMove_Reason(t *testing.T) {
+	lastReason := func(t *testing.T, log *textAreaCallbackLog) CursorMoveReason {
+		t.Helper()
+
+		if len(log.reasons) == 0 {
+			t.Fatal("expected an OnCursorMove notification, got none")
+		}
+
+		return log.reasons[len(log.reasons)-1]
+	}
+
+	t.Run("navigation", func(t *testing.T) {
+		ta, ctx, log := newLoggedTextArea(t, "hello")
+		ta.cursor = 0
+		ta.HandleAction(ui.ActionMoveRight, ctx)
+
+		if got := lastReason(t, log); got != CursorMoveNavigate {
+			t.Fatalf("MoveRight reason = %d, want CursorMoveNavigate", got)
+		}
+	})
+
+	t.Run("edit typing", func(t *testing.T) {
+		ta, ctx, log := newLoggedTextArea(t, "")
+		ta.cursor = 0
+		ta.Handle(tui.KeyEvent{Key: tui.KeyRune, Rune: 'a'}, ctx)
+
+		if got := lastReason(t, log); got != CursorMoveEdit {
+			t.Fatalf("typing reason = %d, want CursorMoveEdit", got)
+		}
+	})
+
+	t.Run("edit newline", func(t *testing.T) {
+		ta, ctx, log := newLoggedTextArea(t, "ab")
+		ta.cursor = 1
+		ta.HandleAction(ui.ActionSubmit, ctx)
+
+		if got := lastReason(t, log); got != CursorMoveEdit {
+			t.Fatalf("newline reason = %d, want CursorMoveEdit", got)
+		}
+	})
+
+	t.Run("paste", func(t *testing.T) {
+		ta, ctx, log := newLoggedTextArea(t, "")
+		ta.cursor = 0
+		ta.Handle(event.PasteEvent{Text: "xyz"}, ctx)
+
+		if got := lastReason(t, log); got != CursorMovePaste {
+			t.Fatalf("paste reason = %d, want CursorMovePaste", got)
+		}
+	})
+
+	t.Run("set text", func(t *testing.T) {
+		ta, ctx, log := newLoggedTextArea(t, "")
+		ta.SetText(ctx, "replacement")
+
+		if got := lastReason(t, log); got != CursorMoveSetText {
+			t.Fatalf("SetText reason = %d, want CursorMoveSetText", got)
+		}
+	})
 }
