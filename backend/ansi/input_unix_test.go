@@ -3,6 +3,7 @@
 package ansi
 
 import (
+	"encoding/base64"
 	"testing"
 	"unicode/utf8"
 
@@ -557,6 +558,34 @@ func TestInputDecoder_CSI_Overflow(t *testing.T) {
 	k1 := ke(t, evs[1], 1)
 	if k1.Key != event.KeyRune || k1.Rune != '[' {
 		t.Fatalf("event 1 = %#v, want '['", k1)
+	}
+}
+
+func TestParseCSIParams_BoundsHugeValuesWithoutOverflow(t *testing.T) {
+	// Eighteen '9' digits fit in int64 without wrapping, so unchecked
+	// accumulation yields ~1e18 — a nonsense parameter far beyond any real
+	// terminal value that would flow straight to a coordinate consumer.
+	// Parsing must clamp it to a sane bound.
+	huge := []byte("999999999999999999")
+
+	p0, _, n, ok := parseCSIParams2(huge)
+	if !ok || n != 1 {
+		t.Fatalf("parseCSIParams2: ok=%v n=%d, want ok=true n=1", ok, n)
+	}
+
+	if p0 < 0 || p0 > maxCSIParam {
+		t.Fatalf("parseCSIParams2 param not bounded: got %d, want 0..%d", p0, maxCSIParam)
+	}
+
+	q0, q1, q2, m, ok := parseCSIParams3(append(append(append([]byte{}, huge...), ';'), append(huge, append([]byte{';'}, huge...)...)...))
+	if !ok || m != 3 {
+		t.Fatalf("parseCSIParams3: ok=%v n=%d, want ok=true n=3", ok, m)
+	}
+
+	for _, p := range []int{q0, q1, q2} {
+		if p < 0 || p > maxCSIParam {
+			t.Fatalf("parseCSIParams3 param not bounded: got %d, want 0..%d", p, maxCSIParam)
+		}
 	}
 }
 
@@ -1506,6 +1535,47 @@ func TestOSC52_InvalidBase64(t *testing.T) {
 
 	if len(evs) != 0 {
 		t.Fatalf("got %d events for invalid base64, want 0", len(evs))
+	}
+}
+
+func TestOSC52_SanitizesControlBytesAndInvalidUTF8(t *testing.T) {
+	d := &InputDecoder{}
+
+	// Clipboard contents are attacker-controlled: embedded escape sequences,
+	// C1 controls, and invalid UTF-8 must not reach the app raw. Whitespace
+	// controls (\t \n \r) are legitimate clipboard content and stay.
+	// U+009B is a UTF-8-encoded C1 CSI (stripped as a control); the raw
+	// 0xff/0xfe bytes are invalid UTF-8 (replaced with U+FFFD).
+	payload := "safe\x1b[31m\u009btext\x07 keep\tthese\nlines\r" + string([]byte{0xff, 0xfe})
+	seq := "\x1b]52;c;" + base64.StdEncoding.EncodeToString([]byte(payload)) + "\x07"
+
+	evs := pushAll(d, []byte(seq))
+	if len(evs) != 1 {
+		t.Fatalf("got %d events, want 1", len(evs))
+	}
+
+	cr, ok := evs[0].(event.ClipboardResponseEvent)
+	if !ok {
+		t.Fatalf("event is %T, want ClipboardResponseEvent", evs[0])
+	}
+
+	if !utf8.ValidString(cr.Text) {
+		t.Errorf("clipboard text is not valid UTF-8: %q", cr.Text)
+	}
+
+	for _, r := range cr.Text {
+		if r == '\t' || r == '\n' || r == '\r' {
+			continue
+		}
+
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
+			t.Errorf("clipboard text contains control rune %q: %q", r, cr.Text)
+		}
+	}
+
+	want := "safe[31mtext keep\tthese\nlines\r��"
+	if cr.Text != want {
+		t.Errorf("got text=%q, want %q", cr.Text, want)
 	}
 }
 

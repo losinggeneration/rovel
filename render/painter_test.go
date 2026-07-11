@@ -53,6 +53,38 @@ func TestPainter_SetCell(t *testing.T) {
 	}
 }
 
+func TestPainter_ClipClampedToBuffer_DoesNotCorruptZeroCell(t *testing.T) {
+	buf := NewBuffer(2, 2)
+
+	// A clip larger than the buffer must not let writes escape the backing
+	// array. Out-of-bounds Buffer.At returns the shared zeroCell sentinel; a
+	// write through it would corrupt every future out-of-bounds read
+	// process-wide.
+	p := NewPainter(buf, geom.Rect{X: 0, Y: 0, W: 100, H: 100}, style.Style{})
+	p.SetCell(50, 50, 'X', style.Style{FG: style.ColorRed})
+
+	oob := buf.At(1000, 1000) // returns &zeroCell
+	if oob.R != ' ' || oob.Style != (style.Style{}) || oob.Wide || oob.WideCont {
+		// Repair so a buggy run doesn't poison sibling tests.
+		*oob = Cell{R: ' '}
+		t.Fatalf("out-of-bounds write corrupted the shared zero cell: %+v", *oob)
+	}
+}
+
+func TestPainter_SetClipRectClampedToBuffer(t *testing.T) {
+	buf := NewBuffer(2, 2)
+	p := NewPainter(buf, geom.Rect{X: 0, Y: 0, W: 2, H: 2}, style.Style{})
+
+	p.SetClipRect(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
+	p.SetCell(50, 50, 'X', style.Style{})
+
+	oob := buf.At(1000, 1000)
+	if oob.R != ' ' || oob.Style != (style.Style{}) || oob.Wide || oob.WideCont {
+		*oob = Cell{R: ' '}
+		t.Fatalf("SetClipRect did not clamp to buffer; zero cell corrupted: %+v", *oob)
+	}
+}
+
 func TestPainter_SetCell_Clipped(t *testing.T) {
 	buf := NewBuffer(10, 5)
 	clip := geom.Rect{X: 2, Y: 2, W: 5, H: 3}

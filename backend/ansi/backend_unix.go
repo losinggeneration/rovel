@@ -240,7 +240,7 @@ func (b *Backend) Restore() error {
 
 	// 1. Disable any enabled input features before flushing.
 	err := b.disableInputFeatures()
-	if err != nil && firstErr == nil {
+	if err != nil {
 		firstErr = err
 	}
 

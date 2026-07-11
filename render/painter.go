@@ -14,13 +14,24 @@ type Painter struct {
 	offsetY   int
 }
 
-// NewPainter creates a new painter.
+// NewPainter creates a new painter. The clip is clamped to the buffer bounds
+// so writes can never escape the backing array (an out-of-bounds Buffer.At
+// returns a shared sentinel cell that must stay pristine).
 func NewPainter(buf *Buffer, clip geom.Rect, baseStyle style.Style) *Painter {
 	return &Painter{
 		buf:       buf,
-		clip:      clip,
+		clip:      clampClipToBuffer(clip, buf),
 		baseStyle: baseStyle,
 	}
+}
+
+// clampClipToBuffer intersects a clip rect with the buffer's bounds.
+func clampClipToBuffer(clip geom.Rect, buf *Buffer) geom.Rect {
+	if buf == nil {
+		return geom.Rect{}
+	}
+
+	return clip.Intersect(geom.Rect{X: 0, Y: 0, W: buf.W, H: buf.H})
 }
 
 // Offset returns the current offset.
@@ -45,9 +56,10 @@ func (p *Painter) ClipRect() geom.Rect {
 	return p.clip
 }
 
-// SetClipRect sets the clip rect (no normalization, caller responsible).
+// SetClipRect sets the clip rect, clamped to the buffer bounds so writes can
+// never escape the backing array.
 func (p *Painter) SetClipRect(r geom.Rect) {
-	p.clip = r
+	p.clip = clampClipToBuffer(r, p.buf)
 }
 
 // Text writes a string at position, advancing by rune width.

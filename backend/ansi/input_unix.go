@@ -16,6 +16,12 @@ const maxPasteBytes = 1 << 20
 // maxOSCBytes is the maximum OSC payload size (128 KiB, generous for base64 clipboard).
 const maxOSCBytes = 128 * 1024
 
+// maxCSIParam bounds a parsed CSI numeric parameter. The value is far larger
+// than any real terminal parameter or coordinate, and capping it keeps
+// accumulation from overflowing int on input (the CSI buffer holds
+// up to 32 digits, well past the int64 range).
+const maxCSIParam = 1 << 20
+
 // InputDecoder decodes deterministic byte streams into Events (key, mouse, paste).
 //
 // INVARIANT: The decoder must never silently drop bytes.
@@ -105,7 +111,8 @@ func (d *InputDecoder) Finalize(dst []event.Event) []event.Event {
 		dst = append(dst, event.KeyEvent{Key: event.KeyEsc})
 
 	case stateSS3:
-		dst = append(dst,
+		dst = append(
+			dst,
 			event.KeyEvent{Key: event.KeyEsc},
 			event.KeyEvent{Key: event.KeyRune, Rune: 'O'},
 		)
@@ -534,7 +541,8 @@ func parseCSIParams2(buf []byte) (p0, p1, n int, ok bool) {
 				cur = 0
 			}
 
-			cur = cur*10 + int(b-'0')
+			// Saturate rather than let digit runs overflow int.
+			cur = min(cur*10+int(b-'0'), maxCSIParam)
 		case b == ';':
 			if cur < 0 {
 				return 0, 0, 0, false
@@ -593,7 +601,8 @@ func parseCSIParams3(buf []byte) (p0, p1, p2, n int, ok bool) {
 				cur = 0
 			}
 
-			cur = cur*10 + int(b-'0')
+			// Saturate rather than let digit runs overflow int.
+			cur = min(cur*10+int(b-'0'), maxCSIParam)
 		case b == ';':
 			if cur < 0 {
 				return 0, 0, 0, 0, false
@@ -899,12 +908,12 @@ func (d *InputDecoder) finishOSC(dst []event.Event) []event.Event {
 	// OSC 52 clipboard response: "52;c;<base64-data>"
 	if after, ok := strings.CutPrefix(payload, "52;"); ok {
 		// Strip the selection parameter (typically "c" or "s" or "p")
-		if idx := strings.IndexByte(after, ';'); idx >= 0 {
-			encoded := after[idx+1:]
+		if _, after0, ok := strings.Cut(after, ";"); ok {
+			encoded := after0
 
 			decoded, err := base64.StdEncoding.DecodeString(encoded)
 			if err == nil {
-				dst = append(dst, event.ClipboardResponseEvent{Text: string(decoded)})
+				dst = append(dst, event.ClipboardResponseEvent{Text: sanitizeClipboardText(decoded)})
 			}
 			// Invalid base64: silently discard
 		}
@@ -962,6 +971,36 @@ func (d *InputDecoder) pushPaste(dst []event.Event, b byte) []event.Event {
 	}
 
 	return dst
+}
+
+// sanitizeClipboardText makes an OSC 52 clipboard payload safe to hand to the
+// app: invalid UTF-8 is replaced with U+FFFD and control characters are
+// stripped. Tab, newline, and carriage return stay — they are legitimate
+// clipboard content. The payload is attacker-influenced (any application can
+// populate the clipboard), so raw escape bytes must never reach app code.
+func sanitizeClipboardText(buf []byte) string {
+	s := sanitizePasteUTF8(buf)
+
+	var b strings.Builder
+
+	b.Grow(len(s))
+
+	for _, r := range s {
+		if r == '\t' || r == '\n' || r == '\r' {
+			b.WriteRune(r)
+
+			continue
+		}
+
+		// C0 controls, DEL, and C1 controls.
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
+			continue
+		}
+
+		b.WriteRune(r)
+	}
+
+	return b.String()
 }
 
 // sanitizePasteUTF8 replaces invalid UTF-8 sequences with U+FFFD.
