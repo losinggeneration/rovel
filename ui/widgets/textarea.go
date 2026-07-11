@@ -633,7 +633,12 @@ func (ta *TextArea) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
 
 		reason = CursorMoveEdit
 
+		if ta.hasSelection() {
+			ta.deleteSelection()
+		}
+
 		ta.insertText("\n")
+		ta.anchor = -1
 		ta.desiredCol = -1
 		ta.scrollToCursor()
 		ctx.Invalidate(ta.rect)

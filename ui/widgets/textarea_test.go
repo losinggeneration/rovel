@@ -350,6 +350,29 @@ func TestTextArea_TypeWithSelection_Replaces(t *testing.T) {
 	}
 }
 
+func TestTextArea_EnterWithSelection_ReplacesSelection(t *testing.T) {
+	ta := NewTextArea()
+	ctx := mkTextAreaCtx(ta)
+	ta.SetText(ctx, "hello")
+	ta.rect = tui.Rect{X: 0, Y: 0, W: 20, H: 5}
+
+	// Select "hel".
+	ta.cursor = 3
+	ta.anchor = 0
+
+	// Enter should replace the selection with a newline, just like typing a
+	// rune replaces it.
+	ta.HandleAction(ui.ActionSubmit, ctx)
+
+	if ta.text != "\nlo" {
+		t.Errorf("after Enter with selection: got %q, want %q", ta.text, "\nlo")
+	}
+
+	if ta.hasSelection() {
+		t.Error("selection should be cleared after Enter")
+	}
+}
+
 func TestTextArea_BackspaceWithSelection_DeletesRange(t *testing.T) {
 	ta := NewTextArea()
 	ctx := mkTextAreaCtx(ta)

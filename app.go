@@ -233,6 +233,14 @@ func (a *App) Enable() error {
 		return err
 	}
 
+	// The backend is now live (raw mode on a real terminal). Any later
+	// failure must restore it, or the user's shell is left raw.
+	unwind := func(err error) error {
+		a.errs.Add(a.host.Restore())
+
+		return err
+	}
+
 	// Capture the lifecycle-signal channel. Nil when the backend does not
 	// catch lifecycle signals (custom backend or handling disabled); the
 	// corresponding Run select arm then never fires.
@@ -259,7 +267,7 @@ func (a *App) Enable() error {
 		BracketedPaste: a.opts.Input.BracketedPaste && a.inputCaps.BracketedPaste,
 	}
 	if err := a.host.SetInputFeatures(features); err != nil {
-		return err
+		return unwind(err)
 	}
 
 	// Resolve theme for capability
@@ -274,13 +282,13 @@ func (a *App) Enable() error {
 	// Choose the presenter for the concrete backend.
 	presenter, err := presenterForBackend(a.opts.Backend, a.opts.TerminalMode, a.opts.ClearOnExit)
 	if err != nil {
-		return err
+		return unwind(err)
 	}
 
 	a.presenter = presenter
 
 	if err := a.presenter.InitScreen(a.size); err != nil {
-		return err
+		return unwind(err)
 	}
 
 	// Initial layout
@@ -297,11 +305,14 @@ func (a *App) Enable() error {
 	return nil
 }
 
-// Restore restores the terminal to its original state.
+// Restore restores the terminal to its original state. It is safe to call
+// even when Enable never ran or failed partway (the usual `defer
+// app.Restore()` pattern); whatever was not set up is skipped.
 func (a *App) Restore() error {
-	err := a.presenter.RestoreScreen()
-	if err != nil {
-		return err
+	if a.presenter != nil {
+		if err := a.presenter.RestoreScreen(); err != nil {
+			return err
+		}
 	}
 
 	if a.host != nil {
@@ -360,6 +371,17 @@ func (a *App) Run() (err error) {
 
 				return nil
 			}
+		}
+
+		// wakeCh holds at most one signal, so the wakes for a backlog larger
+		// than one drain batch may already be consumed. Re-arm the wake when
+		// posts remain queued or the leftovers stall until the next event.
+		a.postMu.Lock()
+		morePosts := len(a.postQueue) > 0
+		a.postMu.Unlock()
+
+		if morePosts {
+			a.wake()
 		}
 
 		// Posted callbacks run on the app loop and may invalidate, relayout,
@@ -539,6 +561,10 @@ func (a *App) Post(fn func(ctx *UpdateCtx)) error {
 		return nil
 	}
 
+	// Hold the read lock across both the closed check and the enqueue so a
+	// concurrent setClosed cannot flip closed between them and strand a
+	// callback that Post reported as accepted. setClosed takes the write lock,
+	// so it serializes against this whole section.
 	a.closeMu.RLock()
 
 	if a.closed {
@@ -547,11 +573,11 @@ func (a *App) Post(fn func(ctx *UpdateCtx)) error {
 		return ErrClosed
 	}
 
-	a.closeMu.RUnlock()
-
 	a.postMu.Lock()
 	a.postQueue = append(a.postQueue, fn)
 	a.postMu.Unlock()
+
+	a.closeMu.RUnlock()
 
 	a.wake()
 
@@ -1514,10 +1540,8 @@ func (a *App) focusFirstIn(v View) {
 		}
 
 		if c, ok := v.(viewChildren); ok {
-			for _, child := range c.Children() {
-				if walk(child) {
-					return true
-				}
+			if slices.ContainsFunc(c.Children(), walk) {
+				return true
 			}
 		}
 

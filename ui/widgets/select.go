@@ -315,6 +315,17 @@ func (l *selectList) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	}
 
 	switch ke.Key {
+	case tui.KeyEsc:
+		// The dropdown is a modal overlay, so without this the list would be
+		// a keyboard trap in apps that don't configure ResolveAction (whose
+		// Cancel handling otherwise dismisses the overlay at the app level).
+		if ctx != nil && ctx.DismissOverlay != nil {
+			ctx.DismissOverlay()
+
+			return true
+		}
+
+		return false
 	case tui.KeyUp:
 		if l.focused > 0 {
 			l.focused--

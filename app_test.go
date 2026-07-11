@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/losinggeneration/tui/backend"
 	"github.com/losinggeneration/tui/backend/headless"
 	"github.com/losinggeneration/tui/event"
 	"github.com/losinggeneration/tui/geom"
@@ -20,6 +21,72 @@ func TestPost_ErrClosed(t *testing.T) {
 	err := app.Post(func(ctx *UpdateCtx) {})
 	if !errors.Is(err, ErrClosed) {
 		t.Errorf("Post after closed: got %v, want ErrClosed", err)
+	}
+}
+
+// TestPost_CloseCheckAndEnqueueAreAtomic pins the fix for the
+// accepted-then-dropped race: Post must hold the close lock across both the
+// closed check and the enqueue, so a concurrent setClosed cannot slip in
+// between them and strand a callback that Post reported as accepted (nil).
+//
+// It freezes a Post at the enqueue step (by holding postMu) while it holds the
+// close read-lock, then asserts a concurrent setClosed blocks until the enqueue
+// completes. In the buggy version Post released the close lock before enqueuing,
+// so setClosed would complete immediately.
+func TestPost_CloseCheckAndEnqueueAreAtomic(t *testing.T) {
+	app, _ := New(AppOpts{})
+
+	// Hold postMu so the Post below parks at the enqueue step while still
+	// holding closeMu as a reader.
+	app.postMu.Lock()
+
+	res := make(chan error, 1)
+	go func() {
+		res <- app.Post(func(*UpdateCtx) {})
+	}()
+
+	// Spin until Post is holding closeMu as a reader (a write TryLock fails).
+	// A successful TryLock means no reader yet, so release and retry until the
+	// deadline (a buggy build never holds closeMu across the enqueue).
+	deadline := time.Now().Add(time.Second)
+	for app.closeMu.TryLock() {
+		app.closeMu.Unlock()
+
+		if time.Now().After(deadline) {
+			break // buggy build: Post never persistently holds closeMu
+		}
+
+		runtime.Gosched()
+	}
+
+	closedDone := make(chan struct{})
+	go func() {
+		app.setClosed()
+		close(closedDone)
+	}()
+
+	select {
+	case <-closedDone:
+		app.postMu.Unlock()
+		t.Fatal("setClosed completed while a Post was mid-enqueue: close check and enqueue are not atomic")
+	case <-time.After(100 * time.Millisecond):
+		// Expected: setClosed is blocked behind the parked Post.
+	}
+
+	app.postMu.Unlock()
+
+	if err := <-res; err != nil {
+		t.Fatalf("Post that passed the closed check should return nil, got %v", err)
+	}
+
+	<-closedDone
+
+	app.postMu.Lock()
+	queued := len(app.postQueue)
+	app.postMu.Unlock()
+
+	if queued != 1 {
+		t.Fatalf("accepted post not enqueued: queue length = %d, want 1", queued)
 	}
 }
 
@@ -1109,6 +1176,115 @@ func TestReadEvents_ForwarderExitsAfterClose(t *testing.T) {
 		// Forwarder exited and closed eventCh: no leak.
 	case <-time.After(2 * time.Second):
 		t.Fatal("readEvents leaked: eventCh not closed after setClosed")
+	}
+}
+
+func TestPost_DrainsBacklogLargerThanBatchWithoutEvents(t *testing.T) {
+	be := headless.New(geom.Size{W: 80, H: 24})
+	app, err := New(AppOpts{Backend: be})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	app.SetRoot(&testRoot{id: NewID()})
+	if err := app.Enable(); err != nil {
+		t.Fatalf("Enable: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- app.Run() }()
+
+	// Hold the loop inside the post-drain phase so a backlog larger than one
+	// drain batch accumulates while only a single wake signal is buffered.
+	started := make(chan struct{})
+	release := make(chan struct{})
+
+	if err := app.Post(func(ctx *UpdateCtx) {
+		close(started)
+		<-release
+	}); err != nil {
+		t.Fatalf("Post: %v", err)
+	}
+
+	<-started
+
+	var ran atomic.Int32
+
+	const n = 3 * 64 // several drain batches worth
+	for range n {
+		if err := app.Post(func(ctx *UpdateCtx) {
+			ran.Add(1)
+		}); err != nil {
+			t.Fatalf("Post: %v", err)
+		}
+	}
+
+	close(release)
+
+	// Every queued post must run without any external event arriving.
+	deadline := time.After(2 * time.Second)
+	for ran.Load() < n {
+		select {
+		case <-deadline:
+			t.Fatalf("post backlog stalled: %d of %d ran without an external event", ran.Load(), n)
+		case <-time.After(time.Millisecond):
+		}
+	}
+
+	app.Quit()
+	be.Close()
+	<-done
+}
+
+func TestRestore_BeforeEnableIsSafe(t *testing.T) {
+	app, err := New(AppOpts{})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	// The documented pattern is `defer app.Restore()`; if Enable never ran
+	// (or failed), Restore must be a safe no-op, not a panic.
+	if err := app.Restore(); err != nil {
+		t.Fatalf("Restore before Enable: %v", err)
+	}
+}
+
+// failingFeaturesBackend wraps the headless backend with a SetInputFeatures
+// that always fails, to exercise Enable's post-raw-mode error paths.
+type failingFeaturesBackend struct {
+	*headless.Backend
+}
+
+var errFeaturesUnavailable = errors.New("input features unavailable")
+
+func (b *failingFeaturesBackend) SetInputFeatures(backend.InputFeatures) error {
+	return errFeaturesUnavailable
+}
+
+func TestEnable_FailureAfterBackendEnableRestoresBackend(t *testing.T) {
+	be := &failingFeaturesBackend{Backend: headless.New(geom.Size{W: 80, H: 24})}
+
+	app, err := New(AppOpts{Backend: be})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	app.SetRoot(&testRoot{id: NewID()})
+
+	err = app.Enable()
+	if !errors.Is(err, errFeaturesUnavailable) {
+		t.Fatalf("Enable: got %v, want errFeaturesUnavailable", err)
+	}
+
+	// The backend was enabled (raw mode on a real terminal); a failed Enable
+	// must not leave it that way.
+	if !be.Restored() {
+		t.Fatal("Enable failed after backend Enable but did not restore the backend")
+	}
+
+	// And the user's deferred Restore must still be safe.
+	if err := app.Restore(); err != nil {
+		t.Fatalf("Restore after failed Enable: %v", err)
 	}
 }
 
