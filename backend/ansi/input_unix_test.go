@@ -7,7 +7,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/losinggeneration/tui/event"
+	"github.com/losinggeneration/rovel/event"
 )
 
 // ke extracts a KeyEvent from an Event, failing the test if it's not one.

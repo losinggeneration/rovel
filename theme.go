@@ -1,10 +1,10 @@
-package tui
+package rovel
 
 import (
-	"github.com/losinggeneration/tui/action"
-	"github.com/losinggeneration/tui/backend"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/rovel/action"
+	"github.com/losinggeneration/rovel/backend"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/style"
 )
 
 // Palette defines semantic theme roles for consistent styling.

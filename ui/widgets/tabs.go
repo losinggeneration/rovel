@@ -1,18 +1,18 @@
 package widgets
 
 import (
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/style"
-	"github.com/losinggeneration/tui/text"
-	"github.com/losinggeneration/tui/ui"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/style"
+	"github.com/losinggeneration/rovel/text"
+	"github.com/losinggeneration/rovel/ui"
 )
 
 // TabsOpts holds options for creating Tabs.
 type TabsOpts struct {
-	ID    tui.ID
+	ID    rovel.ID
 	Tabs  []Tab
-	OnTab func(index int, ctx *tui.Ctx)
+	OnTab func(index int, ctx *rovel.Ctx)
 
 	// Optional style overrides. When non-nil, the style replaces the
 	// palette-derived style for that state completely (no merging).
@@ -24,17 +24,17 @@ type TabsOpts struct {
 // Tab represents a single tab with a title and content view.
 type Tab struct {
 	Title   string
-	Content tui.View
+	Content rovel.View
 }
 
 // Tabs is a tab bar with switchable content panels.
 // The tab bar occupies one line at the top; the content fills the rest.
 type Tabs struct {
-	id       tui.ID
-	rect     tui.Rect
+	id       rovel.ID
+	rect     rovel.Rect
 	tabs     []Tab
 	selected int
-	onTab    func(index int, ctx *tui.Ctx)
+	onTab    func(index int, ctx *rovel.Ctx)
 
 	stBar      *style.Style
 	stSelected *style.Style
@@ -48,7 +48,7 @@ func NewTabs(tabs []Tab) *Tabs {
 func NewTabsOpts(opts TabsOpts) *Tabs {
 	id := opts.ID
 	if id == 0 {
-		id = tui.NewID()
+		id = rovel.NewID()
 	}
 
 	return &Tabs{
@@ -61,13 +61,13 @@ func NewTabsOpts(opts TabsOpts) *Tabs {
 	}
 }
 
-func (t *Tabs) ID() tui.ID      { return t.id }
-func (t *Tabs) Rect() tui.Rect  { return t.rect }
+func (t *Tabs) ID() rovel.ID      { return t.id }
+func (t *Tabs) Rect() rovel.Rect  { return t.rect }
 func (t *Tabs) Focusable() bool { return len(t.tabs) > 0 }
 
 func (t *Tabs) Selected() int { return t.selected }
 
-func (t *Tabs) SetSelected(ctx *tui.Ctx, idx int) {
+func (t *Tabs) SetSelected(ctx *rovel.Ctx, idx int) {
 	if idx < 0 || idx >= len(t.tabs) || idx == t.selected {
 		return
 	}
@@ -80,7 +80,7 @@ func (t *Tabs) SetSelected(ctx *tui.Ctx, idx int) {
 	}
 }
 
-func (t *Tabs) Layout(r tui.Rect) {
+func (t *Tabs) Layout(r rovel.Rect) {
 	t.rect = r
 	t.layoutContent()
 }
@@ -109,7 +109,7 @@ func (t *Tabs) MinSize() geom.Size {
 	return geom.Size{W: barW, H: minH}
 }
 
-func (t *Tabs) Paint(d tui.Drawer, ctx *tui.Ctx) {
+func (t *Tabs) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	r := t.rect
 	if r.W <= 0 || r.H <= 0 || len(t.tabs) == 0 {
 		return
@@ -122,16 +122,16 @@ func (t *Tabs) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	cr := t.contentRect()
 	if cr.H > 0 && t.selected >= 0 && t.selected < len(t.tabs) {
 		if content := t.tabs[t.selected].Content; content != nil {
-			d.WithClip(cr, func(cd tui.Drawer) {
+			d.WithClip(cr, func(cd rovel.Drawer) {
 				content.Paint(cd, ctx)
 			})
 		}
 	}
 }
 
-func (t *Tabs) Handle(e tui.Event, ctx *tui.Ctx) bool {
-	if me, ok := e.(tui.MouseEvent); ok {
-		if me.Button == tui.MouseButtonLeft && me.Action == tui.MousePress && len(t.tabs) > 0 {
+func (t *Tabs) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
+	if me, ok := e.(rovel.MouseEvent); ok {
+		if me.Button == rovel.MouseButtonLeft && me.Action == rovel.MousePress && len(t.tabs) > 0 {
 			// Click on the tab bar row?
 			if me.Y == t.rect.Y {
 				if ctx != nil && ctx.RequestFocus != nil {
@@ -156,19 +156,19 @@ func (t *Tabs) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		return false
 	}
 
-	ke, ok := e.(tui.KeyEvent)
+	ke, ok := e.(rovel.KeyEvent)
 	if !ok || len(t.tabs) == 0 {
 		return false
 	}
 
 	switch ke.Key {
-	case tui.KeyLeft:
+	case rovel.KeyLeft:
 		if t.selected > 0 {
 			t.switchTab(ctx, t.selected-1)
 		}
 
 		return true
-	case tui.KeyRight:
+	case rovel.KeyRight:
 		if t.selected < len(t.tabs)-1 {
 			t.switchTab(ctx, t.selected+1)
 		}
@@ -182,7 +182,7 @@ func (t *Tabs) Handle(e tui.Event, ctx *tui.Ctx) bool {
 
 // HandleAction handles semantic actions.
 // Left/Right and Activate only apply when the tab bar itself has focus.
-func (t *Tabs) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+func (t *Tabs) HandleAction(act ui.Action, ctx *rovel.Ctx) bool {
 	if len(t.tabs) == 0 {
 		return false
 	}
@@ -215,10 +215,10 @@ func (t *Tabs) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
 }
 
 // Children returns the current tab's content view for focus traversal.
-func (t *Tabs) Children() []tui.View {
+func (t *Tabs) Children() []rovel.View {
 	if t.selected >= 0 && t.selected < len(t.tabs) {
 		if c := t.tabs[t.selected].Content; c != nil {
-			return []tui.View{c}
+			return []rovel.View{c}
 		}
 	}
 
@@ -247,7 +247,7 @@ func (t *Tabs) contentRect() geom.Rect {
 	return geom.Rect{X: r.X, Y: r.Y + 1, W: r.W, H: r.H - 1}
 }
 
-func (t *Tabs) paintTabBar(d tui.Drawer, ctx *tui.Ctx, focused bool) {
+func (t *Tabs) paintTabBar(d rovel.Drawer, ctx *rovel.Ctx, focused bool) {
 	r := t.rect
 
 	barFallback := ctx.Theme.Palette.Surface
@@ -281,12 +281,12 @@ func (t *Tabs) paintTabBar(d tui.Drawer, ctx *tui.Ctx, focused bool) {
 		}
 
 		lbl := text.Truncate(label, r.X+r.W-x, false)
-		d.DrawText(tui.Point{X: x, Y: r.Y}, lbl, st)
+		d.DrawText(rovel.Point{X: x, Y: r.Y}, lbl, st)
 		x += w
 	}
 }
 
-func (t *Tabs) switchTab(ctx *tui.Ctx, idx int) {
+func (t *Tabs) switchTab(ctx *rovel.Ctx, idx int) {
 	if idx < 0 || idx >= len(t.tabs) || idx == t.selected {
 		return
 	}
@@ -308,7 +308,7 @@ func (t *Tabs) switchTab(ctx *tui.Ctx, idx int) {
 
 // focusContent focuses the tab's content view, or the first focusable
 // descendant within it.
-func (t *Tabs) focusContent(ctx *tui.Ctx) {
+func (t *Tabs) focusContent(ctx *rovel.Ctx) {
 	if ctx == nil || ctx.RequestFocus == nil {
 		return
 	}
@@ -324,11 +324,11 @@ func (t *Tabs) focusContent(ctx *tui.Ctx) {
 
 	type focusable interface{ Focusable() bool }
 
-	type composite interface{ Children() []tui.View }
+	type composite interface{ Children() []rovel.View }
 
-	var walk func(v tui.View) bool
+	var walk func(v rovel.View) bool
 
-	walk = func(v tui.View) bool {
+	walk = func(v rovel.View) bool {
 		if f, ok := v.(focusable); ok && f.Focusable() {
 			ctx.RequestFocus(v.ID())
 

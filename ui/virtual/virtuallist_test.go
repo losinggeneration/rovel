@@ -3,9 +3,9 @@ package virtual
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/style"
 )
 
 // mockRenderRow returns a simple RenderRowFunc that renders a numbered prefix.
@@ -14,18 +14,18 @@ func mockRenderRow(prefix string) RenderRowFunc {
 		i int,
 		selected bool,
 		focused bool,
-		d tui.Drawer,
+		d rovel.Drawer,
 		r geom.Rect,
 	) {
 		if r.W <= 0 || r.H <= 0 {
 			return
 		}
 
-		var st tui.Style
+		var st rovel.Style
 		if selected && focused {
-			st = tui.Style{Attr: style.AttrReverse}
+			st = rovel.Style{Attr: style.AttrReverse}
 		} else if selected {
-			st = tui.Style{FG: style.ColorWhite, BG: style.ColorBlue}
+			st = rovel.Style{FG: style.ColorWhite, BG: style.ColorBlue}
 		}
 		// Simple text rendering - truncate to fit
 		text := prefix
@@ -35,7 +35,7 @@ func mockRenderRow(prefix string) RenderRowFunc {
 			text = text[:maxLen]
 		}
 
-		d.DrawText(tui.Point{X: r.X, Y: r.Y}, text, st)
+		d.DrawText(rovel.Point{X: r.X, Y: r.Y}, text, st)
 	}
 }
 
@@ -155,7 +155,7 @@ func TestNotifyCountChanged(t *testing.T) {
 
 			// Track invalidation
 			invalidated := false
-			ctx := &tui.Ctx{
+			ctx := &rovel.Ctx{
 				Invalidate: func(r geom.Rect) {
 					invalidated = true
 				},
@@ -220,7 +220,7 @@ func TestNotifyCountChangedWithNilInvalidate(t *testing.T) {
 	v.SetScrollItem(nil, 40)
 
 	// Context with nil Invalidate func
-	ctx := &tui.Ctx{}
+	ctx := &rovel.Ctx{}
 
 	count = 50
 
@@ -251,7 +251,7 @@ func TestNotifyCountChangedScrollSelectionIntoView(t *testing.T) {
 	}
 
 	invalidated := false
-	ctx := &tui.Ctx{
+	ctx := &rovel.Ctx{
 		Invalidate: func(r geom.Rect) {
 			invalidated = true
 		},

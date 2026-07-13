@@ -3,28 +3,28 @@ package layout
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/render"
-	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/render"
+	"github.com/losinggeneration/rovel/style"
 )
 
 type paintChildView struct {
-	id   tui.ID
-	rect tui.Rect
+	id   rovel.ID
+	rect rovel.Rect
 }
 
-func (v *paintChildView) ID() tui.ID        { return v.id }
-func (v *paintChildView) Rect() tui.Rect    { return v.rect }
-func (v *paintChildView) Layout(r tui.Rect) { v.rect = r }
-func (v *paintChildView) MinSize() tui.Size { return tui.Size{W: 1, H: 1} }
-func (v *paintChildView) Paint(d tui.Drawer, _ *tui.Ctx) {
-	d.DrawText(tui.Point{X: v.rect.X, Y: v.rect.Y}, "X", style.Style{})
+func (v *paintChildView) ID() rovel.ID        { return v.id }
+func (v *paintChildView) Rect() rovel.Rect    { return v.rect }
+func (v *paintChildView) Layout(r rovel.Rect) { v.rect = r }
+func (v *paintChildView) MinSize() rovel.Size { return rovel.Size{W: 1, H: 1} }
+func (v *paintChildView) Paint(d rovel.Drawer, _ *rovel.Ctx) {
+	d.DrawText(rovel.Point{X: v.rect.X, Y: v.rect.Y}, "X", style.Style{})
 }
-func (v *paintChildView) Handle(tui.Event, *tui.Ctx) bool { return false }
+func (v *paintChildView) Handle(rovel.Event, *rovel.Ctx) bool { return false }
 
 func TestBorderPaint_DrawerAdapter(t *testing.T) {
-	child := &paintChildView{id: tui.NewID()}
+	child := &paintChildView{id: rovel.NewID()}
 	border := NewBorder(child)
 	border.SetTitle("Title")
 	border.Layout(geom.Rect{X: 0, Y: 0, W: 12, H: 4})
@@ -34,10 +34,10 @@ func TestBorderPaint_DrawerAdapter(t *testing.T) {
 	buf.Clear(render.Cell{R: ' ', Style: base})
 
 	rp := render.NewPainter(buf, geom.Rect{X: 0, Y: 0, W: 12, H: 4}, base)
-	p := tui.NewPainter(rp, base)
-	ctx := &tui.Ctx{Theme: tui.DefaultTheme()}
+	p := rovel.NewPainter(rp, base)
+	ctx := &rovel.Ctx{Theme: rovel.DefaultTheme()}
 
-	border.Paint(tui.NewDrawer(p), ctx)
+	border.Paint(rovel.NewDrawer(p), ctx)
 
 	assertRune := func(x, y int, want rune) {
 		t.Helper()

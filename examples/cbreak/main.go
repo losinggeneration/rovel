@@ -19,10 +19,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/event"
-	"github.com/losinggeneration/tui/ui"
-	"github.com/losinggeneration/tui/ui/widgets"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/event"
+	"github.com/losinggeneration/rovel/ui"
+	"github.com/losinggeneration/rovel/ui/widgets"
 )
 
 // dialogRoot wraps a Dialog and maps Ctrl+C to Quit so the example can be
@@ -31,8 +31,8 @@ type dialogRoot struct {
 	*widgets.Dialog
 }
 
-func (d *dialogRoot) Handle(e tui.Event, ctx *tui.Ctx) bool {
-	if ke, ok := e.(tui.KeyEvent); ok && ke.Key == event.KeyCtrlC {
+func (d *dialogRoot) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
+	if ke, ok := e.(rovel.KeyEvent); ok && ke.Key == event.KeyCtrlC {
 		ctx.Quit()
 
 		return true
@@ -46,13 +46,13 @@ func main() {
 }
 
 func run() int {
-	appOpts := tui.AppOpts{
-		TerminalMode:  tui.ModeCBreak,
+	appOpts := rovel.AppOpts{
+		TerminalMode:  rovel.ModeCBreak,
 		ClearOnExit:   true,
 		ResolveAction: ui.DefaultAppResolver(),
 	}
 
-	app, err := tui.New(appOpts)
+	app, err := rovel.New(appOpts)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 
@@ -65,11 +65,11 @@ func run() int {
 		Title:   "Deploy to production?",
 		Message: "This will push v2.4.1 to all regions.\nRollback requires a manual intervention.",
 		Buttons: []widgets.DialogButton{
-			{Label: "Cancel", OnPress: func(ctx *tui.Ctx) {
+			{Label: "Cancel", OnPress: func(ctx *rovel.Ctx) {
 				choice = "cancel"
 				ctx.Quit()
 			}},
-			{Label: "Deploy", OnPress: func(ctx *tui.Ctx) {
+			{Label: "Deploy", OnPress: func(ctx *rovel.Ctx) {
 				choice = "deploy"
 				ctx.Quit()
 			}},

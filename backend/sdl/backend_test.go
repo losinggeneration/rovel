@@ -3,8 +3,8 @@ package sdl
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui/backend"
-	tevent "github.com/losinggeneration/tui/event"
+	"github.com/losinggeneration/rovel/backend"
+	tevent "github.com/losinggeneration/rovel/event"
 	"github.com/veandco/go-sdl2/sdl"
 )
 

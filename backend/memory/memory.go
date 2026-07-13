@@ -11,9 +11,9 @@ package memory
 import (
 	"sync"
 
-	"github.com/losinggeneration/tui/backend"
-	"github.com/losinggeneration/tui/event"
-	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/rovel/backend"
+	"github.com/losinggeneration/rovel/event"
+	"github.com/losinggeneration/rovel/geom"
 )
 
 // Backend is a non-terminal backend that captures logical cell frames.

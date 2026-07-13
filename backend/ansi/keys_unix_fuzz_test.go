@@ -6,7 +6,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/losinggeneration/tui/event"
+	"github.com/losinggeneration/rovel/event"
 )
 
 func FuzzInputDecoder(f *testing.F) {

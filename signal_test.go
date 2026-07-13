@@ -1,4 +1,4 @@
-package tui
+package rovel
 
 import (
 	"errors"
@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/losinggeneration/tui/backend"
-	"github.com/losinggeneration/tui/backend/headless"
-	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/rovel/backend"
+	"github.com/losinggeneration/rovel/backend/headless"
+	"github.com/losinggeneration/rovel/geom"
 )
 
 // signalBackend wraps a headless backend and implements

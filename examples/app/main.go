@@ -1,18 +1,18 @@
-// Package main demonstrates the tui.App event loop and rendering.
+// Package main demonstrates the rovel.App event loop and rendering.
 package main
 
 import (
 	"fmt"
 	"os"
 
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/geom"
 )
 
 func main() {
-	opts := tui.DefaultAppOpts()
+	opts := rovel.DefaultAppOpts()
 
-	app, err := tui.New(opts)
+	app, err := rovel.New(opts)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to create app: %v\n", err)
 		os.Exit(1)
@@ -52,7 +52,7 @@ func main() {
 
 // DemoView is a simple view that demonstrates the rendering system.
 type DemoView struct {
-	id     tui.ID
+	id     rovel.ID
 	rect   geom.Rect
 	text   string
 	ctr    int
@@ -62,15 +62,15 @@ type DemoView struct {
 
 func NewDemoView(quit func()) *DemoView {
 	return &DemoView{
-		id:     tui.NewID(),
-		text:   "Hello, tui.App!",
+		id:     rovel.NewID(),
+		text:   "Hello, rovel.App!",
 		ctr:    0,
 		ticker: false,
 		quit:   quit,
 	}
 }
 
-func (v *DemoView) ID() tui.ID {
+func (v *DemoView) ID() rovel.ID {
 	return v.id
 }
 
@@ -86,61 +86,61 @@ func (v *DemoView) Rect() geom.Rect {
 	return v.rect
 }
 
-func (v *DemoView) Paint(d tui.Drawer, ctx *tui.Ctx) {
-	d.DrawBorder(v.rect, tui.BoxStyle{
-		Glyphs: tui.BoxGlyphsLight,
-		Edges:  tui.BoxEdgesAll,
-		Style: tui.Style{
-			FG:   tui.ColorCyan,
-			BG:   tui.ColorBlack,
-			Attr: tui.AttrBold,
+func (v *DemoView) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
+	d.DrawBorder(v.rect, rovel.BoxStyle{
+		Glyphs: rovel.BoxGlyphsLight,
+		Edges:  rovel.BoxEdgesAll,
+		Style: rovel.Style{
+			FG:   rovel.ColorCyan,
+			BG:   rovel.ColorBlack,
+			Attr: rovel.AttrBold,
 		},
 	})
 
-	titleStyle := tui.Style{
-		FG:   tui.ColorYellow,
-		BG:   tui.ColorBlue,
-		Attr: tui.AttrBold,
+	titleStyle := rovel.Style{
+		FG:   rovel.ColorYellow,
+		BG:   rovel.ColorBlue,
+		Attr: rovel.AttrBold,
 	}
-	bodyStyle := tui.Style{
-		FG: tui.ColorWhite,
-		BG: tui.ColorBlack,
+	bodyStyle := rovel.Style{
+		FG: rovel.ColorWhite,
+		BG: rovel.ColorBlack,
 	}
-	emphasisStyle := tui.Style{
-		FG:   tui.ColorGreen,
-		BG:   tui.ColorBlack,
-		Attr: tui.AttrBold,
+	emphasisStyle := rovel.Style{
+		FG:   rovel.ColorGreen,
+		BG:   rovel.ColorBlack,
+		Attr: rovel.AttrBold,
 	}
-	helpStyle := tui.Style{
-		FG: tui.ColorBrightWhite,
-		BG: tui.ColorBlack,
+	helpStyle := rovel.Style{
+		FG: rovel.ColorBrightWhite,
+		BG: rovel.ColorBlack,
 	}
 
 	title := " Demo View "
 	titleX := v.rect.X + (v.rect.W-len(title))/2
-	d.DrawText(tui.Point{X: titleX, Y: v.rect.Y}, title, titleStyle)
+	d.DrawText(rovel.Point{X: titleX, Y: v.rect.Y}, title, titleStyle)
 
 	counterText := fmt.Sprintf("Counter: %d", v.ctr)
-	d.DrawText(tui.Point{X: v.rect.X + 2, Y: v.rect.Y + 2}, counterText, emphasisStyle)
+	d.DrawText(rovel.Point{X: v.rect.X + 2, Y: v.rect.Y + 2}, counterText, emphasisStyle)
 
-	d.DrawText(tui.Point{X: v.rect.X + 2, Y: v.rect.Y + 4}, "Press:", bodyStyle)
-	d.DrawText(tui.Point{X: v.rect.X + 2, Y: v.rect.Y + 5}, "  space - increment counter", helpStyle)
-	d.DrawText(tui.Point{X: v.rect.X + 2, Y: v.rect.Y + 6}, "  t     - toggle ticker", helpStyle)
-	d.DrawText(tui.Point{X: v.rect.X + 2, Y: v.rect.Y + 7}, "  q     - quit", helpStyle)
+	d.DrawText(rovel.Point{X: v.rect.X + 2, Y: v.rect.Y + 4}, "Press:", bodyStyle)
+	d.DrawText(rovel.Point{X: v.rect.X + 2, Y: v.rect.Y + 5}, "  space - increment counter", helpStyle)
+	d.DrawText(rovel.Point{X: v.rect.X + 2, Y: v.rect.Y + 6}, "  t     - toggle ticker", helpStyle)
+	d.DrawText(rovel.Point{X: v.rect.X + 2, Y: v.rect.Y + 7}, "  q     - quit", helpStyle)
 
 	if v.ticker {
 		tickerText := "[ticker ON]"
 		d.DrawText(
-			tui.Point{X: v.rect.X + v.rect.W - len(tickerText) - 2, Y: v.rect.Y},
+			rovel.Point{X: v.rect.X + v.rect.W - len(tickerText) - 2, Y: v.rect.Y},
 			tickerText,
 			emphasisStyle,
 		)
 	}
 }
 
-func (v *DemoView) Handle(e tui.Event, ctx *tui.Ctx) bool {
-	if ke, ok := e.(tui.KeyEvent); ok {
-		if ke.Key == tui.KeyRune {
+func (v *DemoView) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
+	if ke, ok := e.(rovel.KeyEvent); ok {
+		if ke.Key == rovel.KeyRune {
 			switch ke.Rune {
 			case 'q':
 				// Quit the app

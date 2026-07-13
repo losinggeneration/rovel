@@ -9,12 +9,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/losinggeneration/tui/backend"
-	"github.com/losinggeneration/tui/backend/cellsurface"
-	tevent "github.com/losinggeneration/tui/event"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/render"
-	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/rovel/backend"
+	"github.com/losinggeneration/rovel/backend/cellsurface"
+	tevent "github.com/losinggeneration/rovel/event"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/render"
+	"github.com/losinggeneration/rovel/style"
 	gsdl "github.com/veandco/go-sdl2/sdl"
 	gttf "github.com/veandco/go-sdl2/ttf"
 )

@@ -1,24 +1,24 @@
 package layout
 
 import (
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/style"
-	"github.com/losinggeneration/tui/text"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/style"
+	"github.com/losinggeneration/rovel/text"
 )
 
 // Border is a wrapper that draws a box border around its child.
 // It is purely visual and has no focus logic.
 type Border struct {
-	id    tui.ID
-	child tui.View
-	rect  tui.Rect
+	id    rovel.ID
+	child rovel.View
+	rect  rovel.Rect
 	title string
 }
 
 // NewBorder creates a new border wrapper.
-func NewBorder(child tui.View) *Border {
+func NewBorder(child rovel.View) *Border {
 	return &Border{
-		id:    tui.NewID(),
+		id:    rovel.NewID(),
 		child: child,
 	}
 }
@@ -29,37 +29,37 @@ func (b *Border) SetTitle(title string) {
 }
 
 // ID returns the border's unique ID.
-func (b *Border) ID() tui.ID {
+func (b *Border) ID() rovel.ID {
 	return b.id
 }
 
 // Rect returns the border's current rect.
-func (b *Border) Rect() tui.Rect {
+func (b *Border) Rect() rovel.Rect {
 	return b.rect
 }
 
 // Layout positions the border within the given rect.
-func (b *Border) Layout(r tui.Rect) {
+func (b *Border) Layout(r rovel.Rect) {
 	b.rect = r
 	inner := InsetRect(r, 1, 1, 1, 1)
 	b.child.Layout(inner)
 }
 
 // MinSize returns the minimum size needed for the border.
-func (b *Border) MinSize() tui.Size {
+func (b *Border) MinSize() rovel.Size {
 	childMin := b.child.MinSize()
 
-	return tui.Size{W: childMin.W + 2, H: childMin.H + 2}
+	return rovel.Size{W: childMin.W + 2, H: childMin.H + 2}
 }
 
 // Paint renders the border and its child.
-func (b *Border) Paint(d tui.Drawer, ctx *tui.Ctx) {
+func (b *Border) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	r := b.rect
 	inner := InsetRect(r, 1, 1, 1, 1)
 
 	// Only draw box if rect is large enough
 	if r.W >= 2 && r.H >= 2 {
-		d.WithClip(r, func(d tui.Drawer) {
+		d.WithClip(r, func(d rovel.Drawer) {
 			// Use theme border style
 			borderStyle := ctx.Theme.Palette.Border
 			if borderStyle == (style.Style{}) {
@@ -70,7 +70,7 @@ func (b *Border) Paint(d tui.Drawer, ctx *tui.Ctx) {
 			d.DrawBorder(r, chrome.BoxStyle(borderStyle))
 
 			// Draw title if provided
-			if b.title != "" && r.W > 4 && (chrome.Edges&tui.BoxEdgeTop) != 0 {
+			if b.title != "" && r.W > 4 && (chrome.Edges&rovel.BoxEdgeTop) != 0 {
 				// Use theme text style
 				textStyle := ctx.Theme.Palette.Text
 				if textStyle == (style.Style{}) {
@@ -85,20 +85,20 @@ func (b *Border) Paint(d tui.Drawer, ctx *tui.Ctx) {
 				truncatedTitle := b.title[:end]
 
 				// Clear title background
-				d.FillRect(tui.Rect{X: titleX, Y: titleY, W: min(titleW, maxTitleW), H: 1}, borderStyle)
+				d.FillRect(rovel.Rect{X: titleX, Y: titleY, W: min(titleW, maxTitleW), H: 1}, borderStyle)
 
-				d.DrawText(tui.Point{X: titleX, Y: titleY}, truncatedTitle, textStyle)
+				d.DrawText(rovel.Point{X: titleX, Y: titleY}, truncatedTitle, textStyle)
 			}
 		})
 	}
 
-	d.WithClip(inner, func(d tui.Drawer) {
+	d.WithClip(inner, func(d rovel.Drawer) {
 		b.child.Paint(d, ctx)
 	})
 }
 
 // Handle processes events - delegates to child.
-func (b *Border) Handle(e tui.Event, ctx *tui.Ctx) bool {
+func (b *Border) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
 	return b.child.Handle(e, ctx)
 }
 
@@ -108,6 +108,6 @@ func (b *Border) Focusable() bool {
 }
 
 // Children returns the child view for traversal consistency.
-func (b *Border) Children() []tui.View {
-	return []tui.View{b.child}
+func (b *Border) Children() []rovel.View {
+	return []rovel.View{b.child}
 }

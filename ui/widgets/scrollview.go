@@ -1,10 +1,10 @@
 package widgets
 
 import (
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/event"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/ui"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/event"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/ui"
 )
 
 var (
@@ -22,15 +22,15 @@ const (
 )
 
 type ScrollViewOpts struct {
-	ID        tui.ID
-	Child     tui.View
+	ID        rovel.ID
+	Child     rovel.View
 	Focusable bool
 	Scrollbar ScrollbarMode
 }
 
 type ScrollView struct {
-	id            tui.ID
-	child         tui.View
+	id            rovel.ID
+	child         rovel.View
 	rect          geom.Rect
 	scrollY       int
 	focusable     bool
@@ -42,7 +42,7 @@ type ScrollView struct {
 func NewScrollView(opts ScrollViewOpts) *ScrollView {
 	id := opts.ID
 	if id == 0 {
-		id = tui.NewID()
+		id = rovel.NewID()
 	}
 
 	return &ScrollView{
@@ -53,7 +53,7 @@ func NewScrollView(opts ScrollViewOpts) *ScrollView {
 	}
 }
 
-func (s *ScrollView) ID() tui.ID {
+func (s *ScrollView) ID() rovel.ID {
 	return s.id
 }
 
@@ -91,7 +91,7 @@ func (s *ScrollView) Layout(r geom.Rect) {
 	if s.showScrollbar {
 		if s.scrollbar == nil {
 			s.scrollbar = NewScrollbar(ScrollbarOpts{
-				OnScroll: func(pos int, ctx *tui.Ctx) {
+				OnScroll: func(pos int, ctx *rovel.Ctx) {
 					s.ScrollTo(ctx, pos)
 				},
 			})
@@ -124,15 +124,15 @@ func (s *ScrollView) Focusable() bool {
 	return s.focusable
 }
 
-func (s *ScrollView) Children() []tui.View {
+func (s *ScrollView) Children() []rovel.View {
 	if s.child == nil {
 		return nil
 	}
 
-	return []tui.View{s.child}
+	return []rovel.View{s.child}
 }
 
-func (s *ScrollView) Paint(d tui.Drawer, ctx *tui.Ctx) {
+func (s *ScrollView) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	if s.child == nil || s.rect.W <= 0 || s.rect.H <= 0 {
 		return
 	}
@@ -143,8 +143,8 @@ func (s *ScrollView) Paint(d tui.Drawer, ctx *tui.Ctx) {
 		clipRect.W--
 	}
 
-	d.WithClip(clipRect, func(cd tui.Drawer) {
-		cd.WithOffset(0, -s.scrollY, func(od tui.Drawer) {
+	d.WithClip(clipRect, func(cd rovel.Drawer) {
+		cd.WithOffset(0, -s.scrollY, func(od rovel.Drawer) {
 			s.child.Paint(od, ctx)
 		})
 	})
@@ -157,7 +157,7 @@ func (s *ScrollView) Paint(d tui.Drawer, ctx *tui.Ctx) {
 }
 
 // HandleAction handles semantic actions.
-func (s *ScrollView) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+func (s *ScrollView) HandleAction(act ui.Action, ctx *rovel.Ctx) bool {
 	switch act {
 	case ui.ActionMoveUp:
 		s.ScrollBy(ctx, -1)
@@ -194,23 +194,23 @@ func (s *ScrollView) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
 // delegates other mouse events to its child with scroll-adjusted coordinates.
 func (s *ScrollView) MouseOpaque() {}
 
-func (s *ScrollView) Handle(e tui.Event, ctx *tui.Ctx) bool {
-	if me, ok := e.(tui.MouseEvent); ok {
+func (s *ScrollView) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
+	if me, ok := e.(rovel.MouseEvent); ok {
 		wheelLines := 3
 		if me.WheelDelta > 0 {
 			wheelLines *= me.WheelDelta
 		}
 
 		switch me.Button {
-		case tui.MouseButtonWheelUp:
+		case rovel.MouseButtonWheelUp:
 			s.ScrollBy(ctx, -wheelLines)
 
 			return true
-		case tui.MouseButtonWheelDown:
+		case rovel.MouseButtonWheelDown:
 			s.ScrollBy(ctx, wheelLines)
 
 			return true
-		case tui.MouseButtonNone, tui.MouseButtonLeft, tui.MouseButtonMiddle, tui.MouseButtonRight:
+		case rovel.MouseButtonNone, rovel.MouseButtonLeft, rovel.MouseButtonMiddle, rovel.MouseButtonRight:
 			return s.handleMouseButton(me, ctx)
 		default:
 			return s.handleMouseButton(me, ctx)
@@ -257,7 +257,7 @@ func (s *ScrollView) ScrollPos() int {
 	return s.scrollY
 }
 
-func (s *ScrollView) ScrollTo(ctx *tui.Ctx, y int) {
+func (s *ScrollView) ScrollTo(ctx *rovel.Ctx, y int) {
 	old := s.scrollY
 	s.scrollY = y
 	s.clampScroll()
@@ -267,19 +267,19 @@ func (s *ScrollView) ScrollTo(ctx *tui.Ctx, y int) {
 	}
 }
 
-func (s *ScrollView) ScrollBy(ctx *tui.Ctx, delta int) {
+func (s *ScrollView) ScrollBy(ctx *rovel.Ctx, delta int) {
 	s.ScrollTo(ctx, s.scrollY+delta)
 }
 
-func (s *ScrollView) ScrollTop(ctx *tui.Ctx) {
+func (s *ScrollView) ScrollTop(ctx *rovel.Ctx) {
 	s.ScrollTo(ctx, 0)
 }
 
-func (s *ScrollView) ScrollBottom(ctx *tui.Ctx) {
+func (s *ScrollView) ScrollBottom(ctx *rovel.Ctx) {
 	s.ScrollTo(ctx, s.maxScrollY())
 }
 
-func (s *ScrollView) handleMouseButton(me tui.MouseEvent, ctx *tui.Ctx) bool {
+func (s *ScrollView) handleMouseButton(me rovel.MouseEvent, ctx *rovel.Ctx) bool {
 	if s.showScrollbar && s.scrollbar != nil {
 		sbRect := s.scrollbar.Rect()
 		if me.X >= sbRect.X && me.X < sbRect.X+sbRect.W {
@@ -300,7 +300,7 @@ func (s *ScrollView) handleMouseButton(me tui.MouseEvent, ctx *tui.Ctx) bool {
 		}
 	}
 
-	if me.Button == tui.MouseButtonLeft && me.Action == tui.MousePress && s.focusable {
+	if me.Button == rovel.MouseButtonLeft && me.Action == rovel.MousePress && s.focusable {
 		if ctx != nil && ctx.RequestFocus != nil {
 			ctx.RequestFocus(s.id)
 		}

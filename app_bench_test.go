@@ -1,12 +1,12 @@
-package tui
+package rovel
 
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui/backend"
-	"github.com/losinggeneration/tui/backend/headless"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/rovel/backend"
+	"github.com/losinggeneration/rovel/backend/headless"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/style"
 )
 
 // discardCellSink accepts cell frames without retaining them, isolating the

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/losinggeneration/tui/event"
+	"github.com/losinggeneration/rovel/event"
 )
 
 // testBackend creates a test backend with a pipe for input.

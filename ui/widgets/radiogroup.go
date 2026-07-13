@@ -1,20 +1,20 @@
 package widgets
 
 import (
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/style"
-	"github.com/losinggeneration/tui/text"
-	"github.com/losinggeneration/tui/ui"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/style"
+	"github.com/losinggeneration/rovel/text"
+	"github.com/losinggeneration/rovel/ui"
 )
 
 // RadioGroupOpts holds options for creating a RadioGroup.
 type RadioGroupOpts struct {
-	ID       tui.ID
+	ID       rovel.ID
 	Items    []string
 	Selected int // index of initially selected item, -1 for none
 	Disabled bool
-	OnChange func(index int, ctx *tui.Ctx)
+	OnChange func(index int, ctx *rovel.Ctx)
 
 	// Optional style overrides. When non-nil, the style replaces the
 	// palette-derived style for that state completely (no merging).
@@ -26,13 +26,13 @@ type RadioGroupOpts struct {
 // RadioGroup is a group of mutually exclusive options.
 // Renders vertically, one option per line: (o) label / ( ) label.
 type RadioGroup struct {
-	id       tui.ID
-	rect     tui.Rect
+	id       rovel.ID
+	rect     rovel.Rect
 	items    []string
 	selected int
 	focused  int // which item has internal focus (for arrow key nav)
 	disabled bool
-	onChange func(index int, ctx *tui.Ctx)
+	onChange func(index int, ctx *rovel.Ctx)
 
 	stNormal   *style.Style
 	stFocused  *style.Style
@@ -46,7 +46,7 @@ func NewRadioGroup(items []string) *RadioGroup {
 func NewRadioGroupOpts(opts RadioGroupOpts) *RadioGroup {
 	id := opts.ID
 	if id == 0 {
-		id = tui.NewID()
+		id = rovel.NewID()
 	}
 
 	sel := opts.Selected
@@ -67,14 +67,14 @@ func NewRadioGroupOpts(opts RadioGroupOpts) *RadioGroup {
 	}
 }
 
-func (r *RadioGroup) ID() tui.ID         { return r.id }
-func (r *RadioGroup) Rect() tui.Rect     { return r.rect }
-func (r *RadioGroup) Layout(rr tui.Rect) { r.rect = rr }
+func (r *RadioGroup) ID() rovel.ID         { return r.id }
+func (r *RadioGroup) Rect() rovel.Rect     { return r.rect }
+func (r *RadioGroup) Layout(rr rovel.Rect) { r.rect = rr }
 func (r *RadioGroup) Focusable() bool    { return !r.disabled && len(r.items) > 0 }
 
 func (r *RadioGroup) Selected() int { return r.selected }
 
-func (r *RadioGroup) SetSelected(ctx *tui.Ctx, idx int) {
+func (r *RadioGroup) SetSelected(ctx *rovel.Ctx, idx int) {
 	if idx < -1 || idx >= len(r.items) {
 		return
 	}
@@ -89,7 +89,7 @@ func (r *RadioGroup) SetSelected(ctx *tui.Ctx, idx int) {
 	}
 }
 
-func (r *RadioGroup) SetOnChange(fn func(int, *tui.Ctx)) { r.onChange = fn }
+func (r *RadioGroup) SetOnChange(fn func(int, *rovel.Ctx)) { r.onChange = fn }
 
 func (r *RadioGroup) MinSize() geom.Size {
 	maxW := 0
@@ -104,7 +104,7 @@ func (r *RadioGroup) MinSize() geom.Size {
 	return geom.Size{W: maxW, H: len(r.items)}
 }
 
-func (r *RadioGroup) Paint(d tui.Drawer, ctx *tui.Ctx) {
+func (r *RadioGroup) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	rect := r.rect
 	if rect.W <= 0 || rect.H <= 0 || len(r.items) == 0 {
 		return
@@ -129,18 +129,18 @@ func (r *RadioGroup) Paint(d tui.Drawer, ctx *tui.Ctx) {
 			indicator = "(o) "
 		}
 
-		d.DrawText(tui.Point{X: rect.X, Y: y}, indicator, st)
+		d.DrawText(rovel.Point{X: rect.X, Y: y}, indicator, st)
 
 		if rect.W > 4 {
 			lbl := text.Truncate(item, rect.W-4, false)
-			d.DrawText(tui.Point{X: rect.X + 4, Y: y}, lbl, st)
+			d.DrawText(rovel.Point{X: rect.X + 4, Y: y}, lbl, st)
 		}
 	}
 }
 
-func (r *RadioGroup) Handle(e tui.Event, ctx *tui.Ctx) bool {
-	if me, ok := e.(tui.MouseEvent); ok {
-		if me.Button == tui.MouseButtonLeft && me.Action == tui.MousePress && !r.disabled && len(r.items) > 0 {
+func (r *RadioGroup) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
+	if me, ok := e.(rovel.MouseEvent); ok {
+		if me.Button == rovel.MouseButtonLeft && me.Action == rovel.MousePress && !r.disabled && len(r.items) > 0 {
 			if ctx != nil && ctx.RequestFocus != nil {
 				ctx.RequestFocus(r.id)
 			}
@@ -157,31 +157,31 @@ func (r *RadioGroup) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		return false
 	}
 
-	ke, ok := e.(tui.KeyEvent)
+	ke, ok := e.(rovel.KeyEvent)
 	if !ok || r.disabled || len(r.items) == 0 {
 		return false
 	}
 
 	switch ke.Key {
-	case tui.KeyUp:
+	case rovel.KeyUp:
 		if r.focused > 0 {
 			r.focused--
 			ctx.Invalidate(r.rect)
 		}
 
 		return true
-	case tui.KeyDown:
+	case rovel.KeyDown:
 		if r.focused < len(r.items)-1 {
 			r.focused++
 			ctx.Invalidate(r.rect)
 		}
 
 		return true
-	case tui.KeyEnter:
+	case rovel.KeyEnter:
 		r.selectFocused(ctx)
 
 		return true
-	case tui.KeyRune:
+	case rovel.KeyRune:
 		if ke.Rune == ' ' {
 			r.selectFocused(ctx)
 
@@ -194,7 +194,7 @@ func (r *RadioGroup) Handle(e tui.Event, ctx *tui.Ctx) bool {
 }
 
 // HandleAction handles semantic actions.
-func (r *RadioGroup) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+func (r *RadioGroup) HandleAction(act ui.Action, ctx *rovel.Ctx) bool {
 	if r.disabled || len(r.items) == 0 {
 		return false
 	}
@@ -224,7 +224,7 @@ func (r *RadioGroup) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
 	return false
 }
 
-func (r *RadioGroup) selectFocused(ctx *tui.Ctx) {
+func (r *RadioGroup) selectFocused(ctx *rovel.Ctx) {
 	if r.focused < 0 || r.focused >= len(r.items) {
 		return
 	}
@@ -241,7 +241,7 @@ func (r *RadioGroup) selectFocused(ctx *tui.Ctx) {
 	}
 }
 
-func (r *RadioGroup) itemStyle(ctx *tui.Ctx, focused bool) style.Style {
+func (r *RadioGroup) itemStyle(ctx *rovel.Ctx, focused bool) style.Style {
 	if ctx == nil {
 		return style.Style{}
 	}

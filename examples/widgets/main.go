@@ -3,11 +3,11 @@ package main
 import (
 	"fmt"
 
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/event"
-	"github.com/losinggeneration/tui/ui"
-	"github.com/losinggeneration/tui/ui/layout"
-	"github.com/losinggeneration/tui/ui/widgets"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/event"
+	"github.com/losinggeneration/rovel/ui"
+	"github.com/losinggeneration/rovel/ui/layout"
+	"github.com/losinggeneration/rovel/ui/widgets"
 )
 
 const ActionQuit ui.Action = iota + 100
@@ -23,7 +23,7 @@ func (quitKeymap) Resolve(_ ui.KeyContext, k ui.Keystroke) (ui.Action, bool) {
 }
 
 func main() {
-	app, err := tui.New(tui.AppOpts{ResolveAction: ui.NewResolver(quitKeymap{})})
+	app, err := rovel.New(rovel.AppOpts{ResolveAction: ui.NewResolver(quitKeymap{})})
 	if err != nil {
 		fmt.Printf("Failed to create app: %v\n", err)
 
@@ -51,7 +51,7 @@ func main() {
 	quitHandler := &QuitHandler{
 		app:      app,
 		mainView: vstack,
-		id:       tui.NewID(),
+		id:       rovel.NewID(),
 		status:   "Tab to navigate, Enter to press buttons, 'q' to quit",
 	}
 
@@ -84,25 +84,25 @@ func main() {
 // QuitHandler handles the 'q' key to quit the app and wraps the main view.
 // It also manages status display for button presses.
 type QuitHandler struct {
-	app      *tui.App
-	mainView tui.View
-	id       tui.ID
-	rect     tui.Rect
+	app      *rovel.App
+	mainView rovel.View
+	id       rovel.ID
+	rect     rovel.Rect
 	status   string
 }
 
-func (q *QuitHandler) ID() tui.ID {
+func (q *QuitHandler) ID() rovel.ID {
 	return q.id
 }
 
-func (q *QuitHandler) Rect() tui.Rect {
+func (q *QuitHandler) Rect() rovel.Rect {
 	return q.rect
 }
 
-func (q *QuitHandler) Layout(r tui.Rect) {
+func (q *QuitHandler) Layout(r rovel.Rect) {
 	q.rect = r
 	// Reserve top row for status, rest for main view
-	mainRect := tui.Rect{
+	mainRect := rovel.Rect{
 		X: r.X,
 		Y: r.Y + 1,
 		W: r.W,
@@ -111,29 +111,29 @@ func (q *QuitHandler) Layout(r tui.Rect) {
 	q.mainView.Layout(mainRect)
 }
 
-func (q *QuitHandler) MinSize() tui.Size {
+func (q *QuitHandler) MinSize() rovel.Size {
 	mainMin := q.mainView.MinSize()
 
-	return tui.Size{W: mainMin.W, H: mainMin.H + 1}
+	return rovel.Size{W: mainMin.W, H: mainMin.H + 1}
 }
 
-func (q *QuitHandler) Paint(d tui.Drawer, ctx *tui.Ctx) {
+func (q *QuitHandler) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	// Paint status row
-	d.DrawText(tui.Point{X: q.rect.X, Y: q.rect.Y}, q.status, ctx.Theme.Base)
+	d.DrawText(rovel.Point{X: q.rect.X, Y: q.rect.Y}, q.status, ctx.Theme.Base)
 
 	// Paint main view below status
-	mainRect := tui.Rect{
+	mainRect := rovel.Rect{
 		X: q.rect.X,
 		Y: q.rect.Y + 1,
 		W: q.rect.W,
 		H: q.rect.H - 1,
 	}
-	d.WithClip(mainRect, func(d tui.Drawer) {
+	d.WithClip(mainRect, func(d rovel.Drawer) {
 		q.mainView.Paint(d, ctx)
 	})
 }
 
-func (q *QuitHandler) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+func (q *QuitHandler) HandleAction(act ui.Action, ctx *rovel.Ctx) bool {
 	if act == ActionQuit {
 		q.app.Quit()
 
@@ -143,12 +143,12 @@ func (q *QuitHandler) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
 	return false
 }
 
-func (q *QuitHandler) Handle(e tui.Event, ctx *tui.Ctx) bool {
+func (q *QuitHandler) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
 	return q.mainView.Handle(e, ctx)
 }
 
-func (q *QuitHandler) OnButton(btn int) func(ctx *tui.Ctx) {
-	return func(ctx *tui.Ctx) {
+func (q *QuitHandler) OnButton(btn int) func(ctx *rovel.Ctx) {
+	return func(ctx *rovel.Ctx) {
 		msg := fmt.Sprintf("Button %d pressed - press again to clear", btn)
 		if q.status == msg {
 			q.status = "Tab to navigate, Enter to press buttons, Esc to quit"
@@ -157,7 +157,7 @@ func (q *QuitHandler) OnButton(btn int) func(ctx *tui.Ctx) {
 		}
 
 		if ctx != nil {
-			statusRect := tui.Rect{X: q.rect.X, Y: q.rect.Y, W: q.rect.W, H: 1}
+			statusRect := rovel.Rect{X: q.rect.X, Y: q.rect.Y, W: q.rect.W, H: 1}
 			ctx.Invalidate(statusRect)
 		}
 	}
@@ -167,6 +167,6 @@ func (q *QuitHandler) Focusable() bool {
 	return false
 }
 
-func (q *QuitHandler) Children() []tui.View {
-	return []tui.View{q.mainView}
+func (q *QuitHandler) Children() []rovel.View {
+	return []rovel.View{q.mainView}
 }

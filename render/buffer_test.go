@@ -3,7 +3,7 @@ package render
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/rovel/style"
 )
 
 func TestNewBuffer(t *testing.T) {

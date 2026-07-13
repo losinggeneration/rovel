@@ -3,43 +3,43 @@ package layout
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/event"
-	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/event"
+	"github.com/losinggeneration/rovel/geom"
 )
 
 // simpleView is a minimal view implementation for testing
 type simpleView struct {
-	id        tui.ID
-	rect      tui.Rect
-	minSize   tui.Size
+	id        rovel.ID
+	rect      rovel.Rect
+	minSize   rovel.Size
 	focusable bool
 }
 
 func newSimpleView(w, h int, focusable bool) *simpleView {
 	return &simpleView{
-		id:        tui.NewID(),
-		minSize:   tui.Size{W: w, H: h},
+		id:        rovel.NewID(),
+		minSize:   rovel.Size{W: w, H: h},
 		focusable: focusable,
 	}
 }
 
-func (v *simpleView) ID() tui.ID           { return v.id }
-func (v *simpleView) Rect() tui.Rect       { return v.rect }
-func (v *simpleView) Layout(r tui.Rect)    { v.rect = r }
-func (v *simpleView) MinSize() tui.Size    { return v.minSize }
+func (v *simpleView) ID() rovel.ID           { return v.id }
+func (v *simpleView) Rect() rovel.Rect       { return v.rect }
+func (v *simpleView) Layout(r rovel.Rect)    { v.rect = r }
+func (v *simpleView) MinSize() rovel.Size    { return v.minSize }
 func (v *simpleView) Focusable() bool      { return v.focusable }
-func (v *simpleView) Children() []tui.View { return nil }
+func (v *simpleView) Children() []rovel.View { return nil }
 
-func (v *simpleView) Paint(d tui.Drawer, ctx *tui.Ctx)      {}
-func (v *simpleView) Handle(e tui.Event, ctx *tui.Ctx) bool { return false }
+func (v *simpleView) Paint(d rovel.Drawer, ctx *rovel.Ctx)      {}
+func (v *simpleView) Handle(e rovel.Event, ctx *rovel.Ctx) bool { return false }
 
 func TestPadding(t *testing.T) {
 	child := newSimpleView(10, 5, false)
 	padding := NewPadding(child)
 	padding.SetInsets(1, 2, 3, 4)
 
-	if padding.ID() == (tui.ID(0)) {
+	if padding.ID() == (rovel.ID(0)) {
 		t.Fatal("ID should not be zero")
 	}
 
@@ -64,7 +64,7 @@ func TestBorder(t *testing.T) {
 	child := newSimpleView(10, 5, false)
 	border := NewBorder(child)
 
-	if border.ID() == (tui.ID(0)) {
+	if border.ID() == (rovel.ID(0)) {
 		t.Fatal("ID should not be zero")
 	}
 
@@ -100,7 +100,7 @@ func TestVStack(t *testing.T) {
 	stack.Add(child1)
 	stack.Add(child2)
 
-	if stack.ID() == (tui.ID(0)) {
+	if stack.ID() == (rovel.ID(0)) {
 		t.Fatal("ID should not be zero")
 	}
 
@@ -128,7 +128,7 @@ func TestHStack(t *testing.T) {
 	stack.Add(child1)
 	stack.Add(child2)
 
-	if stack.ID() == (tui.ID(0)) {
+	if stack.ID() == (rovel.ID(0)) {
 		t.Fatal("ID should not be zero")
 	}
 
@@ -156,7 +156,7 @@ func TestSplit(t *testing.T) {
 	split.SetFirst(child1)
 	split.SetSecond(child2)
 
-	if split.ID() == (tui.ID(0)) {
+	if split.ID() == (rovel.ID(0)) {
 		t.Fatal("ID should not be zero")
 	}
 
@@ -183,7 +183,7 @@ func TestSplit(t *testing.T) {
 }
 
 func TestInsetRect(t *testing.T) {
-	r := tui.Rect{X: 10, Y: 20, W: 100, H: 50}
+	r := rovel.Rect{X: 10, Y: 20, W: 100, H: 50}
 
 	// Test basic inset
 	inner := InsetRect(r, 5, 3, 7, 4)
@@ -213,7 +213,7 @@ func newTrackInvalidationView(w, h int, focusable bool) *trackInvalidationView {
 	}
 }
 
-func (v *trackInvalidationView) Paint(d tui.Drawer, ctx *tui.Ctx) {
+func (v *trackInvalidationView) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	if ctx.Invalidate != nil {
 		ctx.Invalidate(v.rect)
 		v.invalidated = true
@@ -224,7 +224,7 @@ func TestVStackFocusNavigation(t *testing.T) {
 	tests := []struct {
 		name           string
 		childCount     int
-		initialFocus   tui.ID // zero ID means no initial focus
+		initialFocus   rovel.ID // zero ID means no initial focus
 		key            event.Key
 		expectFocusIdx int // -1 means no focus change
 		expectHandled  bool
@@ -232,7 +232,7 @@ func TestVStackFocusNavigation(t *testing.T) {
 		{
 			name:           "Tab with no focus focuses first child",
 			childCount:     3,
-			initialFocus:   tui.ID(0),
+			initialFocus:   rovel.ID(0),
 			key:            event.KeyTab,
 			expectFocusIdx: 0,
 			expectHandled:  true,
@@ -256,7 +256,7 @@ func TestVStackFocusNavigation(t *testing.T) {
 		{
 			name:           "Shift+Tab with no focus focuses last child",
 			childCount:     3,
-			initialFocus:   tui.ID(0),
+			initialFocus:   rovel.ID(0),
 			key:            event.KeyShiftTab,
 			expectFocusIdx: 2,
 			expectHandled:  true,
@@ -296,10 +296,10 @@ func TestVStackFocusNavigation(t *testing.T) {
 			stack.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
 
 			// Set up context
-			var focusedID tui.ID
+			var focusedID rovel.ID
 
-			ctx := &tui.Ctx{
-				RequestFocus: func(id tui.ID) { focusedID = id },
+			ctx := &rovel.Ctx{
+				RequestFocus: func(id rovel.ID) { focusedID = id },
 				Invalidate:   func(r geom.Rect) {},
 			}
 
@@ -401,10 +401,10 @@ func TestHStackFocusNavigation(t *testing.T) {
 			stack.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
 
 			// Set up context
-			var focusedID tui.ID
+			var focusedID rovel.ID
 
-			ctx := &tui.Ctx{
-				RequestFocus: func(id tui.ID) { focusedID = id },
+			ctx := &rovel.Ctx{
+				RequestFocus: func(id rovel.ID) { focusedID = id },
 				Invalidate:   func(r geom.Rect) {},
 			}
 
@@ -455,10 +455,10 @@ func TestVStackFocusNavigationNested(t *testing.T) {
 	outerStack.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
 
 	// Set up context
-	var focusedID tui.ID
+	var focusedID rovel.ID
 
-	ctx := &tui.Ctx{
-		RequestFocus: func(id tui.ID) { focusedID = id },
+	ctx := &rovel.Ctx{
+		RequestFocus: func(id rovel.ID) { focusedID = id },
 		Invalidate:   func(r geom.Rect) {},
 	}
 
@@ -497,11 +497,11 @@ func TestFocusTraversalBoundaryBehavior(t *testing.T) {
 		stack.Add(child2)
 		stack.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
 
-		var focusedID tui.ID
+		var focusedID rovel.ID
 
-		ctx := &tui.Ctx{
+		ctx := &rovel.Ctx{
 			FocusedID:    child2.ID(),
-			RequestFocus: func(id tui.ID) { focusedID = id },
+			RequestFocus: func(id rovel.ID) { focusedID = id },
 			Invalidate:   func(r geom.Rect) {},
 		}
 
@@ -526,11 +526,11 @@ func TestFocusTraversalBoundaryBehavior(t *testing.T) {
 		stack.Add(child2)
 		stack.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
 
-		var focusedID tui.ID
+		var focusedID rovel.ID
 
-		ctx := &tui.Ctx{
+		ctx := &rovel.Ctx{
 			FocusedID:    child1.ID(),
-			RequestFocus: func(id tui.ID) { focusedID = id },
+			RequestFocus: func(id rovel.ID) { focusedID = id },
 			Invalidate:   func(r geom.Rect) {},
 		}
 
@@ -555,9 +555,9 @@ func TestFocusTraversalBoundaryBehavior(t *testing.T) {
 		stack.Add(child2)
 		stack.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
 
-		ctx := &tui.Ctx{
+		ctx := &rovel.Ctx{
 			FocusedID:    child2.ID(),
-			RequestFocus: func(id tui.ID) {},
+			RequestFocus: func(id rovel.ID) {},
 			Invalidate:   func(r geom.Rect) {},
 		}
 
@@ -578,9 +578,9 @@ func TestFocusTraversalBoundaryBehavior(t *testing.T) {
 		stack.Add(child2)
 		stack.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
 
-		ctx := &tui.Ctx{
+		ctx := &rovel.Ctx{
 			FocusedID:    child1.ID(),
-			RequestFocus: func(id tui.ID) {},
+			RequestFocus: func(id rovel.ID) {},
 			Invalidate:   func(r geom.Rect) {},
 		}
 
@@ -598,9 +598,9 @@ func TestFocusTraversalBoundaryBehavior(t *testing.T) {
 		stack.Add(child)
 		stack.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
 
-		ctx := &tui.Ctx{
+		ctx := &rovel.Ctx{
 			FocusedID:    child.ID(),
-			RequestFocus: func(id tui.ID) {},
+			RequestFocus: func(id rovel.ID) {},
 			Invalidate:   func(r geom.Rect) {},
 		}
 
@@ -635,11 +635,11 @@ func TestFocusTraversalBoundaryBehavior(t *testing.T) {
 		outer.Add(inner2)
 		outer.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
 
-		var focusedID tui.ID
+		var focusedID rovel.ID
 
-		ctx := &tui.Ctx{
+		ctx := &rovel.Ctx{
 			FocusedID:    child1.ID(),
-			RequestFocus: func(id tui.ID) { focusedID = id },
+			RequestFocus: func(id rovel.ID) { focusedID = id },
 			Invalidate:   func(r geom.Rect) {},
 		}
 
@@ -670,11 +670,11 @@ func TestFocusTraversalBoundaryBehavior(t *testing.T) {
 		outer.Add(inner2)
 		outer.Layout(geom.Rect{X: 0, Y: 0, W: 100, H: 100})
 
-		var focusedID tui.ID
+		var focusedID rovel.ID
 
-		ctx := &tui.Ctx{
+		ctx := &rovel.Ctx{
 			FocusedID:    child2.ID(),
-			RequestFocus: func(id tui.ID) { focusedID = id },
+			RequestFocus: func(id rovel.ID) { focusedID = id },
 			Invalidate:   func(r geom.Rect) {},
 		}
 

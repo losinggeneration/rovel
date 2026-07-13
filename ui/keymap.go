@@ -1,6 +1,6 @@
 package ui
 
-import "github.com/losinggeneration/tui/event"
+import "github.com/losinggeneration/rovel/event"
 
 // Keymap resolves keystrokes to actions in a given context.
 type Keymap interface {

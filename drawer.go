@@ -1,8 +1,8 @@
-package tui
+package rovel
 
 import (
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/style"
 )
 
 // Drawer is a backend-neutral drawing surface for widget paint code.

@@ -11,10 +11,10 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/losinggeneration/tui/backend"
-	"github.com/losinggeneration/tui/event"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/internal/errbuf"
+	"github.com/losinggeneration/rovel/backend"
+	"github.com/losinggeneration/rovel/event"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/internal/errbuf"
 	"golang.org/x/sys/unix"
 )
 

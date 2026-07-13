@@ -1,7 +1,7 @@
 package layout
 
 import (
-	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/rovel"
 )
 
 type Align int
@@ -25,15 +25,15 @@ type SizePolicy struct {
 }
 
 type Child struct {
-	View tui.View
+	View rovel.View
 	Opts SizePolicy
 }
 
-func NewChild(v tui.View) Child {
+func NewChild(v rovel.View) Child {
 	return Child{View: v}
 }
 
-func GrowChild(v tui.View, sx, sy int) Child {
+func GrowChild(v rovel.View, sx, sy int) Child {
 	return Child{
 		View: v,
 		Opts: SizePolicy{
@@ -45,7 +45,7 @@ func GrowChild(v tui.View, sx, sy int) Child {
 	}
 }
 
-func GrowXChild(v tui.View, stretch int) Child {
+func GrowXChild(v rovel.View, stretch int) Child {
 	return Child{
 		View: v,
 		Opts: SizePolicy{
@@ -55,7 +55,7 @@ func GrowXChild(v tui.View, stretch int) Child {
 	}
 }
 
-func GrowYChild(v tui.View, stretch int) Child {
+func GrowYChild(v rovel.View, stretch int) Child {
 	return Child{
 		View: v,
 		Opts: SizePolicy{
@@ -65,7 +65,7 @@ func GrowYChild(v tui.View, stretch int) Child {
 	}
 }
 
-func AlignChild(v tui.View, ax, ay Align) Child {
+func AlignChild(v rovel.View, ax, ay Align) Child {
 	return Child{
 		View: v,
 		Opts: SizePolicy{

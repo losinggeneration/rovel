@@ -21,11 +21,11 @@ package sdl
 import (
 	"sync"
 
-	"github.com/losinggeneration/tui/backend"
-	"github.com/losinggeneration/tui/backend/cellsurface"
-	"github.com/losinggeneration/tui/event"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/rovel/backend"
+	"github.com/losinggeneration/rovel/backend/cellsurface"
+	"github.com/losinggeneration/rovel/event"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/style"
 )
 
 // Core is the pure-Go state and mapping layer for the future SDL backend.

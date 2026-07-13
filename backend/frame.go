@@ -1,6 +1,6 @@
 package backend
 
-import "github.com/losinggeneration/tui/style"
+import "github.com/losinggeneration/rovel/style"
 
 var zeroFrameCell = FrameCell{
 	R:     ' ',

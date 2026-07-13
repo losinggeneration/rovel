@@ -3,7 +3,7 @@ package event
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/rovel/geom"
 )
 
 // Compile-level checks that event types satisfy the Event interface.

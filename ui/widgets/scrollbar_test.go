@@ -3,9 +3,9 @@ package widgets
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/event"
-	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/event"
+	"github.com/losinggeneration/rovel/geom"
 )
 
 func TestScrollbar_ThumbHeight(t *testing.T) {
@@ -80,14 +80,14 @@ func TestScrollbar_ClickTrack(t *testing.T) {
 	sb := NewScrollbar(ScrollbarOpts{
 		ContentSize: 100,
 		ViewSize:    20,
-		OnScroll: func(pos int, ctx *tui.Ctx) {
+		OnScroll: func(pos int, ctx *rovel.Ctx) {
 			scrolledTo = pos
 		},
 	})
 	sb.Layout(geom.Rect{X: 0, Y: 0, W: 1, H: 20})
 	sb.SetState(100, 20, 0)
 
-	ctx := &tui.Ctx{
+	ctx := &rovel.Ctx{
 		Invalidate: func(r geom.Rect) {},
 	}
 
@@ -126,14 +126,14 @@ func TestScrollbar_DragThumb(t *testing.T) {
 	sb := NewScrollbar(ScrollbarOpts{
 		ContentSize: 100,
 		ViewSize:    20,
-		OnScroll: func(pos int, ctx *tui.Ctx) {
+		OnScroll: func(pos int, ctx *rovel.Ctx) {
 			scrolledTo = pos
 		},
 	})
 	sb.Layout(geom.Rect{X: 0, Y: 0, W: 1, H: 20})
 	sb.SetState(100, 20, 0)
 
-	ctx := &tui.Ctx{
+	ctx := &rovel.Ctx{
 		Invalidate: func(r geom.Rect) {},
 	}
 
@@ -205,7 +205,7 @@ func TestScrollbar_IgnoresNonMouse(t *testing.T) {
 }
 
 func TestScrollView_ScrollbarAutoShown(t *testing.T) {
-	child := &mockView{id: tui.NewID(), minSize: geom.Size{W: 10, H: 50}}
+	child := &mockView{id: rovel.NewID(), minSize: geom.Size{W: 10, H: 50}}
 	sv := NewScrollView(ScrollViewOpts{
 		Child:     child,
 		Focusable: true,
@@ -225,7 +225,7 @@ func TestScrollView_ScrollbarAutoShown(t *testing.T) {
 }
 
 func TestScrollView_ScrollbarAutoHidden(t *testing.T) {
-	child := &mockView{id: tui.NewID(), minSize: geom.Size{W: 10, H: 5}}
+	child := &mockView{id: rovel.NewID(), minSize: geom.Size{W: 10, H: 5}}
 	sv := NewScrollView(ScrollViewOpts{
 		Child:     child,
 		Focusable: true,
@@ -245,7 +245,7 @@ func TestScrollView_ScrollbarAutoHidden(t *testing.T) {
 }
 
 func TestScrollView_ScrollbarAlways(t *testing.T) {
-	child := &mockView{id: tui.NewID(), minSize: geom.Size{W: 10, H: 5}}
+	child := &mockView{id: rovel.NewID(), minSize: geom.Size{W: 10, H: 5}}
 	sv := NewScrollView(ScrollViewOpts{
 		Child:     child,
 		Focusable: true,
@@ -271,7 +271,7 @@ func TestScrollView_ScrollbarAlways(t *testing.T) {
 }
 
 func TestScrollView_ScrollbarHidden(t *testing.T) {
-	child := &mockView{id: tui.NewID(), minSize: geom.Size{W: 10, H: 50}}
+	child := &mockView{id: rovel.NewID(), minSize: geom.Size{W: 10, H: 50}}
 	sv := NewScrollView(ScrollViewOpts{
 		Child:     child,
 		Focusable: true,

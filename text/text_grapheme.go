@@ -3,7 +3,7 @@ package text
 import (
 	"unicode/utf8"
 
-	cellwidth "github.com/losinggeneration/tui/internal/width"
+	cellwidth "github.com/losinggeneration/rovel/internal/width"
 )
 
 func NextCluster(s string, i int) int {

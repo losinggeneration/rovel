@@ -1,14 +1,14 @@
 //go:build unix
 
-package tui
+package rovel
 
 import (
 	"fmt"
 	"os"
 
-	"github.com/losinggeneration/tui/backend"
-	"github.com/losinggeneration/tui/backend/ansi"
-	"github.com/losinggeneration/tui/internal/errbuf"
+	"github.com/losinggeneration/rovel/backend"
+	"github.com/losinggeneration/rovel/backend/ansi"
+	"github.com/losinggeneration/rovel/internal/errbuf"
 )
 
 // defaultBackend creates the default ANSI backend for Unix systems.

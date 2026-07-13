@@ -1,6 +1,6 @@
 package render
 
-import "github.com/losinggeneration/tui/internal/width"
+import "github.com/losinggeneration/rovel/internal/width"
 
 // RuneWidth returns the terminal column width of a rune (0, 1, or 2).
 //

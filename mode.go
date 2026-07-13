@@ -1,6 +1,6 @@
-package tui
+package rovel
 
-import "github.com/losinggeneration/tui/backend"
+import "github.com/losinggeneration/rovel/backend"
 
 // TerminalMode controls how the backend configures the terminal's input mode.
 // Re-exported from backend for convenience.

@@ -1,22 +1,22 @@
 package widgets
 
 import (
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/style"
-	"github.com/losinggeneration/tui/text"
-	"github.com/losinggeneration/tui/ui"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/style"
+	"github.com/losinggeneration/rovel/text"
+	"github.com/losinggeneration/rovel/ui"
 )
 
 // DialogButton describes a button in a dialog's button row.
 type DialogButton struct {
 	Label   string
-	OnPress func(ctx *tui.Ctx)
+	OnPress func(ctx *rovel.Ctx)
 }
 
 // DialogOpts holds options for creating a Dialog.
 type DialogOpts struct {
-	ID      tui.ID
+	ID      rovel.ID
 	Title   string
 	Message string
 	Buttons []DialogButton
@@ -31,11 +31,11 @@ type DialogOpts struct {
 // Dialog is a modal overlay panel with a title, message, and button row.
 // It is intended to be shown via ctx.ShowOverlay with a placement strategy.
 //
-// Dialog implements tui.View and can serve as an overlay root. It manages
+// Dialog implements rovel.View and can serve as an overlay root. It manages
 // its own internal focus for the button row.
 type Dialog struct {
-	id      tui.ID
-	rect    tui.Rect
+	id      rovel.ID
+	rect    rovel.Rect
 	title   string
 	message string
 	buttons []DialogButton
@@ -49,7 +49,7 @@ type Dialog struct {
 func NewDialog(opts DialogOpts) *Dialog {
 	id := opts.ID
 	if id == 0 {
-		id = tui.NewID()
+		id = rovel.NewID()
 	}
 
 	w := opts.Width
@@ -89,9 +89,9 @@ func NewDialog(opts DialogOpts) *Dialog {
 	}
 }
 
-func (d *Dialog) ID() tui.ID        { return d.id }
-func (d *Dialog) Rect() tui.Rect    { return d.rect }
-func (d *Dialog) Layout(r tui.Rect) { d.rect = r }
+func (d *Dialog) ID() rovel.ID        { return d.id }
+func (d *Dialog) Rect() rovel.Rect    { return d.rect }
+func (d *Dialog) Layout(r rovel.Rect) { d.rect = r }
 func (d *Dialog) Focusable() bool   { return len(d.buttons) > 0 }
 
 func (d *Dialog) MinSize() geom.Size {
@@ -106,7 +106,7 @@ func (d *Dialog) PreferredSize() geom.Size {
 	return d.MinSize()
 }
 
-func (d *Dialog) Paint(dr tui.Drawer, ctx *tui.Ctx) {
+func (d *Dialog) Paint(dr rovel.Drawer, ctx *rovel.Ctx) {
 	r := d.rect
 	if r.W <= 0 || r.H <= 0 {
 		return
@@ -128,9 +128,9 @@ func (d *Dialog) Paint(dr tui.Drawer, ctx *tui.Ctx) {
 
 	// Clear and draw border
 	dr.FillRect(r, surfSt)
-	dr.DrawBorder(r, tui.BoxStyle{
-		Glyphs: tui.BoxGlyphsLight,
-		Edges:  tui.BoxEdgesAll,
+	dr.DrawBorder(r, rovel.BoxStyle{
+		Glyphs: rovel.BoxGlyphsLight,
+		Edges:  rovel.BoxEdgesAll,
 		Style:  borderSt,
 	})
 
@@ -148,7 +148,7 @@ func (d *Dialog) Paint(dr tui.Drawer, ctx *tui.Ctx) {
 
 		title := text.Truncate(d.title, inner.W, false)
 		tx := inner.X + (inner.W-text.Width(title))/2
-		dr.DrawText(tui.Point{X: tx, Y: inner.Y}, title, titleSt)
+		dr.DrawText(rovel.Point{X: tx, Y: inner.Y}, title, titleSt)
 	}
 
 	// Message
@@ -161,7 +161,7 @@ func (d *Dialog) Paint(dr tui.Drawer, ctx *tui.Ctx) {
 		}
 
 		l := text.Truncate(line, inner.W, false)
-		dr.DrawText(tui.Point{X: inner.X, Y: msgY + i}, l, surfSt)
+		dr.DrawText(rovel.Point{X: inner.X, Y: msgY + i}, l, surfSt)
 	}
 
 	// Button row at bottom of inner area
@@ -187,14 +187,14 @@ func (d *Dialog) Paint(dr tui.Drawer, ctx *tui.Ctx) {
 			st = surfSt
 		}
 
-		dr.DrawText(tui.Point{X: btnX, Y: btnY}, label, st)
+		dr.DrawText(rovel.Point{X: btnX, Y: btnY}, label, st)
 		btnX += w + 1
 	}
 }
 
-func (d *Dialog) Handle(e tui.Event, ctx *tui.Ctx) bool {
-	if me, ok := e.(tui.MouseEvent); ok {
-		if me.Button == tui.MouseButtonLeft && me.Action == tui.MousePress && len(d.buttons) > 0 {
+func (d *Dialog) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
+	if me, ok := e.(rovel.MouseEvent); ok {
+		if me.Button == rovel.MouseButtonLeft && me.Action == rovel.MousePress && len(d.buttons) > 0 {
 			// Check if click is on the button row
 			inner := geom.Rect{X: d.rect.X + 1, Y: d.rect.Y + 1, W: d.rect.W - 2, H: d.rect.H - 2}
 
@@ -222,43 +222,43 @@ func (d *Dialog) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		return true // modal dialog consumes all mouse events
 	}
 
-	ke, ok := e.(tui.KeyEvent)
+	ke, ok := e.(rovel.KeyEvent)
 	if !ok || len(d.buttons) == 0 {
 		return false
 	}
 
 	switch ke.Key {
-	case tui.KeyLeft:
+	case rovel.KeyLeft:
 		if d.focused > 0 {
 			d.focused--
 			ctx.Invalidate(d.rect)
 		}
 
 		return true
-	case tui.KeyRight:
+	case rovel.KeyRight:
 		if d.focused < len(d.buttons)-1 {
 			d.focused++
 			ctx.Invalidate(d.rect)
 		}
 
 		return true
-	case tui.KeyTab:
+	case rovel.KeyTab:
 		if ke.Mod == 0 {
 			d.focused = (d.focused + 1) % len(d.buttons)
 			ctx.Invalidate(d.rect)
 
 			return true
 		}
-	case tui.KeyShiftTab:
+	case rovel.KeyShiftTab:
 		d.focused = (d.focused - 1 + len(d.buttons)) % len(d.buttons)
 		ctx.Invalidate(d.rect)
 
 		return true
-	case tui.KeyEnter:
+	case rovel.KeyEnter:
 		d.pressButton(ctx)
 
 		return true
-	case tui.KeyRune:
+	case rovel.KeyRune:
 		if ke.Rune == ' ' {
 			d.pressButton(ctx)
 
@@ -271,7 +271,7 @@ func (d *Dialog) Handle(e tui.Event, ctx *tui.Ctx) bool {
 }
 
 // HandleAction handles semantic actions.
-func (d *Dialog) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+func (d *Dialog) HandleAction(act ui.Action, ctx *rovel.Ctx) bool {
 	if len(d.buttons) == 0 {
 		return false
 	}
@@ -311,7 +311,7 @@ func (d *Dialog) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
 	return false
 }
 
-func (d *Dialog) pressButton(ctx *tui.Ctx) {
+func (d *Dialog) pressButton(ctx *rovel.Ctx) {
 	if d.focused < 0 || d.focused >= len(d.buttons) {
 		return
 	}

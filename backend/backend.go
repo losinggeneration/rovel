@@ -1,9 +1,9 @@
 package backend
 
 import (
-	"github.com/losinggeneration/tui/event"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/rovel/event"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/style"
 )
 
 // TerminalMode controls how the backend configures the terminal's input mode.

@@ -3,11 +3,11 @@ package main
 import (
 	"fmt"
 
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/event"
-	"github.com/losinggeneration/tui/ui"
-	"github.com/losinggeneration/tui/ui/layout"
-	"github.com/losinggeneration/tui/ui/widgets"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/event"
+	"github.com/losinggeneration/rovel/ui"
+	"github.com/losinggeneration/rovel/ui/layout"
+	"github.com/losinggeneration/rovel/ui/widgets"
 )
 
 const ActionQuit ui.Action = iota + 100
@@ -23,10 +23,10 @@ func (quitKeymap) Resolve(_ ui.KeyContext, k ui.Keystroke) (ui.Action, bool) {
 }
 
 type Root struct {
-	tui.CompositeView
+	rovel.CompositeView
 }
 
-func (r *Root) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+func (r *Root) HandleAction(act ui.Action, ctx *rovel.Ctx) bool {
 	if act == ActionQuit {
 		ctx.Quit()
 
@@ -37,7 +37,7 @@ func (r *Root) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
 }
 
 func main() {
-	app, err := tui.New(tui.AppOpts{ResolveAction: ui.NewResolver(quitKeymap{})})
+	app, err := rovel.New(rovel.AppOpts{ResolveAction: ui.NewResolver(quitKeymap{})})
 	if err != nil {
 		fmt.Printf("Failed to create app: %v\n", err)
 
@@ -45,7 +45,7 @@ func main() {
 	}
 
 	content := &ContentView{
-		id:    tui.NewID(),
+		id:    rovel.NewID(),
 		lines: generateLines(500),
 	}
 
@@ -97,45 +97,45 @@ func generateLines(n int) []string {
 }
 
 type ContentView struct {
-	id    tui.ID
-	rect  tui.Rect
+	id    rovel.ID
+	rect  rovel.Rect
 	lines []string
 }
 
-func (c *ContentView) ID() tui.ID        { return c.id }
-func (c *ContentView) Rect() tui.Rect    { return c.rect }
-func (c *ContentView) MinSize() tui.Size { return tui.Size{W: 40, H: len(c.lines)} }
+func (c *ContentView) ID() rovel.ID        { return c.id }
+func (c *ContentView) Rect() rovel.Rect    { return c.rect }
+func (c *ContentView) MinSize() rovel.Size { return rovel.Size{W: 40, H: len(c.lines)} }
 func (c *ContentView) Focusable() bool   { return true }
-func (c *ContentView) Layout(r tui.Rect) { c.rect = r }
+func (c *ContentView) Layout(r rovel.Rect) { c.rect = r }
 
-func (c *ContentView) Paint(d tui.Drawer, ctx *tui.Ctx) {
+func (c *ContentView) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	for i, line := range c.lines {
-		d.DrawText(tui.Point{X: c.rect.X, Y: c.rect.Y + i}, line, ctx.Theme.Base)
+		d.DrawText(rovel.Point{X: c.rect.X, Y: c.rect.Y + i}, line, ctx.Theme.Base)
 	}
 }
 
-func (c *ContentView) Handle(e tui.Event, ctx *tui.Ctx) bool {
+func (c *ContentView) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
 	return false
 }
 
 type StatusView struct {
-	rect tui.Rect
+	rect rovel.Rect
 	text string
 }
 
-func (s *StatusView) ID() tui.ID        { return 0 }
-func (s *StatusView) Rect() tui.Rect    { return s.rect }
-func (s *StatusView) MinSize() tui.Size { return tui.Size{W: len(s.text), H: 1} }
+func (s *StatusView) ID() rovel.ID        { return 0 }
+func (s *StatusView) Rect() rovel.Rect    { return s.rect }
+func (s *StatusView) MinSize() rovel.Size { return rovel.Size{W: len(s.text), H: 1} }
 func (s *StatusView) Focusable() bool   { return false }
 
-func (s *StatusView) Layout(r tui.Rect) {
+func (s *StatusView) Layout(r rovel.Rect) {
 	s.rect = r
 }
 
-func (s *StatusView) Paint(d tui.Drawer, ctx *tui.Ctx) {
-	d.DrawText(tui.Point{X: s.rect.X, Y: s.rect.Y}, s.text, ctx.Theme.Base)
+func (s *StatusView) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
+	d.DrawText(rovel.Point{X: s.rect.X, Y: s.rect.Y}, s.text, ctx.Theme.Base)
 }
 
-func (s *StatusView) Handle(e tui.Event, ctx *tui.Ctx) bool {
+func (s *StatusView) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
 	return false
 }

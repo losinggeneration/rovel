@@ -1,7 +1,7 @@
-package tui
+package rovel
 
 import (
-	"github.com/losinggeneration/tui/event"
+	"github.com/losinggeneration/rovel/event"
 )
 
 // Event types re-exported from event package for API convenience.

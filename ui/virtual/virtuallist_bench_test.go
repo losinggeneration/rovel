@@ -3,30 +3,30 @@ package virtual
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/render"
-	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/render"
+	"github.com/losinggeneration/rovel/style"
 )
 
-// benchCtx returns a minimal tui.Ctx for benchmarking.
-func benchCtx() *tui.Ctx {
-	return &tui.Ctx{
+// benchCtx returns a minimal rovel.Ctx for benchmarking.
+func benchCtx() *rovel.Ctx {
+	return &rovel.Ctx{
 		Invalidate:       func(r geom.Rect) {},
 		InvalidateAll:    func() {},
 		InvalidateLayout: func() {},
-		RequestFocus:     func(id tui.ID) {},
+		RequestFocus:     func(id rovel.ID) {},
 	}
 }
 
-// benchDrawer creates a new tui.Drawer with a buffer of the given size.
-func benchDrawer(w, h int) tui.Drawer {
+// benchDrawer creates a new rovel.Drawer with a buffer of the given size.
+func benchDrawer(w, h int) rovel.Drawer {
 	buf := render.NewBuffer(w, h)
 	clip := geom.Rect{X: 0, Y: 0, W: w, H: h}
 	baseStyle := style.Style{}
 	rp := render.NewPainter(buf, clip, baseStyle)
 
-	return tui.NewDrawer(tui.NewPainter(rp, baseStyle))
+	return rovel.NewDrawer(rovel.NewPainter(rp, baseStyle))
 }
 
 // setupBenchmarkList creates a VirtualList configured for benchmarking.

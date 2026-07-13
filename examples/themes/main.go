@@ -3,13 +3,13 @@ package main
 import (
 	"fmt"
 
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/event"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/style"
-	"github.com/losinggeneration/tui/ui"
-	"github.com/losinggeneration/tui/ui/layout"
-	widgets "github.com/losinggeneration/tui/ui/widgets"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/event"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/style"
+	"github.com/losinggeneration/rovel/ui"
+	"github.com/losinggeneration/rovel/ui/layout"
+	widgets "github.com/losinggeneration/rovel/ui/widgets"
 )
 
 // Custom actions for this application.
@@ -54,11 +54,11 @@ func (themeKeymap) Resolve(ctx ui.KeyContext, k ui.Keystroke) (ui.Action, bool) 
 
 type themeOption struct {
 	name  string
-	theme tui.Theme
+	theme rovel.Theme
 }
 
 type appState struct {
-	app               *tui.App
+	app               *rovel.App
 	currentThemeIndex int
 	themes            []themeOption
 
@@ -73,13 +73,13 @@ type appState struct {
 	// Widgets
 	themeSelector   *widgets.Label
 	capabilityLabel *widgets.Label
-	textInput       tui.View // Use View interface to allow read-only wrapper
-	buttonNormal    tui.View
-	buttonAccent    tui.View
-	buttonSuccess   tui.View
-	buttonWarning   tui.View
-	buttonDanger    tui.View
-	buttonDisabled  tui.View
+	textInput       rovel.View // Use View interface to allow read-only wrapper
+	buttonNormal    rovel.View
+	buttonAccent    rovel.View
+	buttonSuccess   rovel.View
+	buttonWarning   rovel.View
+	buttonDanger    rovel.View
+	buttonDisabled  rovel.View
 
 	// Mutable styles for semantic buttons — updated on theme switch.
 	// Buttons hold pointers to these, so in-place updates take effect at paint.
@@ -94,9 +94,9 @@ func main() {
 	state := &appState{
 		currentThemeIndex: 2, // Start with Modern
 		themes: []themeOption{
-			{"Default", tui.DefaultTheme()},
-			{"Classic", tui.DefaultThemeClassic()},
-			{"Modern", tui.DefaultThemeModern()},
+			{"Default", rovel.DefaultTheme()},
+			{"Classic", rovel.DefaultThemeClassic()},
+			{"Modern", rovel.DefaultThemeModern()},
 		},
 		inputText:     "Type something...",
 		listItems:     []string{"Item 1", "Item 2", "Item 3", "Item 4", "Item 5"},
@@ -108,9 +108,9 @@ func main() {
 	// This demonstrates the recommended pattern from doc/keybindings.md:
 	// - Use a composite keymap (app-specific + default)
 	// - Configure ResolveAction to enable the semantic action system
-	app, err := tui.New(tui.AppOpts{
+	app, err := rovel.New(rovel.AppOpts{
 		Theme: state.themes[state.currentThemeIndex].theme,
-		Input: tui.InputOpts{
+		Input: rovel.InputOpts{
 			Mouse: true,
 		},
 		ResolveAction: ui.NewResolver(ui.CompositeKeymap{
@@ -139,7 +139,7 @@ func main() {
 	state.textInput = &readOnlyTextInput{TextInput: ti}
 
 	// Create buttons with mouse support and semantic colors
-	state.buttonNormal = createMouseAwareButton("Normal", func(ctx *tui.Ctx) {
+	state.buttonNormal = createMouseAwareButton("Normal", func(ctx *rovel.Ctx) {
 		state.buttonsClicked++
 		state.updateStatus("Normal button clicked!", "normal")
 		invalidateIfNeeded(ctx)
@@ -151,26 +151,26 @@ func main() {
 	state.updateButtonStyles()
 
 	state.buttonAccent = createStyledButton("Accent",
-		&state.accentNormal, &state.accentFocused, func(ctx *tui.Ctx) {
+		&state.accentNormal, &state.accentFocused, func(ctx *rovel.Ctx) {
 			state.buttonsClicked++
 			state.updateStatus("Accent button clicked!", "info")
 			invalidateIfNeeded(ctx)
 		})
 
 	state.buttonSuccess = createStyledButton("Success",
-		&state.successNormal, &state.successFocused, func(ctx *tui.Ctx) {
+		&state.successNormal, &state.successFocused, func(ctx *rovel.Ctx) {
 			state.updateStatus("Success operation completed!", "success")
 			invalidateIfNeeded(ctx)
 		})
 
 	state.buttonWarning = createStyledButton("Warning",
-		&state.warningNormal, &state.warningFocused, func(ctx *tui.Ctx) {
+		&state.warningNormal, &state.warningFocused, func(ctx *rovel.Ctx) {
 			state.updateStatus("Warning: Check your inputs!", "warning")
 			invalidateIfNeeded(ctx)
 		})
 
 	state.buttonDanger = createStyledButton("Danger",
-		&state.dangerNormal, &state.dangerFocused, func(ctx *tui.Ctx) {
+		&state.dangerNormal, &state.dangerFocused, func(ctx *rovel.Ctx) {
 			state.updateStatus("Critical error occurred!", "danger")
 			invalidateIfNeeded(ctx)
 		})
@@ -199,7 +199,7 @@ func main() {
 	buttonRow.AddChild(layout.Child{View: state.buttonWarning, Opts: layout.SizePolicy{}})
 	buttonRow.AddChild(layout.Child{View: state.buttonDanger, Opts: layout.SizePolicy{}})
 	// Disabled button wrapped in focusBlockWrapper to prevent focus
-	buttonRow.AddChild(layout.Child{View: &focusBlockWrapper{id: tui.NewID(), view: state.buttonDisabled}, Opts: layout.SizePolicy{}})
+	buttonRow.AddChild(layout.Child{View: &focusBlockWrapper{id: rovel.NewID(), view: state.buttonDisabled}, Opts: layout.SizePolicy{}})
 	buttonRow.AddChild(hspacer)
 
 	// Build content list
@@ -225,7 +225,7 @@ func main() {
 	mainLayout.Add(themeSelector)
 	mainLayout.Add(buttonRow)
 	// Wrap demo content in one focus block, let it grow to fill space
-	mainLayout.AddChild(layout.Child{View: &focusBlockWrapper{id: tui.NewID(), view: borderedList}, Opts: layout.SizePolicy{GrowY: true, StretchY: 1}})
+	mainLayout.AddChild(layout.Child{View: &focusBlockWrapper{id: rovel.NewID(), view: borderedList}, Opts: layout.SizePolicy{GrowY: true, StretchY: 1}})
 	// Status at bottom with fixed height
 	mainLayout.Add(statusBar)
 
@@ -233,7 +233,7 @@ func main() {
 	app.SetRoot(root)
 
 	// Request focus on the theme selector
-	if err := app.Post(func(ctx *tui.UpdateCtx) {
+	if err := app.Post(func(ctx *rovel.UpdateCtx) {
 		if ctx.RequestFocus != nil && themeSelector != nil {
 			ctx.RequestFocus(themeSelector.ID())
 		}
@@ -268,7 +268,7 @@ func main() {
 }
 
 // invalidateIfNeeded safely invalidates the view if ctx is valid
-func invalidateIfNeeded(ctx *tui.Ctx) {
+func invalidateIfNeeded(ctx *rovel.Ctx) {
 	if ctx != nil && ctx.InvalidateAll != nil {
 		ctx.InvalidateAll()
 	}
@@ -276,13 +276,13 @@ func invalidateIfNeeded(ctx *tui.Ctx) {
 
 // Helper functions
 
-func createThemeButton(label string, themeIndex int, state *appState) tui.View {
-	return createMouseAwareButton(label, func(ctx *tui.Ctx) {
+func createThemeButton(label string, themeIndex int, state *appState) rovel.View {
+	return createMouseAwareButton(label, func(ctx *rovel.Ctx) {
 		state.switchTheme(ctx, themeIndex)
 	}, false)
 }
 
-func createMouseAwareButton(label string, onPress func(*tui.Ctx), disabled bool) tui.View {
+func createMouseAwareButton(label string, onPress func(*rovel.Ctx), disabled bool) rovel.View {
 	btn := widgets.NewButtonOpts(widgets.ButtonOpts{
 		Label:    label,
 		OnPress:  onPress,
@@ -292,7 +292,7 @@ func createMouseAwareButton(label string, onPress func(*tui.Ctx), disabled bool)
 	return &widgets.Clickable{View: btn, OnClick: onPress}
 }
 
-func createStyledButton(label string, normalSt, focusedSt *style.Style, onPress func(*tui.Ctx)) tui.View {
+func createStyledButton(label string, normalSt, focusedSt *style.Style, onPress func(*rovel.Ctx)) rovel.View {
 	btn := widgets.NewButtonOpts(widgets.ButtonOpts{
 		Label:        label,
 		OnPress:      onPress,
@@ -303,14 +303,14 @@ func createStyledButton(label string, normalSt, focusedSt *style.Style, onPress 
 	return &widgets.Clickable{View: btn, OnClick: onPress}
 }
 
-func buildInputSection(state *appState) tui.View {
+func buildInputSection(state *appState) rovel.View {
 	inputBorder := layout.NewBorder(state.textInput)
 	inputBorder.SetTitle(" Text Input ")
 
 	return inputBorder
 }
 
-func buildContentList(state *appState) tui.View {
+func buildContentList(state *appState) rovel.View {
 	listText := ""
 	for i, item := range state.listItems {
 		listText += fmt.Sprintf("%d. %s\n", i+1, item)
@@ -325,7 +325,7 @@ func buildContentList(state *appState) tui.View {
 	return border
 }
 
-func buildStatusBar(state *appState) tui.View {
+func buildStatusBar(state *appState) rovel.View {
 	ti := widgets.NewTextInput()
 
 	quitHint := " | Press 1/2/3 to switch themes, Esc to quit"
@@ -354,7 +354,7 @@ func buildStatusBar(state *appState) tui.View {
 	border.SetTitle(" Status ")
 
 	wrapper := &statusWrapper{
-		id:       tui.NewID(),
+		id:       rovel.NewID(),
 		textView: ti,
 		border:   border,
 		msg:      msg,
@@ -395,7 +395,7 @@ func (s *appState) updateButtonStyles() {
 	s.dangerNormal, s.dangerFocused = deriveButtonStyles(p.Danger)
 }
 
-func (s *appState) switchTheme(ctx *tui.Ctx, index int) {
+func (s *appState) switchTheme(ctx *rovel.Ctx, index int) {
 	// Validate index
 	if index < 0 || index >= len(s.themes) {
 		return
@@ -416,7 +416,7 @@ func (s *appState) switchTheme(ctx *tui.Ctx, index int) {
 	s.updateLabels()
 
 	// Switch theme via App.Post to ensure it's updated on the app goroutine
-	err := s.app.Post(func(updateCtx *tui.UpdateCtx) {
+	err := s.app.Post(func(updateCtx *rovel.UpdateCtx) {
 		s.app.SetTheme(s.themes[index].theme)
 	})
 	if err != nil {
@@ -450,9 +450,9 @@ func (s *appState) updateLabels() {
 
 // statusWrapper paints a background color for status messages
 type statusWrapper struct {
-	id       tui.ID
-	textView tui.View
-	border   tui.View
+	id       rovel.ID
+	textView rovel.View
+	border   rovel.View
 	rect     geom.Rect
 
 	// Dynamic content - updated via UpdateStatus
@@ -460,11 +460,11 @@ type statusWrapper struct {
 	msgType string
 }
 
-func (w *statusWrapper) ID() tui.ID {
+func (w *statusWrapper) ID() rovel.ID {
 	return w.id
 }
 
-func (w *statusWrapper) Rect() tui.Rect {
+func (w *statusWrapper) Rect() rovel.Rect {
 	if w.border != nil {
 		return w.border.Rect()
 	}
@@ -473,7 +473,7 @@ func (w *statusWrapper) Rect() tui.Rect {
 		return w.textView.Rect()
 	}
 
-	return tui.Rect{}
+	return rovel.Rect{}
 }
 
 func (w *statusWrapper) Layout(r geom.Rect) {
@@ -509,7 +509,7 @@ func (w *statusWrapper) UpdateStatus(msg, msgType string) {
 	w.msgType = msgType
 }
 
-func (w *statusWrapper) Paint(d tui.Drawer, ctx *tui.Ctx) {
+func (w *statusWrapper) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	// Get current text and style based on message type
 	quitHint := " | Press 1/2/3 to switch themes, Esc to quit"
 	text := w.msg + quitHint
@@ -552,7 +552,7 @@ func (w *statusWrapper) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	}
 }
 
-func (w *statusWrapper) Handle(e tui.Event, ctx *tui.Ctx) bool {
+func (w *statusWrapper) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
 	if w.border != nil {
 		if w.border.Handle(e, ctx) {
 			return true
@@ -578,13 +578,13 @@ func (w *statusWrapper) FocusScope() bool {
 
 // Root embeds CompositeView and handles app-level semantic actions.
 type Root struct {
-	tui.CompositeView
+	rovel.CompositeView
 
-	app   *tui.App
+	app   *rovel.App
 	state *appState
 }
 
-func (r *Root) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+func (r *Root) HandleAction(act ui.Action, ctx *rovel.Ctx) bool {
 	switch act {
 	case ActionTheme1:
 		r.state.switchTheme(ctx, 0)
@@ -615,7 +615,7 @@ type readOnlyTextInput struct {
 	*widgets.TextInput
 }
 
-func (t *readOnlyTextInput) Handle(e tui.Event, ctx *tui.Ctx) bool {
+func (t *readOnlyTextInput) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
 	return false
 }
 
@@ -630,11 +630,11 @@ func (t *readOnlyTextInput) FocusScope() bool {
 // focusBlockWrapper wraps a view and prevents it from receiving focus.
 // It implements FocusScope to block focus traversal into children.
 type focusBlockWrapper struct {
-	id   tui.ID
-	view tui.View
+	id   rovel.ID
+	view rovel.View
 }
 
-func (w *focusBlockWrapper) ID() tui.ID {
+func (w *focusBlockWrapper) ID() rovel.ID {
 	return w.id
 }
 
@@ -646,15 +646,15 @@ func (w *focusBlockWrapper) Layout(r geom.Rect) {
 	w.view.Layout(r)
 }
 
-func (w *focusBlockWrapper) Rect() tui.Rect {
+func (w *focusBlockWrapper) Rect() rovel.Rect {
 	return w.view.Rect()
 }
 
-func (w *focusBlockWrapper) Paint(d tui.Drawer, ctx *tui.Ctx) {
+func (w *focusBlockWrapper) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	w.view.Paint(d, ctx)
 }
 
-func (w *focusBlockWrapper) Handle(e tui.Event, ctx *tui.Ctx) bool {
+func (w *focusBlockWrapper) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
 	return w.view.Handle(e, ctx)
 }
 
@@ -666,8 +666,8 @@ func (w *focusBlockWrapper) FocusScope() bool {
 	return true
 }
 
-func (w *focusBlockWrapper) Children() []tui.View {
-	if c, ok := w.view.(interface{ Children() []tui.View }); ok {
+func (w *focusBlockWrapper) Children() []rovel.View {
+	if c, ok := w.view.(interface{ Children() []rovel.View }); ok {
 		return c.Children()
 	}
 

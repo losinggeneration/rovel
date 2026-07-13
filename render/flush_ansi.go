@@ -6,7 +6,7 @@ import (
 	"io"
 	"unicode/utf8"
 
-	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/rovel/style"
 )
 
 type ANSIFlusher struct {

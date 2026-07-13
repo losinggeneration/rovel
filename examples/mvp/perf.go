@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/ui/virtual"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/ui/virtual"
 )
 
 // PerfMonitor tracks runtime performance metrics for UI operations.
@@ -193,7 +193,7 @@ func NewInstrumentedVirtualList(name string, base *virtual.VirtualList, monitor 
 }
 
 // Paint records paint performance before delegating to the base list.
-func (i *InstrumentedVirtualList) Paint(d tui.Drawer, ctx *tui.Ctx) {
+func (i *InstrumentedVirtualList) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	start := time.Now()
 
 	i.VirtualList.Paint(d, ctx)
@@ -203,7 +203,7 @@ func (i *InstrumentedVirtualList) Paint(d tui.Drawer, ctx *tui.Ctx) {
 }
 
 // ScrollTo records scroll performance before delegating to the base list.
-func (i *InstrumentedVirtualList) ScrollTo(ctx *tui.Ctx, item int) {
+func (i *InstrumentedVirtualList) ScrollTo(ctx *rovel.Ctx, item int) {
 	start := time.Now()
 
 	i.VirtualList.ScrollTo(ctx, item)
@@ -213,7 +213,7 @@ func (i *InstrumentedVirtualList) ScrollTo(ctx *tui.Ctx, item int) {
 }
 
 // ScrollBy records scroll performance before delegating to the base list.
-func (i *InstrumentedVirtualList) ScrollBy(ctx *tui.Ctx, delta int) {
+func (i *InstrumentedVirtualList) ScrollBy(ctx *rovel.Ctx, delta int) {
 	start := time.Now()
 
 	i.VirtualList.ScrollBy(ctx, delta)
@@ -223,7 +223,7 @@ func (i *InstrumentedVirtualList) ScrollBy(ctx *tui.Ctx, delta int) {
 }
 
 // ScrollTop records scroll performance before delegating to the base list.
-func (i *InstrumentedVirtualList) ScrollTop(ctx *tui.Ctx) {
+func (i *InstrumentedVirtualList) ScrollTop(ctx *rovel.Ctx) {
 	start := time.Now()
 
 	i.VirtualList.ScrollTop(ctx)
@@ -233,7 +233,7 @@ func (i *InstrumentedVirtualList) ScrollTop(ctx *tui.Ctx) {
 }
 
 // ScrollBottom records scroll performance before delegating to the base list.
-func (i *InstrumentedVirtualList) ScrollBottom(ctx *tui.Ctx) {
+func (i *InstrumentedVirtualList) ScrollBottom(ctx *rovel.Ctx) {
 	start := time.Now()
 
 	i.VirtualList.ScrollBottom(ctx)
@@ -243,7 +243,7 @@ func (i *InstrumentedVirtualList) ScrollBottom(ctx *tui.Ctx) {
 }
 
 // SelectIndex records selection performance before delegating to the base list.
-func (i *InstrumentedVirtualList) SelectIndex(ctx *tui.Ctx, index int) {
+func (i *InstrumentedVirtualList) SelectIndex(ctx *rovel.Ctx, index int) {
 	start := time.Now()
 
 	i.VirtualList.SelectIndex(ctx, index)

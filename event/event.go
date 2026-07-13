@@ -3,7 +3,7 @@
 // This package is unstable before v0.1.0.
 package event
 
-import "github.com/losinggeneration/tui/geom"
+import "github.com/losinggeneration/rovel/geom"
 
 // Event is the interface for all events.
 type Event interface {

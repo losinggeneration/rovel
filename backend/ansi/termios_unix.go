@@ -3,7 +3,7 @@
 package ansi
 
 import (
-	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/rovel/geom"
 	"golang.org/x/sys/unix"
 )
 

@@ -3,10 +3,10 @@ package widgets
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/render"
-	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/render"
+	"github.com/losinggeneration/rovel/style"
 )
 
 func TestTextInputPaint_DrawerAdapterCursorAndFill(t *testing.T) {
@@ -18,13 +18,13 @@ func TestTextInputPaint_DrawerAdapterCursorAndFill(t *testing.T) {
 	buf := render.NewBuffer(4, 1)
 	buf.Clear(render.Cell{R: ' ', Style: base})
 	rp := render.NewPainter(buf, geom.Rect{X: 0, Y: 0, W: 4, H: 1}, base)
-	p := tui.NewPainter(rp, base)
-	ctx := &tui.Ctx{
-		Theme:     tui.DefaultTheme(),
+	p := rovel.NewPainter(rp, base)
+	ctx := &rovel.Ctx{
+		Theme:     rovel.DefaultTheme(),
 		FocusedID: input.ID(),
 	}
 
-	input.Paint(tui.NewDrawer(p), ctx)
+	input.Paint(rovel.NewDrawer(p), ctx)
 
 	if got := buf.At(0, 0).R; got != 'h' {
 		t.Fatalf("cell (0,0) = %q, want %q", got, 'h')
@@ -38,7 +38,7 @@ func TestTextInputPaint_DrawerAdapterCursorAndFill(t *testing.T) {
 		t.Fatalf("cursor cell = %q, want blank cursor cell", got)
 	}
 
-	focusSt := tui.DefaultTheme().Palette.Focus
+	focusSt := rovel.DefaultTheme().Palette.Focus
 	if got := buf.At(2, 0).Style; got != focusSt {
 		t.Fatalf("cursor style = %+v, want %+v", got, focusSt)
 	}
@@ -59,15 +59,15 @@ func TestTextInputPaint_DrawerAdapterSelectionStyle(t *testing.T) {
 	buf := render.NewBuffer(4, 1)
 	buf.Clear(render.Cell{R: ' ', Style: base})
 	rp := render.NewPainter(buf, geom.Rect{X: 0, Y: 0, W: 4, H: 1}, base)
-	p := tui.NewPainter(rp, base)
-	ctx := &tui.Ctx{
-		Theme:     tui.DefaultTheme(),
+	p := rovel.NewPainter(rp, base)
+	ctx := &rovel.Ctx{
+		Theme:     rovel.DefaultTheme(),
 		FocusedID: input.ID(),
 	}
 
-	input.Paint(tui.NewDrawer(p), ctx)
+	input.Paint(rovel.NewDrawer(p), ctx)
 
-	selectionSt := tui.DefaultTheme().Palette.Selection
+	selectionSt := rovel.DefaultTheme().Palette.Selection
 	if got := buf.At(0, 0).Style; got != selectionSt {
 		t.Fatalf("selected cell style = %+v, want %+v", got, selectionSt)
 	}

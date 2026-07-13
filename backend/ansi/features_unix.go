@@ -2,7 +2,7 @@
 
 package ansi
 
-import "github.com/losinggeneration/tui/backend"
+import "github.com/losinggeneration/rovel/backend"
 
 // inputFeatures tracks which input features are currently enabled.
 type inputFeatures struct {

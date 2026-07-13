@@ -12,8 +12,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/render"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/render"
 )
 
 func main() {
@@ -27,10 +27,10 @@ func main() {
 	damage := render.NewDamage(80, 24)
 
 	// Create a clip rect for the full buffer
-	clip := tui.Rect{X: 0, Y: 0, W: 80, H: 24}
+	clip := rovel.Rect{X: 0, Y: 0, W: 80, H: 24}
 
 	// Create a painter (no damage tracking — damage is explicit)
-	baseStyle := tui.Style{FG: tui.ColorDefault, BG: tui.ColorDefault}
+	baseStyle := rovel.Style{FG: rovel.ColorDefault, BG: rovel.ColorDefault}
 	painter := render.NewPainter(buf, clip, baseStyle)
 
 	// Create an ANSI flusher that writes to stdout
@@ -117,7 +117,7 @@ func main() {
 	damage.Clear()
 	damage.AddRect(clip)
 
-	clearText := tui.Rect{X: 4, Y: 3, W: 14, H: 1}
+	clearText := rovel.Rect{X: 4, Y: 3, W: 14, H: 1}
 	painter.Fill(clearText, ' ', whiteBlack)
 	drawHeaderBox(painter, "DONE!")
 	drawPipelineBox(painter)
@@ -154,52 +154,52 @@ func flushAndShowDiff(buf, front *render.Buffer, damage *render.Damage, flusher 
 
 // Styles
 var (
-	cyanBold    = tui.Style{FG: tui.ColorCyan, BG: tui.ColorBlack, Attr: tui.AttrBold}
-	yellowBlue  = tui.Style{FG: tui.ColorYellow, BG: tui.ColorBlue, Attr: tui.AttrBold}
-	greenNormal = tui.Style{FG: tui.ColorGreen, BG: tui.ColorBlack}
-	magentaNorm = tui.Style{FG: tui.ColorMagenta, BG: tui.ColorBlack}
-	brightMag   = tui.Style{FG: tui.ColorBrightMagenta, BG: tui.ColorBlack, Attr: tui.AttrBold}
-	blackGreen  = tui.Style{FG: tui.ColorBlack, BG: tui.ColorGreen, Attr: tui.AttrBold}
-	whiteBlack  = tui.Style{FG: tui.ColorWhite, BG: tui.ColorBlack}
-	brightGreen = tui.Style{FG: tui.ColorBrightGreen, BG: tui.ColorBlack, Attr: tui.AttrBold}
-	brightWhite = tui.Style{FG: tui.ColorBrightWhite, BG: tui.ColorBlack}
-	brightBlack = tui.Style{FG: tui.ColorBrightBlack, BG: tui.ColorBlack}
-	grayBg      = tui.Style{FG: tui.ColorWhite, BG: tui.ColorBrightBlack}
+	cyanBold    = rovel.Style{FG: rovel.ColorCyan, BG: rovel.ColorBlack, Attr: rovel.AttrBold}
+	yellowBlue  = rovel.Style{FG: rovel.ColorYellow, BG: rovel.ColorBlue, Attr: rovel.AttrBold}
+	greenNormal = rovel.Style{FG: rovel.ColorGreen, BG: rovel.ColorBlack}
+	magentaNorm = rovel.Style{FG: rovel.ColorMagenta, BG: rovel.ColorBlack}
+	brightMag   = rovel.Style{FG: rovel.ColorBrightMagenta, BG: rovel.ColorBlack, Attr: rovel.AttrBold}
+	blackGreen  = rovel.Style{FG: rovel.ColorBlack, BG: rovel.ColorGreen, Attr: rovel.AttrBold}
+	whiteBlack  = rovel.Style{FG: rovel.ColorWhite, BG: rovel.ColorBlack}
+	brightGreen = rovel.Style{FG: rovel.ColorBrightGreen, BG: rovel.ColorBlack, Attr: rovel.AttrBold}
+	brightWhite = rovel.Style{FG: rovel.ColorBrightWhite, BG: rovel.ColorBlack}
+	brightBlack = rovel.Style{FG: rovel.ColorBrightBlack, BG: rovel.ColorBlack}
+	grayBg      = rovel.Style{FG: rovel.ColorWhite, BG: rovel.ColorBrightBlack}
 )
 
 func drawHeaderBox(p *render.Painter, title string) {
-	box := tui.Rect{X: 2, Y: 2, W: 40, H: 5}
+	box := rovel.Rect{X: 2, Y: 2, W: 40, H: 5}
 	p.Box(box, cyanBold)
 	p.Text(4, 3, "  "+title+"  ", yellowBlue)
 }
 
 func drawPipelineBox(p *render.Painter) {
-	box := tui.Rect{X: 2, Y: 10, W: 30, H: 8}
+	box := rovel.Rect{X: 2, Y: 10, W: 30, H: 8}
 	p.Box(box, greenNormal)
 	p.Text(4, 11, "The rendering pipeline", whiteBlack)
 	p.Text(4, 12, "is working!", brightGreen)
 }
 
 func drawDiffBox(p *render.Painter) {
-	box := tui.Rect{X: 45, Y: 10, W: 30, H: 8}
+	box := rovel.Rect{X: 45, Y: 10, W: 30, H: 8}
 	p.Box(box, magentaNorm)
 	p.Text(47, 11, "Diff engine:", brightMag)
 }
 
 func drawDiffBoxUpdated(p *render.Painter) {
-	box := tui.Rect{X: 45, Y: 10, W: 30, H: 8}
+	box := rovel.Rect{X: 45, Y: 10, W: 30, H: 8}
 	p.Box(box, magentaNorm)
 	p.Text(47, 11, "Diff engine:", brightMag)
 	p.Text(47, 13, "  [ OK ]  ", blackGreen)
 }
 
 func drawFilledBox(p *render.Painter) {
-	box := tui.Rect{X: 50, Y: 2, W: 25, H: 5}
+	box := rovel.Rect{X: 50, Y: 2, W: 25, H: 5}
 	p.Fill(box, '░', brightBlack)
 }
 
 func drawFilledBoxWithText(p *render.Painter) {
-	box := tui.Rect{X: 50, Y: 2, W: 25, H: 5}
+	box := rovel.Rect{X: 50, Y: 2, W: 25, H: 5}
 	p.Fill(box, '░', brightBlack)
 	p.Text(52, 3, "Pattern fill", grayBg)
 }

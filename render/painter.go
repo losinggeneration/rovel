@@ -1,8 +1,8 @@
 package render
 
 import (
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/style"
 )
 
 // Painter provides an immediate-mode drawing API for rendering to a buffer.

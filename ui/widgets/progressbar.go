@@ -1,14 +1,14 @@
 package widgets
 
 import (
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/style"
 )
 
 // ProgressBarOpts holds options for creating a ProgressBar.
 type ProgressBarOpts struct {
-	ID    tui.ID
+	ID    rovel.ID
 	Value float64 // 0.0 to 1.0
 	Width int     // preferred width; 0 defaults to 20
 
@@ -21,8 +21,8 @@ type ProgressBarOpts struct {
 // ProgressBar is a display-only horizontal progress indicator.
 // It does not receive focus.
 type ProgressBar struct {
-	id    tui.ID
-	rect  tui.Rect
+	id    rovel.ID
+	rect  rovel.Rect
 	value float64 // clamped to [0, 1]
 	width int
 
@@ -37,7 +37,7 @@ func NewProgressBar() *ProgressBar {
 func NewProgressBarOpts(opts ProgressBarOpts) *ProgressBar {
 	id := opts.ID
 	if id == 0 {
-		id = tui.NewID()
+		id = rovel.NewID()
 	}
 
 	w := opts.Width
@@ -54,14 +54,14 @@ func NewProgressBarOpts(opts ProgressBarOpts) *ProgressBar {
 	}
 }
 
-func (b *ProgressBar) ID() tui.ID        { return b.id }
-func (b *ProgressBar) Rect() tui.Rect    { return b.rect }
-func (b *ProgressBar) Layout(r tui.Rect) { b.rect = r }
+func (b *ProgressBar) ID() rovel.ID        { return b.id }
+func (b *ProgressBar) Rect() rovel.Rect    { return b.rect }
+func (b *ProgressBar) Layout(r rovel.Rect) { b.rect = r }
 func (b *ProgressBar) Focusable() bool   { return false }
 
 func (b *ProgressBar) Value() float64 { return b.value }
 
-func (b *ProgressBar) SetValue(ctx *tui.Ctx, v float64) {
+func (b *ProgressBar) SetValue(ctx *rovel.Ctx, v float64) {
 	v = clampf(v)
 	if b.value == v {
 		return
@@ -77,13 +77,13 @@ func (b *ProgressBar) MinSize() geom.Size {
 	return geom.Size{W: b.width, H: 1}
 }
 
-func (b *ProgressBar) Paint(d tui.Drawer, ctx *tui.Ctx) {
+func (b *ProgressBar) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	r := b.rect
 	if r.W <= 0 || r.H <= 0 {
 		return
 	}
 
-	cd, ok := tui.CellDrawerOf(d)
+	cd, ok := rovel.CellDrawerOf(d)
 	if !ok {
 		return
 	}
@@ -118,7 +118,7 @@ func (b *ProgressBar) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	}
 }
 
-func (b *ProgressBar) Handle(_ tui.Event, _ *tui.Ctx) bool {
+func (b *ProgressBar) Handle(_ rovel.Event, _ *rovel.Ctx) bool {
 	return false
 }
 

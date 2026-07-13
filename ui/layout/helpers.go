@@ -1,13 +1,13 @@
 package layout
 
 import (
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/ui"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/ui"
 )
 
 // InsetRect returns a rect inset by the given amounts.
-func InsetRect(r tui.Rect, l, t, rr, b int) tui.Rect {
-	return tui.Rect{
+func InsetRect(r rovel.Rect, l, t, rr, b int) rovel.Rect {
+	return rovel.Rect{
 		X: r.X + l,
 		Y: r.Y + t,
 		W: r.W - l - rr,
@@ -18,19 +18,19 @@ func InsetRect(r tui.Rect, l, t, rr, b int) tui.Rect {
 // FindFirstFocusable does a DFS preorder traversal and returns the first
 // focusable view found under root. If a view implements ui.FocusScope and
 // FocusScope() is true, traversal does not descend into that view's children.
-func FindFirstFocusable(root tui.View) tui.View {
+func FindFirstFocusable(root rovel.View) rovel.View {
 	composite, ok := root.(ui.Composite)
 	if !ok {
 		return nil
 	}
 
-	visited := make(map[tui.ID]struct{})
+	visited := make(map[rovel.ID]struct{})
 	visited[root.ID()] = struct{}{}
 
 	return findFirstFocusable(composite, visited)
 }
 
-func findFirstFocusable(c ui.Composite, visited map[tui.ID]struct{}) tui.View {
+func findFirstFocusable(c ui.Composite, visited map[rovel.ID]struct{}) rovel.View {
 	for _, child := range c.Children() {
 		id := child.ID()
 		if _, ok := visited[id]; ok {
@@ -60,19 +60,19 @@ func findFirstFocusable(c ui.Composite, visited map[tui.ID]struct{}) tui.View {
 // FindByID does a DFS traversal and returns the first view found with the
 // given id under root. This traversal does not treat ui.FocusScope as a
 // boundary (it searches the full tree).
-func FindByID(root tui.View, id tui.ID) tui.View {
+func FindByID(root rovel.View, id rovel.ID) rovel.View {
 	composite, ok := root.(ui.Composite)
 	if !ok {
 		return nil
 	}
 
-	visited := make(map[tui.ID]struct{})
+	visited := make(map[rovel.ID]struct{})
 	visited[root.ID()] = struct{}{}
 
 	return findByID(composite, id, visited)
 }
 
-func findByID(c ui.Composite, id tui.ID, visited map[tui.ID]struct{}) tui.View {
+func findByID(c ui.Composite, id rovel.ID, visited map[rovel.ID]struct{}) rovel.View {
 	for _, child := range c.Children() {
 		if child.ID() == id {
 			return child
@@ -100,23 +100,23 @@ func findByID(c ui.Composite, id tui.ID, visited map[tui.ID]struct{}) tui.View {
 // CollectFocusable does a DFS preorder traversal and returns all focusable
 // views under root. If a view implements ui.FocusScope and FocusScope() is
 // true, traversal does not descend into that view's children.
-func CollectFocusable(root tui.View) []tui.View {
+func CollectFocusable(root rovel.View) []rovel.View {
 	composite, ok := root.(ui.Composite)
 	if !ok {
 		return nil
 	}
 
-	visited := make(map[tui.ID]struct{})
+	visited := make(map[rovel.ID]struct{})
 	visited[root.ID()] = struct{}{}
 
-	var out []tui.View
+	var out []rovel.View
 
 	collectFocusable(composite, visited, &out)
 
 	return out
 }
 
-func collectFocusable(c ui.Composite, visited map[tui.ID]struct{}, out *[]tui.View) {
+func collectFocusable(c ui.Composite, visited map[rovel.ID]struct{}, out *[]rovel.View) {
 	for _, child := range c.Children() {
 		id := child.ID()
 		if _, ok := visited[id]; ok {

@@ -1,21 +1,21 @@
 package layout
 
 import (
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/event"
-	"github.com/losinggeneration/tui/ui"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/event"
+	"github.com/losinggeneration/rovel/ui"
 )
 
 type HStack struct {
-	id       tui.ID
+	id       rovel.ID
 	children []Child
-	rect     tui.Rect
+	rect     rovel.Rect
 	gap      int
 }
 
 func NewHStack() *HStack {
 	return &HStack{
-		id: tui.NewID(),
+		id: rovel.NewID(),
 	}
 }
 
@@ -33,7 +33,7 @@ func NewHStackWithGap(children []Child, gap int) *HStack {
 	return s
 }
 
-func (s *HStack) Add(v tui.View) {
+func (s *HStack) Add(v rovel.View) {
 	s.children = append(s.children, NewChild(v))
 }
 
@@ -45,15 +45,15 @@ func (s *HStack) SetGap(gap int) {
 	s.gap = gap
 }
 
-func (s *HStack) ID() tui.ID {
+func (s *HStack) ID() rovel.ID {
 	return s.id
 }
 
-func (s *HStack) Rect() tui.Rect {
+func (s *HStack) Rect() rovel.Rect {
 	return s.rect
 }
 
-func (s *HStack) Layout(r tui.Rect) {
+func (s *HStack) Layout(r rovel.Rect) {
 	s.rect = r
 
 	if len(s.children) == 0 {
@@ -68,7 +68,7 @@ func (s *HStack) Layout(r tui.Rect) {
 	}
 
 	type childInfo struct {
-		view      tui.View
+		view      rovel.View
 		opts      SizePolicy
 		minW      int
 		prefW     int
@@ -161,7 +161,7 @@ func (s *HStack) Layout(r tui.Rect) {
 			childH = maxH
 		}
 
-		childRect := tui.Rect{
+		childRect := rovel.Rect{
 			X: x,
 			Y: childY,
 			W: childW,
@@ -173,7 +173,7 @@ func (s *HStack) Layout(r tui.Rect) {
 	}
 }
 
-func (s *HStack) MinSize() tui.Size {
+func (s *HStack) MinSize() rovel.Size {
 	totalW := 0
 	maxH := 0
 
@@ -193,13 +193,13 @@ func (s *HStack) MinSize() tui.Size {
 		totalW += s.gap * (n - 1)
 	}
 
-	return tui.Size{W: totalW, H: maxH}
+	return rovel.Size{W: totalW, H: maxH}
 }
 
-func (s *HStack) Paint(d tui.Drawer, ctx *tui.Ctx) {
-	d.WithClip(s.rect, func(d tui.Drawer) {
+func (s *HStack) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
+	d.WithClip(s.rect, func(d rovel.Drawer) {
 		for _, c := range s.children {
-			d.WithClip(c.View.Rect(), func(d tui.Drawer) {
+			d.WithClip(c.View.Rect(), func(d rovel.Drawer) {
 				c.View.Paint(d, ctx)
 			})
 		}
@@ -207,7 +207,7 @@ func (s *HStack) Paint(d tui.Drawer, ctx *tui.Ctx) {
 }
 
 // HandleAction handles semantic actions for focus navigation.
-func (s *HStack) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+func (s *HStack) HandleAction(act ui.Action, ctx *rovel.Ctx) bool {
 	switch act {
 	case ui.ActionFocusNext:
 		focusables := s.collectFocusable()
@@ -248,7 +248,7 @@ func (s *HStack) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
 	return false
 }
 
-func (s *HStack) Handle(e tui.Event, ctx *tui.Ctx) bool {
+func (s *HStack) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
 	ke, ok := e.(event.KeyEvent)
 	if !ok {
 		return false
@@ -323,8 +323,8 @@ func (s *HStack) Focusable() bool {
 	return false
 }
 
-func (s *HStack) Children() []tui.View {
-	views := make([]tui.View, len(s.children))
+func (s *HStack) Children() []rovel.View {
+	views := make([]rovel.View, len(s.children))
 	for i, c := range s.children {
 		views[i] = c.View
 	}
@@ -332,11 +332,11 @@ func (s *HStack) Children() []tui.View {
 	return views
 }
 
-func (s *HStack) findFocusedDescendant(id tui.ID) tui.View {
+func (s *HStack) findFocusedDescendant(id rovel.ID) rovel.View {
 	return FindByID(s, id)
 }
 
-func (s *HStack) findNextFocusable(focusables []tui.View, currentFocusID tui.ID) (tui.View, bool) {
+func (s *HStack) findNextFocusable(focusables []rovel.View, currentFocusID rovel.ID) (rovel.View, bool) {
 	if len(focusables) == 0 {
 		return nil, false
 	}
@@ -362,11 +362,11 @@ func (s *HStack) findNextFocusable(focusables []tui.View, currentFocusID tui.ID)
 	return focusables[currentIdx+1], false
 }
 
-func (s *HStack) collectFocusable() []tui.View {
+func (s *HStack) collectFocusable() []rovel.View {
 	return CollectFocusable(s)
 }
 
-func (s *HStack) findPrevFocusable(focusables []tui.View, currentFocusID tui.ID) (tui.View, bool) {
+func (s *HStack) findPrevFocusable(focusables []rovel.View, currentFocusID rovel.ID) (rovel.View, bool) {
 	if len(focusables) == 0 {
 		return nil, false
 	}

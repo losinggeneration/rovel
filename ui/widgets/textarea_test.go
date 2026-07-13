@@ -3,19 +3,19 @@ package widgets
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/event"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/ui"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/event"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/ui"
 )
 
-func mkTextAreaCtx(ta *TextArea) *tui.Ctx {
-	return &tui.Ctx{
+func mkTextAreaCtx(ta *TextArea) *rovel.Ctx {
+	return &rovel.Ctx{
 		FocusedID:        ta.ID(),
 		Invalidate:       func(r geom.Rect) {},
 		InvalidateAll:    func() {},
 		InvalidateLayout: func() {},
-		RequestFocus:     func(id tui.ID) {},
+		RequestFocus:     func(id rovel.ID) {},
 		Quit:             func() {},
 	}
 }
@@ -270,7 +270,7 @@ func TestTextArea_Home_End(t *testing.T) {
 func TestTextArea_ScrollToCursor(t *testing.T) {
 	ta := NewTextArea()
 	ctx := mkTextAreaCtx(ta)
-	ta.rect = tui.Rect{X: 0, Y: 0, W: 20, H: 3}
+	ta.rect = rovel.Rect{X: 0, Y: 0, W: 20, H: 3}
 	ta.SetText(ctx, "line0\nline1\nline2\nline3\nline4")
 
 	// Cursor on line 4 — should scroll
@@ -286,7 +286,7 @@ func TestTextArea_Enter_SplitsLine(t *testing.T) {
 	ta := NewTextArea()
 	ctx := mkTextAreaCtx(ta)
 	ta.SetText(ctx, "abcd")
-	ta.rect = tui.Rect{X: 0, Y: 0, W: 20, H: 5}
+	ta.rect = rovel.Rect{X: 0, Y: 0, W: 20, H: 5}
 
 	// Insert newline at position 2
 	ta.cursor = 2
@@ -309,13 +309,13 @@ func TestTextArea_ShiftRight_CreatesSelection(t *testing.T) {
 	ta := NewTextArea()
 	ctx := mkTextAreaCtx(ta)
 	ta.SetText(ctx, "hello")
-	ta.rect = tui.Rect{X: 0, Y: 0, W: 20, H: 5}
+	ta.rect = rovel.Rect{X: 0, Y: 0, W: 20, H: 5}
 
 	ta.cursor = 0
 	ta.anchor = -1
 
 	// Simulate shift+right
-	ctx.Mod = tui.ModShift
+	ctx.Mod = rovel.ModShift
 	ta.HandleAction(ui.ActionMoveRight, ctx)
 
 	if !ta.hasSelection() {
@@ -335,14 +335,14 @@ func TestTextArea_TypeWithSelection_Replaces(t *testing.T) {
 	ta := NewTextArea()
 	ctx := mkTextAreaCtx(ta)
 	ta.SetText(ctx, "hello")
-	ta.rect = tui.Rect{X: 0, Y: 0, W: 20, H: 5}
+	ta.rect = rovel.Rect{X: 0, Y: 0, W: 20, H: 5}
 
 	// Select "hel"
 	ta.cursor = 3
 	ta.anchor = 0
 
 	// Type 'X' — should replace selection
-	ke := tui.KeyEvent{Key: tui.KeyRune, Rune: 'X'}
+	ke := rovel.KeyEvent{Key: rovel.KeyRune, Rune: 'X'}
 	ta.Handle(ke, ctx)
 
 	if ta.text != "Xlo" {
@@ -354,7 +354,7 @@ func TestTextArea_EnterWithSelection_ReplacesSelection(t *testing.T) {
 	ta := NewTextArea()
 	ctx := mkTextAreaCtx(ta)
 	ta.SetText(ctx, "hello")
-	ta.rect = tui.Rect{X: 0, Y: 0, W: 20, H: 5}
+	ta.rect = rovel.Rect{X: 0, Y: 0, W: 20, H: 5}
 
 	// Select "hel".
 	ta.cursor = 3
@@ -377,7 +377,7 @@ func TestTextArea_BackspaceWithSelection_DeletesRange(t *testing.T) {
 	ta := NewTextArea()
 	ctx := mkTextAreaCtx(ta)
 	ta.SetText(ctx, "hello world")
-	ta.rect = tui.Rect{X: 0, Y: 0, W: 20, H: 5}
+	ta.rect = rovel.Rect{X: 0, Y: 0, W: 20, H: 5}
 
 	// Select "lo wo"
 	ta.anchor = 3
@@ -394,7 +394,7 @@ func TestTextArea_CrossLineSelection(t *testing.T) {
 	ta := NewTextArea()
 	ctx := mkTextAreaCtx(ta)
 	ta.SetText(ctx, "abc\ndef\nghi")
-	ta.rect = tui.Rect{X: 0, Y: 0, W: 20, H: 5}
+	ta.rect = rovel.Rect{X: 0, Y: 0, W: 20, H: 5}
 
 	// Select from middle of line 0 to middle of line 1
 	ta.anchor = 1 // 'b'
@@ -412,7 +412,7 @@ func TestTextArea_SelectAll(t *testing.T) {
 	ta := NewTextArea()
 	ctx := mkTextAreaCtx(ta)
 	ta.SetText(ctx, "abc\ndef")
-	ta.rect = tui.Rect{X: 0, Y: 0, W: 20, H: 5}
+	ta.rect = rovel.Rect{X: 0, Y: 0, W: 20, H: 5}
 
 	ta.HandleAction(ui.ActionSelectAll, ctx)
 
@@ -429,7 +429,7 @@ func TestTextArea_Backspace_JoinsLines(t *testing.T) {
 	ta := NewTextArea()
 	ctx := mkTextAreaCtx(ta)
 	ta.SetText(ctx, "ab\ncd")
-	ta.rect = tui.Rect{X: 0, Y: 0, W: 20, H: 5}
+	ta.rect = rovel.Rect{X: 0, Y: 0, W: 20, H: 5}
 
 	// Cursor at start of line 1 (byte 3, first char of "cd")
 	ta.cursor = 3
@@ -455,20 +455,20 @@ type textAreaCallbackLog struct {
 
 // newLoggedTextArea builds a focused TextArea with the initial text applied
 // BEFORE the callbacks are registered, so setup does not pollute the log.
-func newLoggedTextArea(t *testing.T, initial string) (*TextArea, *tui.Ctx, *textAreaCallbackLog) {
+func newLoggedTextArea(t *testing.T, initial string) (*TextArea, *rovel.Ctx, *textAreaCallbackLog) {
 	t.Helper()
 
 	ta := NewTextArea()
 	ctx := mkTextAreaCtx(ta)
 	ta.SetText(ctx, initial)
-	ta.rect = tui.Rect{X: 0, Y: 0, W: 20, H: 5}
+	ta.rect = rovel.Rect{X: 0, Y: 0, W: 20, H: 5}
 
 	log := &textAreaCallbackLog{}
-	ta.SetOnChange(func(s string, _ *tui.Ctx) {
+	ta.SetOnChange(func(s string, _ *rovel.Ctx) {
 		log.changes = append(log.changes, s)
 		log.order = append(log.order, "change")
 	})
-	ta.SetOnCursorMove(func(ev CursorMoveEvent, _ *tui.Ctx) {
+	ta.SetOnCursorMove(func(ev CursorMoveEvent, _ *rovel.Ctx) {
 		log.cursorMoves = append(log.cursorMoves, ev.Cursor)
 		log.reasons = append(log.reasons, ev.Reason)
 		log.order = append(log.order, "cursor")
@@ -510,7 +510,7 @@ func TestTextArea_OnCursorMove_ClickFires(t *testing.T) {
 	ta, ctx, log := newLoggedTextArea(t, "hello\nworld")
 	ta.cursor = 0
 
-	press := tui.MouseEvent{Button: tui.MouseButtonLeft, Action: tui.MousePress, X: 3, Y: 0}
+	press := rovel.MouseEvent{Button: rovel.MouseButtonLeft, Action: rovel.MousePress, X: 3, Y: 0}
 	ta.Handle(press, ctx)
 
 	if len(log.cursorMoves) != 1 || log.cursorMoves[0] != 3 {
@@ -529,7 +529,7 @@ func TestTextArea_OnCursorMove_DragFires(t *testing.T) {
 	ta, ctx, log := newLoggedTextArea(t, "hello\nworld")
 	ta.cursor = 0
 
-	drag := tui.MouseEvent{Action: tui.MouseDrag, X: 2, Y: 1}
+	drag := rovel.MouseEvent{Action: rovel.MouseDrag, X: 2, Y: 1}
 	ta.Handle(drag, ctx)
 
 	// Line 1 ("world") starts at byte 6; column 2 -> byte 8.
@@ -557,7 +557,7 @@ func TestTextArea_OnCursorMove_EditFiresAfterChange(t *testing.T) {
 	ta, ctx, log := newLoggedTextArea(t, "")
 	ta.cursor = 0
 
-	ta.Handle(tui.KeyEvent{Key: tui.KeyRune, Rune: 'a'}, ctx)
+	ta.Handle(rovel.KeyEvent{Key: rovel.KeyRune, Rune: 'a'}, ctx)
 
 	if len(log.changes) != 1 || log.changes[0] != "a" {
 		t.Fatalf("typing: changes = %v, want [a]", log.changes)
@@ -614,7 +614,7 @@ func TestTextArea_OnCursorMove_Reason(t *testing.T) {
 	t.Run("edit typing", func(t *testing.T) {
 		ta, ctx, log := newLoggedTextArea(t, "")
 		ta.cursor = 0
-		ta.Handle(tui.KeyEvent{Key: tui.KeyRune, Rune: 'a'}, ctx)
+		ta.Handle(rovel.KeyEvent{Key: rovel.KeyRune, Rune: 'a'}, ctx)
 
 		if got := lastReason(t, log); got != CursorMoveEdit {
 			t.Fatalf("typing reason = %d, want CursorMoveEdit", got)

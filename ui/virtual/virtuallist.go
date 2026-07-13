@@ -7,9 +7,9 @@
 package virtual
 
 import (
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/ui"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/ui"
 )
 
 // RenderRowFunc is the callback for rendering a single row in the virtual list.
@@ -18,28 +18,28 @@ type RenderRowFunc func(
 	i int,
 	selected bool,
 	focused bool,
-	d tui.Drawer,
+	d rovel.Drawer,
 	r geom.Rect,
 )
 
 // VirtualListOpts holds options for creating a VirtualList.
 type VirtualListOpts struct {
-	ID         tui.ID
+	ID         rovel.ID
 	RowHeight  int
 	Count      func() int
 	RenderRow  RenderRowFunc
-	OnActivate func(i int, ctx *tui.Ctx)
+	OnActivate func(i int, ctx *rovel.Ctx)
 }
 
 // VirtualList provides virtualization for large datasets by rendering only visible items.
 // Scrolling is item-based via scrollItem, not pixel-based.
 type VirtualList struct {
-	id            tui.ID
+	id            rovel.ID
 	rect          geom.Rect
 	rowHeight     int
 	count         func() int
 	renderRow     RenderRowFunc
-	onActivate    func(i int, ctx *tui.Ctx)
+	onActivate    func(i int, ctx *rovel.Ctx)
 	scrollItem    int
 	selectedIndex int // -1 = no selection
 }
@@ -60,7 +60,7 @@ func NewVirtualList(opts VirtualListOpts) *VirtualList {
 
 	id := opts.ID
 	if id == 0 {
-		id = tui.NewID()
+		id = rovel.NewID()
 	}
 
 	return &VirtualList{
@@ -73,7 +73,7 @@ func NewVirtualList(opts VirtualListOpts) *VirtualList {
 	}
 }
 
-func (v *VirtualList) ID() tui.ID {
+func (v *VirtualList) ID() rovel.ID {
 	return v.id
 }
 
@@ -99,7 +99,7 @@ func (v *VirtualList) Focusable() bool {
 }
 
 // Paint renders the visible items only.
-func (v *VirtualList) Paint(d tui.Drawer, ctx *tui.Ctx) {
+func (v *VirtualList) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	if v.rect.W <= 0 || v.rect.H <= 0 {
 		return
 	}
@@ -122,7 +122,7 @@ func (v *VirtualList) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	end := min(n, v.scrollItem+visible)
 	focused := ctx != nil && ctx.FocusedID == v.id
 
-	d.WithClip(v.rect, func(cd tui.Drawer) {
+	d.WithClip(v.rect, func(cd rovel.Drawer) {
 		for i := v.scrollItem; i < end; i++ {
 			rowOffset := (i - v.scrollItem) * v.rowHeight
 			rowY := v.rect.Y + rowOffset
@@ -139,7 +139,7 @@ func (v *VirtualList) Paint(d tui.Drawer, ctx *tui.Ctx) {
 				H: rowH,
 			}
 
-			cd.WithClip(rowRect, func(rd tui.Drawer) {
+			cd.WithClip(rowRect, func(rd rovel.Drawer) {
 				v.renderRow(i, i == v.selectedIndex, focused, rd, rowRect)
 			})
 		}
@@ -148,15 +148,15 @@ func (v *VirtualList) Paint(d tui.Drawer, ctx *tui.Ctx) {
 
 // Handle processes keyboard and mouse events.
 // Accepts both KeyEvent and *KeyEvent for pipeline compatibility.
-func (v *VirtualList) Handle(e tui.Event, ctx *tui.Ctx) bool {
+func (v *VirtualList) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
 	// Mouse click selects the item at the clicked row
-	if me, ok := e.(tui.MouseEvent); ok {
+	if me, ok := e.(rovel.MouseEvent); ok {
 		wheelItems := 3
 		if me.WheelDelta > 0 {
 			wheelItems *= me.WheelDelta
 		}
 
-		if me.Button == tui.MouseButtonLeft && me.Action == tui.MousePress {
+		if me.Button == rovel.MouseButtonLeft && me.Action == rovel.MousePress {
 			if ctx != nil {
 				if ctx.RequestFocus != nil {
 					ctx.RequestFocus(v.id)
@@ -174,11 +174,11 @@ func (v *VirtualList) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		}
 		// Mouse wheel scrolling
 		switch me.Button {
-		case tui.MouseButtonWheelUp:
+		case rovel.MouseButtonWheelUp:
 			v.ScrollBy(ctx, -wheelItems)
 
 			return true
-		case tui.MouseButtonWheelDown:
+		case rovel.MouseButtonWheelDown:
 			v.ScrollBy(ctx, wheelItems)
 
 			return true
@@ -190,9 +190,9 @@ func (v *VirtualList) Handle(e tui.Event, ctx *tui.Ctx) bool {
 
 	// Handle both value and pointer key events
 	switch ev := e.(type) {
-	case tui.KeyEvent:
+	case rovel.KeyEvent:
 		return v.handleKey(ev, ctx)
-	case *tui.KeyEvent:
+	case *rovel.KeyEvent:
 		if ev == nil {
 			return false
 		}
@@ -204,7 +204,7 @@ func (v *VirtualList) Handle(e tui.Event, ctx *tui.Ctx) bool {
 }
 
 // HandleAction handles semantic actions for navigation and activation.
-func (v *VirtualList) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+func (v *VirtualList) HandleAction(act ui.Action, ctx *rovel.Ctx) bool {
 	n := v.safeCount()
 	if n == 0 {
 		return false
@@ -268,7 +268,7 @@ func (v *VirtualList) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
 }
 
 // ScrollTo scrolls to the given item index.
-func (v *VirtualList) ScrollTo(ctx *tui.Ctx, item int) {
+func (v *VirtualList) ScrollTo(ctx *rovel.Ctx, item int) {
 	old := v.scrollItem
 	v.scrollItem = item
 	v.clampScroll()
@@ -279,17 +279,17 @@ func (v *VirtualList) ScrollTo(ctx *tui.Ctx, item int) {
 }
 
 // ScrollBy scrolls by a relative delta.
-func (v *VirtualList) ScrollBy(ctx *tui.Ctx, delta int) {
+func (v *VirtualList) ScrollBy(ctx *rovel.Ctx, delta int) {
 	v.ScrollTo(ctx, v.scrollItem+delta)
 }
 
 // ScrollTop scrolls to the top of the list.
-func (v *VirtualList) ScrollTop(ctx *tui.Ctx) {
+func (v *VirtualList) ScrollTop(ctx *rovel.Ctx) {
 	v.ScrollTo(ctx, 0)
 }
 
 // ScrollBottom scrolls to the bottom of the list.
-func (v *VirtualList) ScrollBottom(ctx *tui.Ctx) {
+func (v *VirtualList) ScrollBottom(ctx *rovel.Ctx) {
 	n := v.safeCount()
 	visible := v.visibleItems()
 	v.ScrollTo(ctx, max(0, n-visible))
@@ -301,12 +301,12 @@ func (v *VirtualList) ScrollItem() int {
 }
 
 // SetScrollItem sets the scroll position to the given item index.
-func (v *VirtualList) SetScrollItem(ctx *tui.Ctx, item int) {
+func (v *VirtualList) SetScrollItem(ctx *rovel.Ctx, item int) {
 	v.ScrollTo(ctx, item)
 }
 
 // SelectIndex sets the selected index and scrolls it into view.
-func (v *VirtualList) SelectIndex(ctx *tui.Ctx, index int) {
+func (v *VirtualList) SelectIndex(ctx *rovel.Ctx, index int) {
 	oldSel := v.selectedIndex
 	oldScroll := v.scrollItem
 
@@ -328,7 +328,7 @@ func (v *VirtualList) SelectedIndex() int {
 }
 
 // ClearSelection clears the current selection.
-func (v *VirtualList) ClearSelection(ctx *tui.Ctx) {
+func (v *VirtualList) ClearSelection(ctx *rovel.Ctx) {
 	if v.selectedIndex == -1 {
 		return
 	}
@@ -340,21 +340,21 @@ func (v *VirtualList) ClearSelection(ctx *tui.Ctx) {
 // NotifyCountChanged notifies the list that the item count has changed.
 // It reclamps scroll/selection and conservatively invalidates the list rect.
 // Models should call this whenever Count() may produce a different result.
-func (v *VirtualList) NotifyCountChanged(ctx *tui.Ctx) {
+func (v *VirtualList) NotifyCountChanged(ctx *rovel.Ctx) {
 	v.clampScroll()
 	v.clampSelection()
 	v.invalidate(ctx)
 }
 
 // handleKey processes key events for selection and activation.
-func (v *VirtualList) handleKey(e tui.KeyEvent, ctx *tui.Ctx) bool {
+func (v *VirtualList) handleKey(e rovel.KeyEvent, ctx *rovel.Ctx) bool {
 	n := v.safeCount()
 	if n == 0 {
 		return false
 	}
 
 	switch e.Key {
-	case tui.KeyUp:
+	case rovel.KeyUp:
 		if v.selectedIndex == -1 {
 			v.SelectIndex(ctx, 0)
 		} else {
@@ -363,7 +363,7 @@ func (v *VirtualList) handleKey(e tui.KeyEvent, ctx *tui.Ctx) bool {
 
 		return true
 
-	case tui.KeyDown:
+	case rovel.KeyDown:
 		if v.selectedIndex == -1 {
 			v.SelectIndex(ctx, 0)
 		} else {
@@ -372,7 +372,7 @@ func (v *VirtualList) handleKey(e tui.KeyEvent, ctx *tui.Ctx) bool {
 
 		return true
 
-	case tui.KeyEnter:
+	case rovel.KeyEnter:
 		if v.selectedIndex >= 0 && v.selectedIndex < n && v.onActivate != nil {
 			v.onActivate(v.selectedIndex, ctx)
 
@@ -454,13 +454,13 @@ func (v *VirtualList) scrollSelectionIntoView() {
 }
 
 // paintEmpty paints the empty state (intentionally minimal for now).
-func (v *VirtualList) paintEmpty(d tui.Drawer, ctx *tui.Ctx) {
+func (v *VirtualList) paintEmpty(d rovel.Drawer, ctx *rovel.Ctx) {
 	// Intentionally empty for now.
 	// Paint Contract A already clears damaged regions.
 }
 
 // invalidate marks the list rect as needing repaint.
-func (v *VirtualList) invalidate(ctx *tui.Ctx) {
+func (v *VirtualList) invalidate(ctx *rovel.Ctx) {
 	if ctx == nil || ctx.Invalidate == nil {
 		return
 	}

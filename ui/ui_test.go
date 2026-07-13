@@ -3,7 +3,7 @@ package ui
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui/event"
+	"github.com/losinggeneration/rovel/event"
 )
 
 func TestKeystrokeOf(t *testing.T) {

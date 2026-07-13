@@ -1,18 +1,18 @@
 package widgets
 
 import (
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/style"
 )
 
 // ScrollbarOpts holds options for creating a Scrollbar.
 type ScrollbarOpts struct {
-	ID          tui.ID
+	ID          rovel.ID
 	ContentSize int
 	ViewSize    int
 	Position    int
-	OnScroll    func(pos int, ctx *tui.Ctx)
+	OnScroll    func(pos int, ctx *rovel.Ctx)
 
 	// Optional style overrides. When non-nil, the style replaces the
 	// palette-derived style for that state completely (no merging).
@@ -23,12 +23,12 @@ type ScrollbarOpts struct {
 // Scrollbar is a standalone vertical scroll indicator. It can be used
 // independently or composed into containers like ScrollView.
 type Scrollbar struct {
-	id           tui.ID
+	id           rovel.ID
 	rect         geom.Rect
 	contentSize  int
 	viewSize     int
 	position     int
-	onScroll     func(pos int, ctx *tui.Ctx)
+	onScroll     func(pos int, ctx *rovel.Ctx)
 	dragging     bool
 	dragStartY   int
 	dragStartPos int
@@ -40,7 +40,7 @@ type Scrollbar struct {
 func NewScrollbar(opts ScrollbarOpts) *Scrollbar {
 	id := opts.ID
 	if id == 0 {
-		id = tui.NewID()
+		id = rovel.NewID()
 	}
 
 	return &Scrollbar{
@@ -54,7 +54,7 @@ func NewScrollbar(opts ScrollbarOpts) *Scrollbar {
 	}
 }
 
-func (s *Scrollbar) ID() tui.ID      { return s.id }
+func (s *Scrollbar) ID() rovel.ID      { return s.id }
 func (s *Scrollbar) Rect() geom.Rect { return s.rect }
 func (s *Scrollbar) Focusable() bool { return false }
 
@@ -82,13 +82,13 @@ func (s *Scrollbar) Dragging() bool {
 	return s.dragging
 }
 
-func (s *Scrollbar) Paint(d tui.Drawer, ctx *tui.Ctx) {
+func (s *Scrollbar) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	r := s.rect
 	if r.W <= 0 || r.H <= 0 || s.contentSize <= s.viewSize {
 		return
 	}
 
-	cd, ok := tui.CellDrawerOf(d)
+	cd, ok := rovel.CellDrawerOf(d)
 	if !ok {
 		return
 	}
@@ -110,8 +110,8 @@ func (s *Scrollbar) Paint(d tui.Drawer, ctx *tui.Ctx) {
 // MouseOpaque marks the scrollbar as opaque to hit-testing.
 func (s *Scrollbar) MouseOpaque() {}
 
-func (s *Scrollbar) Handle(e tui.Event, ctx *tui.Ctx) bool {
-	me, ok := e.(tui.MouseEvent)
+func (s *Scrollbar) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
+	me, ok := e.(rovel.MouseEvent)
 	if !ok {
 		return false
 	}
@@ -121,8 +121,8 @@ func (s *Scrollbar) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	}
 
 	switch me.Action {
-	case tui.MousePress:
-		if me.Button != tui.MouseButtonLeft {
+	case rovel.MousePress:
+		if me.Button != rovel.MouseButtonLeft {
 			return false
 		}
 
@@ -146,7 +146,7 @@ func (s *Scrollbar) Handle(e tui.Event, ctx *tui.Ctx) bool {
 
 		return true
 
-	case tui.MouseDrag:
+	case rovel.MouseDrag:
 		if !s.dragging {
 			return false
 		}
@@ -170,7 +170,7 @@ func (s *Scrollbar) Handle(e tui.Event, ctx *tui.Ctx) bool {
 
 		return true
 
-	case tui.MouseRelease:
+	case rovel.MouseRelease:
 		if s.dragging {
 			s.dragging = false
 
@@ -178,7 +178,7 @@ func (s *Scrollbar) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		}
 
 		return false
-	case tui.MouseMove:
+	case rovel.MouseMove:
 		return false
 	}
 

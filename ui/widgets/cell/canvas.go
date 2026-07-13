@@ -1,21 +1,21 @@
 package cell
 
 import (
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/geom"
 )
 
 // PaintCallback is the function signature for custom paint callbacks.
 // It receives a cell-precise drawer, the canvas rect, and the render context.
-type PaintCallback func(d tui.CellDrawer, rect geom.Rect, ctx *tui.Ctx)
+type PaintCallback func(d rovel.CellDrawer, rect geom.Rect, ctx *rovel.Ctx)
 
 // HandleCallback is the function signature for custom event handling callbacks.
 // It receives the event and the render context, returning true if handled.
-type HandleCallback func(e tui.Event, ctx *tui.Ctx) bool
+type HandleCallback func(e rovel.Event, ctx *rovel.Ctx) bool
 
 // CanvasOpts holds options for creating a cell-specific Canvas.
 type CanvasOpts struct {
-	ID        tui.ID
+	ID        rovel.ID
 	Paint     PaintCallback
 	Handle    HandleCallback
 	MinSize   geom.Size
@@ -26,7 +26,7 @@ type CanvasOpts struct {
 // input behavior. Its callback contract is intentionally cell-precise; prefer
 // ordinary Drawer-based widgets when exact cell writes are unnecessary.
 type Canvas struct {
-	id        tui.ID
+	id        rovel.ID
 	rect      geom.Rect
 	paint     PaintCallback
 	handle    HandleCallback
@@ -41,7 +41,7 @@ func NewCanvas() *Canvas {
 func NewCanvasOpts(opts CanvasOpts) *Canvas {
 	id := opts.ID
 	if id == 0 {
-		id = tui.NewID()
+		id = rovel.NewID()
 	}
 
 	minSize := opts.MinSize
@@ -62,7 +62,7 @@ func NewCanvasOpts(opts CanvasOpts) *Canvas {
 	}
 }
 
-func (c *Canvas) ID() tui.ID {
+func (c *Canvas) ID() rovel.ID {
 	return c.id
 }
 
@@ -83,18 +83,18 @@ func (c *Canvas) Focusable() bool {
 }
 
 // Paint renders the canvas using the paint callback.
-func (c *Canvas) Paint(d tui.Drawer, ctx *tui.Ctx) {
+func (c *Canvas) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	if c.paint == nil || c.rect.W <= 0 || c.rect.H <= 0 {
 		return
 	}
 
-	cd, ok := tui.CellDrawerOf(d)
+	cd, ok := rovel.CellDrawerOf(d)
 	if !ok {
 		return
 	}
 
-	cd.WithClip(c.rect, func(inner tui.Drawer) {
-		clipped, ok := tui.CellDrawerOf(inner)
+	cd.WithClip(c.rect, func(inner rovel.Drawer) {
+		clipped, ok := rovel.CellDrawerOf(inner)
 		if !ok {
 			return
 		}
@@ -103,7 +103,7 @@ func (c *Canvas) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	})
 }
 
-func (c *Canvas) Handle(e tui.Event, ctx *tui.Ctx) bool {
+func (c *Canvas) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
 	if c.handle == nil {
 		return false
 	}
@@ -119,7 +119,7 @@ func (c *Canvas) SetHandleCallback(cb HandleCallback) {
 	c.handle = cb
 }
 
-func (c *Canvas) SetMinSize(ctx *tui.Ctx, sz geom.Size) {
+func (c *Canvas) SetMinSize(ctx *rovel.Ctx, sz geom.Size) {
 	if sz.W <= 0 {
 		sz.W = 1
 	}
@@ -144,7 +144,7 @@ func (c *Canvas) SetFocusable(v bool) {
 }
 
 // Invalidate marks the entire canvas rect as needing repaint.
-func (c *Canvas) Invalidate(ctx *tui.Ctx) {
+func (c *Canvas) Invalidate(ctx *rovel.Ctx) {
 	if ctx == nil || ctx.Invalidate == nil {
 		return
 	}
@@ -157,7 +157,7 @@ func (c *Canvas) Invalidate(ctx *tui.Ctx) {
 }
 
 // InvalidateRect marks a relative rect within the canvas as needing repaint.
-func (c *Canvas) InvalidateRect(ctx *tui.Ctx, r geom.Rect) {
+func (c *Canvas) InvalidateRect(ctx *rovel.Ctx, r geom.Rect) {
 	if ctx == nil || ctx.Invalidate == nil {
 		return
 	}
@@ -186,7 +186,7 @@ func (c *Canvas) InvalidateRect(ctx *tui.Ctx, r geom.Rect) {
 }
 
 // InvalidateRow marks a single row within the canvas as needing repaint.
-func (c *Canvas) InvalidateRow(ctx *tui.Ctx, row int) {
+func (c *Canvas) InvalidateRow(ctx *rovel.Ctx, row int) {
 	c.InvalidateRect(ctx, geom.Rect{
 		X: 0,
 		Y: row,
@@ -196,7 +196,7 @@ func (c *Canvas) InvalidateRow(ctx *tui.Ctx, row int) {
 }
 
 // InvalidateRows marks a range of rows within the canvas as needing repaint.
-func (c *Canvas) InvalidateRows(ctx *tui.Ctx, start, count int) {
+func (c *Canvas) InvalidateRows(ctx *rovel.Ctx, start, count int) {
 	c.InvalidateRect(ctx, geom.Rect{
 		X: 0,
 		Y: start,

@@ -3,8 +3,8 @@ package render
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/style"
 )
 
 func FuzzPainterText(f *testing.F) {

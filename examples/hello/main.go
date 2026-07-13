@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/ui"
-	"github.com/losinggeneration/tui/ui/layout"
-	"github.com/losinggeneration/tui/ui/widgets"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/ui"
+	"github.com/losinggeneration/rovel/ui/layout"
+	"github.com/losinggeneration/rovel/ui/widgets"
 )
 
 const ActionQuit ui.Action = iota + 100
 
-var appOpts = tui.AppOpts{
+var appOpts = rovel.AppOpts{
 	ResolveAction: ui.NewResolver(quitKeymap{}),
 }
 
@@ -26,7 +26,7 @@ type Root struct {
 	*layout.HStack
 }
 
-func (r *Root) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+func (r *Root) HandleAction(act ui.Action, ctx *rovel.Ctx) bool {
 	if act == ActionQuit {
 		ctx.Quit()
 
@@ -37,7 +37,7 @@ func (r *Root) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
 }
 
 func main() {
-	app, err := tui.New(appOpts)
+	app, err := rovel.New(appOpts)
 	if err != nil {
 		panic(err)
 	}

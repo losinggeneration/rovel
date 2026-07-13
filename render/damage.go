@@ -1,6 +1,6 @@
 package render
 
-import "github.com/losinggeneration/tui/geom"
+import "github.com/losinggeneration/rovel/geom"
 
 type Span struct {
 	X0 int // inclusive

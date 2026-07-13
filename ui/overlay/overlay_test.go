@@ -3,18 +3,18 @@ package overlay
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/geom"
 )
 
 type stubView struct {
-	id      tui.ID
+	id      rovel.ID
 	minSize geom.Size
 	pref    geom.Size
 	rect    geom.Rect
 }
 
-func (v *stubView) ID() tui.ID         { return v.id }
+func (v *stubView) ID() rovel.ID         { return v.id }
 func (v *stubView) MinSize() geom.Size { return v.minSize }
 func (v *stubView) PreferredSize() geom.Size {
 	if v.pref != (geom.Size{}) {
@@ -25,8 +25,8 @@ func (v *stubView) PreferredSize() geom.Size {
 }
 func (v *stubView) Layout(r geom.Rect)                    { v.rect = r }
 func (v *stubView) Rect() geom.Rect                       { return v.rect }
-func (v *stubView) Paint(d tui.Drawer, ctx *tui.Ctx)      {}
-func (v *stubView) Handle(e tui.Event, ctx *tui.Ctx) bool { return false }
+func (v *stubView) Paint(d rovel.Drawer, ctx *rovel.Ctx)      {}
+func (v *stubView) Handle(e rovel.Event, ctx *rovel.Ctx) bool { return false }
 
 func TestCentered(t *testing.T) {
 	view := &stubView{minSize: geom.Size{W: 20, H: 10}}

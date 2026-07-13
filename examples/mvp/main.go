@@ -16,15 +16,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/event"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/style"
-	"github.com/losinggeneration/tui/ui"
-	"github.com/losinggeneration/tui/ui/layout"
-	"github.com/losinggeneration/tui/ui/virtual"
-	"github.com/losinggeneration/tui/ui/widgets"
-	cellwidgets "github.com/losinggeneration/tui/ui/widgets/cell"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/event"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/style"
+	"github.com/losinggeneration/rovel/ui"
+	"github.com/losinggeneration/rovel/ui/layout"
+	"github.com/losinggeneration/rovel/ui/virtual"
+	"github.com/losinggeneration/rovel/ui/widgets"
+	cellwidgets "github.com/losinggeneration/rovel/ui/widgets/cell"
 )
 
 const (
@@ -63,10 +63,10 @@ type Root struct {
 	*layout.VStack
 
 	state *appState
-	app   *tui.App
+	app   *rovel.App
 }
 
-func (r *Root) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+func (r *Root) HandleAction(act ui.Action, ctx *rovel.Ctx) bool {
 	switch act {
 	case ActionQuit:
 		r.app.Quit()
@@ -135,14 +135,14 @@ func main() {
 
 	st := newAppState(*perfFlag)
 
-	app, err := tui.New(tui.AppOpts{
-		Theme: tui.Theme{
+	app, err := rovel.New(rovel.AppOpts{
+		Theme: rovel.Theme{
 			Base: style.Style{
 				FG:   style.ColorDefault,
 				BG:   style.ColorDefault,
 				Attr: 0,
 			},
-			Palette: tui.Palette{
+			Palette: rovel.Palette{
 				Focus: style.Style{
 					FG:   style.ColorBlack,
 					BG:   style.ColorWhite,
@@ -162,10 +162,10 @@ func main() {
 	editor = cellwidgets.NewCanvasOpts(cellwidgets.CanvasOpts{
 		Focusable: true,
 		MinSize:   geom.Size{W: 20, H: 10},
-		Paint: func(d tui.CellDrawer, rect geom.Rect, ctx *tui.Ctx) {
+		Paint: func(d rovel.CellDrawer, rect geom.Rect, ctx *rovel.Ctx) {
 			paintEditor(st, d, rect, ctx)
 		},
-		Handle: func(e tui.Event, ctx *tui.Ctx) bool {
+		Handle: func(e rovel.Event, ctx *rovel.Ctx) bool {
 			return handleEditor(st, editorRef{canvas: editor}, e, ctx)
 		},
 	})
@@ -180,7 +180,7 @@ func main() {
 			i int,
 			selected bool,
 			focused bool,
-			d tui.Drawer,
+			d rovel.Drawer,
 			r geom.Rect,
 		) {
 			if r.W <= 0 {
@@ -192,29 +192,29 @@ func main() {
 			switch {
 			case selected && focused:
 				// Selected + focused: reverse video
-				d.FillRect(r, tui.Style{Attr: style.AttrReverse})
+				d.FillRect(r, rovel.Style{Attr: style.AttrReverse})
 
 				truncated := truncate(row, r.W-1)
 				if r.W > 1 {
-					d.DrawText(tui.Point{X: r.X, Y: r.Y}, ">"+truncated, tui.Style{Attr: style.AttrReverse})
+					d.DrawText(rovel.Point{X: r.X, Y: r.Y}, ">"+truncated, rovel.Style{Attr: style.AttrReverse})
 				}
 
 			case selected:
 				// Selected but unfocused: lighter treatment
-				d.FillRect(r, tui.Style{FG: style.ColorWhite, BG: style.ColorBlue})
+				d.FillRect(r, rovel.Style{FG: style.ColorWhite, BG: style.ColorBlue})
 
 				truncated := truncate(row, r.W-1)
 				if r.W > 1 {
-					d.DrawText(tui.Point{X: r.X, Y: r.Y}, ">"+truncated, tui.Style{FG: style.ColorWhite, BG: style.ColorBlue})
+					d.DrawText(rovel.Point{X: r.X, Y: r.Y}, ">"+truncated, rovel.Style{FG: style.ColorWhite, BG: style.ColorBlue})
 				}
 
 			default:
 				// Normal row
 				truncated := truncate(row, r.W)
-				d.DrawText(tui.Point{X: r.X, Y: r.Y}, truncated, tui.Style{})
+				d.DrawText(rovel.Point{X: r.X, Y: r.Y}, truncated, rovel.Style{})
 			}
 		},
-		OnActivate: func(i int, ctx *tui.Ctx) {
+		OnActivate: func(i int, ctx *rovel.Ctx) {
 			st.status = fmt.Sprintf("Activated item %d", i)
 
 			if ctx != nil && ctx.InvalidateAll != nil {
@@ -223,7 +223,7 @@ func main() {
 		},
 	})
 
-	var history tui.View = baseHistory
+	var history rovel.View = baseHistory
 	if st.perfEnabled && st.perfMonitor != nil {
 		history = NewInstrumentedVirtualList("history", baseHistory, st.perfMonitor)
 	}
@@ -260,7 +260,7 @@ type editorRef struct {
 }
 
 // paintEditor renders the editor canvas.
-func paintEditor(st *appState, d tui.CellDrawer, rect geom.Rect, ctx *tui.Ctx) {
+func paintEditor(st *appState, d rovel.CellDrawer, rect geom.Rect, ctx *rovel.Ctx) {
 	if rect.W <= 0 || rect.H <= 0 {
 		return
 	}
@@ -270,7 +270,7 @@ func paintEditor(st *appState, d tui.CellDrawer, rect geom.Rect, ctx *tui.Ctx) {
 		lineY := rect.Y + i
 		line := truncate(st.lines[i], rect.W)
 		padded := padRight(line, rect.W)
-		d.DrawText(tui.Point{X: rect.X, Y: lineY}, padded, tui.Style{})
+		d.DrawText(rovel.Point{X: rect.X, Y: lineY}, padded, rovel.Style{})
 	}
 
 	// Draw cursor
@@ -281,7 +281,7 @@ func paintEditor(st *appState, d tui.CellDrawer, rect geom.Rect, ctx *tui.Ctx) {
 		// Calculate cursor display position (not rune index)
 		cursorDisplayX := 0
 		for i := 0; i < st.cursorX && i < len(runes); i++ {
-			cursorDisplayX += tui.RuneWidth(runes[i])
+			cursorDisplayX += rovel.RuneWidth(runes[i])
 		}
 
 		cx := rect.X + cursorDisplayX
@@ -294,7 +294,7 @@ func paintEditor(st *appState, d tui.CellDrawer, rect geom.Rect, ctx *tui.Ctx) {
 				ch = string(runes[st.cursorX])
 			}
 
-			d.DrawText(tui.Point{X: cx, Y: cy}, ch, tui.Style{Attr: style.AttrReverse})
+			d.DrawText(rovel.Point{X: cx, Y: cy}, ch, rovel.Style{Attr: style.AttrReverse})
 		}
 	}
 }
@@ -303,10 +303,10 @@ func paintEditor(st *appState, d tui.CellDrawer, rect geom.Rect, ctx *tui.Ctx) {
 func handleEditor(
 	st *appState,
 	ref editorRef,
-	e tui.Event,
-	ctx *tui.Ctx,
+	e rovel.Event,
+	ctx *rovel.Ctx,
 ) bool {
-	ke, ok := e.(tui.KeyEvent)
+	ke, ok := e.(rovel.KeyEvent)
 	if !ok {
 		return false
 	}
@@ -314,49 +314,49 @@ func handleEditor(
 	_, oldY := st.cursorX, st.cursorY
 
 	switch ke.Key {
-	case tui.KeyRune:
+	case rovel.KeyRune:
 		insertRune(st, ke.Rune)
 		ref.canvas.InvalidateRow(ctx, st.cursorY)
 
 		return true
 
-	case tui.KeyLeft:
+	case rovel.KeyLeft:
 		moveLeft(st)
 		invalidateCursorMove(ref.canvas, ctx, oldY, st.cursorY)
 
 		return true
 
-	case tui.KeyRight:
+	case rovel.KeyRight:
 		moveRight(st)
 		invalidateCursorMove(ref.canvas, ctx, oldY, st.cursorY)
 
 		return true
 
-	case tui.KeyUp:
+	case rovel.KeyUp:
 		moveUp(st)
 		invalidateCursorMove(ref.canvas, ctx, oldY, st.cursorY)
 
 		return true
 
-	case tui.KeyDown:
+	case rovel.KeyDown:
 		moveDown(st)
 		invalidateCursorMove(ref.canvas, ctx, oldY, st.cursorY)
 
 		return true
 
-	case tui.KeyEnter:
+	case rovel.KeyEnter:
 		splitLine(st)
 		ref.canvas.Invalidate(ctx)
 
 		return true
 
-	case tui.KeyBackspace:
+	case rovel.KeyBackspace:
 		backspace(st)
 		ref.canvas.Invalidate(ctx)
 
 		return true
 
-	case tui.KeyEsc:
+	case rovel.KeyEsc:
 		// Don't handle - let quitWrapper handle it
 		return false
 
@@ -368,7 +368,7 @@ func handleEditor(
 // invalidateCursorMove invalidates rows affected by cursor movement.
 func invalidateCursorMove(
 	c *cellwidgets.Canvas,
-	ctx *tui.Ctx,
+	ctx *rovel.Ctx,
 	oldRow int,
 	newRow int,
 ) {
@@ -556,7 +556,7 @@ func truncate(s string, w int) string {
 
 	runes := []rune(s)
 	for i, r := range runes {
-		rw := tui.RuneWidth(r)
+		rw := rovel.RuneWidth(r)
 		if width+rw > w {
 			return string(runes[:i])
 		}
@@ -571,7 +571,7 @@ func truncate(s string, w int) string {
 func padRight(s string, w int) string {
 	width := 0
 	for _, r := range s {
-		width += tui.RuneWidth(r)
+		width += rovel.RuneWidth(r)
 	}
 
 	if width >= w {
@@ -582,7 +582,7 @@ func padRight(s string, w int) string {
 }
 
 // buildFormPane creates the form pane with name/email fields and submit button.
-func buildFormPane(st *appState) tui.View {
+func buildFormPane(st *appState) rovel.View {
 	// Create a VStack for the form layout
 	form := layout.NewVStack()
 
@@ -606,7 +606,7 @@ func buildFormPane(st *appState) tui.View {
 
 	// Submit button
 	submitBtn := widgets.NewButton("Submit")
-	submitBtn.SetOnPress(func(ctx *tui.Ctx) {
+	submitBtn.SetOnPress(func(ctx *rovel.Ctx) {
 		st.name = nameInput.Text()
 		st.email = emailInput.Text()
 		st.status = fmt.Sprintf("Submitted: name=%q email=%q", st.name, st.email)
@@ -630,20 +630,20 @@ func buildFormPane(st *appState) tui.View {
 }
 
 // buildStatusBar creates the status bar at the top.
-func buildStatusBar(st *appState) tui.View {
+func buildStatusBar(st *appState) rovel.View {
 	statusCanvas := cellwidgets.NewCanvasOpts(cellwidgets.CanvasOpts{
 		MinSize: geom.Size{W: 1, H: 1},
-		Paint: func(d tui.CellDrawer, rect geom.Rect, ctx *tui.Ctx) {
+		Paint: func(d rovel.CellDrawer, rect geom.Rect, ctx *rovel.Ctx) {
 			if rect.W <= 0 || rect.H <= 0 {
 				return
 			}
 			// Draw status text with background
 			status := truncate(st.status, rect.W)
-			sty := tui.Style{FG: style.ColorBlack, BG: style.ColorCyan}
+			sty := rovel.Style{FG: style.ColorBlack, BG: style.ColorCyan}
 			d.FillRect(rect, sty)
-			d.DrawText(tui.Point{X: rect.X, Y: rect.Y}, status, sty)
+			d.DrawText(rovel.Point{X: rect.X, Y: rect.Y}, status, sty)
 		},
-		Handle: func(e tui.Event, ctx *tui.Ctx) bool {
+		Handle: func(e rovel.Event, ctx *rovel.Ctx) bool {
 			// Let events bubble up to quitWrapper
 			return false
 		},
@@ -653,7 +653,7 @@ func buildStatusBar(st *appState) tui.View {
 }
 
 // buildRoot creates the root layout with status bar and 3-pane main area.
-func buildRoot(st *appState, app *tui.App, status tui.View, form tui.View, editor tui.View, history tui.View) *Root {
+func buildRoot(st *appState, app *rovel.App, status rovel.View, form rovel.View, editor rovel.View, history rovel.View) *Root {
 	root := layout.NewVStack()
 
 	// Add status bar

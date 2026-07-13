@@ -3,7 +3,7 @@
 package main
 
 import (
-	"github.com/losinggeneration/tui/backend/sdl"
+	"github.com/losinggeneration/rovel/backend/sdl"
 )
 
 func init() {

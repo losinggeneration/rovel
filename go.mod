@@ -1,4 +1,4 @@
-module github.com/losinggeneration/tui
+module github.com/losinggeneration/rovel
 
 go 1.25.6
 

@@ -12,8 +12,8 @@
 package cellsurface
 
 import (
-	"github.com/losinggeneration/tui/backend"
-	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/rovel/backend"
+	"github.com/losinggeneration/rovel/style"
 )
 
 // Metrics describes a logical-cell to pixel mapping.

@@ -1,11 +1,11 @@
-package tui
+package rovel
 
 import (
 	"errors"
 	"testing"
 
-	"github.com/losinggeneration/tui/backend/headless"
-	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/rovel/backend/headless"
+	"github.com/losinggeneration/rovel/geom"
 )
 
 // clipboardErrBackend is a headless backend that also implements

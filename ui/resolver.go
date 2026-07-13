@@ -1,15 +1,15 @@
 package ui
 
 import (
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/event"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/event"
 )
 
 // NewResolver creates a ResolveAction closure that detects KeyContext from
 // the focused view and resolves keystrokes via the given keymap.
 // The returned closure is suitable for AppOpts.ResolveAction.
-func NewResolver(keymap Keymap) func(event.KeyEvent, tui.View) (Action, bool) {
-	return func(e event.KeyEvent, focused tui.View) (Action, bool) {
+func NewResolver(keymap Keymap) func(event.KeyEvent, rovel.View) (Action, bool) {
+	return func(e event.KeyEvent, focused rovel.View) (Action, bool) {
 		ctx := KeyCtxGlobal
 		if tim, ok := focused.(TextInputMode); ok && tim.IsTextInputMode() {
 			ctx = KeyCtxTextInput
@@ -27,6 +27,6 @@ func NewResolver(keymap Keymap) func(event.KeyEvent, tui.View) (Action, bool) {
 }
 
 // DefaultAppResolver returns a ResolveAction closure using the DefaultKeymap.
-func DefaultAppResolver() func(event.KeyEvent, tui.View) (Action, bool) {
+func DefaultAppResolver() func(event.KeyEvent, rovel.View) (Action, bool) {
 	return NewResolver(DefaultKeymap{})
 }

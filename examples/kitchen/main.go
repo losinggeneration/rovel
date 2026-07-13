@@ -23,17 +23,17 @@ import (
 	"math"
 	"os"
 
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/event"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/style"
-	"github.com/losinggeneration/tui/text"
-	"github.com/losinggeneration/tui/ui"
-	"github.com/losinggeneration/tui/ui/layout"
-	"github.com/losinggeneration/tui/ui/overlay"
-	"github.com/losinggeneration/tui/ui/virtual"
-	"github.com/losinggeneration/tui/ui/widgets"
-	cellwidgets "github.com/losinggeneration/tui/ui/widgets/cell"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/event"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/style"
+	"github.com/losinggeneration/rovel/text"
+	"github.com/losinggeneration/rovel/ui"
+	"github.com/losinggeneration/rovel/ui/layout"
+	"github.com/losinggeneration/rovel/ui/overlay"
+	"github.com/losinggeneration/rovel/ui/virtual"
+	"github.com/losinggeneration/rovel/ui/widgets"
+	cellwidgets "github.com/losinggeneration/rovel/ui/widgets/cell"
 )
 
 // Custom actions for this app.
@@ -62,7 +62,7 @@ func (appKeymap) Resolve(ctx ui.KeyContext, k ui.Keystroke) (ui.Action, bool) {
 
 // state holds all mutable UI state.
 type state struct {
-	app    *tui.App
+	app    *rovel.App
 	status *widgets.Label
 
 	textInput *widgets.TextInput
@@ -79,9 +79,9 @@ type state struct {
 	listItems []string
 }
 
-var appOpts = tui.AppOpts{
-	Theme: tui.DefaultThemeModern(),
-	Input: tui.InputOpts{
+var appOpts = rovel.AppOpts{
+	Theme: rovel.DefaultThemeModern(),
+	Input: rovel.InputOpts{
 		Mouse:          true,
 		BracketedPaste: true,
 	},
@@ -109,7 +109,7 @@ func run() error {
 		s.listItems[i] = fmt.Sprintf("Item %d — virtual list row", i+1)
 	}
 
-	app, err := tui.New(appOpts)
+	app, err := rovel.New(appOpts)
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func run() error {
 	return nil
 }
 
-func (s *state) buildUI() tui.View {
+func (s *state) buildUI() rovel.View {
 	s.status = widgets.NewLabel("Kitchen Sink — Tab to navigate, Esc/Ctrl-C to quit")
 
 	left := s.buildLeftColumn()
@@ -148,7 +148,7 @@ func (s *state) buildUI() tui.View {
 	mainVStack.AddChild(layout.GrowChild(split, 1, 1))
 
 	return &rootView{
-		id:    tui.NewID(),
+		id:    rovel.NewID(),
 		app:   s.app,
 		View:  mainVStack,
 		state: s,
@@ -157,7 +157,7 @@ func (s *state) buildUI() tui.View {
 
 // ── left column ──────────────────────────────────────────────────────
 
-func (s *state) buildLeftColumn() tui.View {
+func (s *state) buildLeftColumn() rovel.View {
 	col := layout.NewVStack()
 	col.SetGap(1)
 
@@ -175,9 +175,9 @@ func (s *state) buildLeftColumn() tui.View {
 	return col
 }
 
-func (s *state) buildButtonSection() tui.View {
+func (s *state) buildButtonSection() rovel.View {
 	btn1 := widgets.NewButton("Normal")
-	btn1.SetOnPress(func(ctx *tui.Ctx) {
+	btn1.SetOnPress(func(ctx *rovel.Ctx) {
 		s.setStatus(ctx, "Normal button pressed")
 	})
 
@@ -185,7 +185,7 @@ func (s *state) buildButtonSection() tui.View {
 		Label:  "Solid",
 		Chrome: widgets.ButtonChromeSolid,
 	})
-	btn2.SetOnPress(func(ctx *tui.Ctx) {
+	btn2.SetOnPress(func(ctx *rovel.Ctx) {
 		s.setStatus(ctx, "Solid button pressed")
 	})
 
@@ -207,7 +207,7 @@ func (s *state) buildButtonSection() tui.View {
 	return b
 }
 
-func (s *state) buildTextInputSection() tui.View {
+func (s *state) buildTextInputSection() rovel.View {
 	s.textInput = widgets.NewTextInput()
 	s.textInput.SetText(nil, "editable text — try typing or pasting")
 
@@ -217,11 +217,11 @@ func (s *state) buildTextInputSection() tui.View {
 	return b
 }
 
-func (s *state) buildCheckboxSection() tui.View {
+func (s *state) buildCheckboxSection() rovel.View {
 	s.checkbox1 = widgets.NewCheckboxOpts(widgets.CheckboxOpts{
 		Label:   "Enable feature A",
 		Checked: true,
-		OnChange: func(checked bool, ctx *tui.Ctx) {
+		OnChange: func(checked bool, ctx *rovel.Ctx) {
 			if checked {
 				s.setStatus(ctx, "Feature A enabled")
 			} else {
@@ -232,7 +232,7 @@ func (s *state) buildCheckboxSection() tui.View {
 
 	s.checkbox2 = widgets.NewCheckboxOpts(widgets.CheckboxOpts{
 		Label: "Enable feature B",
-		OnChange: func(checked bool, ctx *tui.Ctx) {
+		OnChange: func(checked bool, ctx *rovel.Ctx) {
 			if checked {
 				s.setStatus(ctx, "Feature B enabled")
 			} else {
@@ -251,11 +251,11 @@ func (s *state) buildCheckboxSection() tui.View {
 	return b
 }
 
-func (s *state) buildRadioSection() tui.View {
+func (s *state) buildRadioSection() rovel.View {
 	s.radio = widgets.NewRadioGroupOpts(widgets.RadioGroupOpts{
 		Items:    []string{"Option Alpha", "Option Beta", "Option Gamma"},
 		Selected: 0,
-		OnChange: func(idx int, ctx *tui.Ctx) {
+		OnChange: func(idx int, ctx *rovel.Ctx) {
 			names := []string{"Alpha", "Beta", "Gamma"}
 			s.setStatus(ctx, "Radio: "+names[idx])
 		},
@@ -267,12 +267,12 @@ func (s *state) buildRadioSection() tui.View {
 	return b
 }
 
-func (s *state) buildOverlaySection() tui.View {
+func (s *state) buildOverlaySection() rovel.View {
 	btnDialog := widgets.NewButton("Open Dialog")
-	btnDialog.SetOnPress(func(ctx *tui.Ctx) { s.openDialog(ctx) })
+	btnDialog.SetOnPress(func(ctx *rovel.Ctx) { s.openDialog(ctx) })
 
 	btnClipRead := widgets.NewButton("Read Clipboard")
-	btnClipRead.SetOnPress(func(ctx *tui.Ctx) {
+	btnClipRead.SetOnPress(func(ctx *rovel.Ctx) {
 		if ctx.ClipboardRead != nil {
 			ctx.ClipboardRead()
 			s.setStatus(ctx, "Clipboard read requested...")
@@ -293,11 +293,11 @@ func (s *state) buildOverlaySection() tui.View {
 	return b
 }
 
-func (s *state) buildCanvasSection() tui.View {
+func (s *state) buildCanvasSection() rovel.View {
 	// Canvas: custom paint escape hatch — draws a simple bar chart.
 	canvas := cellwidgets.NewCanvasOpts(cellwidgets.CanvasOpts{
 		MinSize: geom.Size{W: 20, H: 3},
-		Paint: func(d tui.CellDrawer, r geom.Rect, ctx *tui.Ctx) {
+		Paint: func(d rovel.CellDrawer, r geom.Rect, ctx *rovel.Ctx) {
 			if r.W <= 0 || r.H <= 0 {
 				return
 			}
@@ -330,7 +330,7 @@ func (s *state) buildCanvasSection() tui.View {
 
 // ── right column ─────────────────────────────────────────────────────
 
-func (s *state) buildRightColumn() tui.View {
+func (s *state) buildRightColumn() rovel.View {
 	col := layout.NewVStack()
 	col.SetGap(1)
 
@@ -341,11 +341,11 @@ func (s *state) buildRightColumn() tui.View {
 	return col
 }
 
-func (s *state) buildSelectSection() tui.View {
+func (s *state) buildSelectSection() rovel.View {
 	s.selectW = widgets.NewSelectOpts(widgets.SelectOpts{
 		Items:       []string{"Red", "Green", "Blue", "Yellow", "Magenta", "Cyan"},
 		Placeholder: "Pick a color...",
-		OnChange: func(idx int, ctx *tui.Ctx) {
+		OnChange: func(idx int, ctx *rovel.Ctx) {
 			colors := []string{"Red", "Green", "Blue", "Yellow", "Magenta", "Cyan"}
 			s.setStatus(ctx, "Color: "+colors[idx])
 		},
@@ -357,13 +357,13 @@ func (s *state) buildSelectSection() tui.View {
 	return b
 }
 
-func (s *state) buildProgressSection() tui.View {
+func (s *state) buildProgressSection() rovel.View {
 	s.progress = widgets.NewProgressBarOpts(widgets.ProgressBarOpts{
 		Value: 0.35,
 	})
 
 	btnLess := widgets.NewButton("-10%")
-	btnLess.SetOnPress(func(ctx *tui.Ctx) {
+	btnLess.SetOnPress(func(ctx *rovel.Ctx) {
 		v := s.progress.Value() - 0.1
 		if v < 0 {
 			v = 0
@@ -374,7 +374,7 @@ func (s *state) buildProgressSection() tui.View {
 	})
 
 	btnMore := widgets.NewButton("+10%")
-	btnMore.SetOnPress(func(ctx *tui.Ctx) {
+	btnMore.SetOnPress(func(ctx *rovel.Ctx) {
 		v := s.progress.Value() + 0.1
 		if v > 1 {
 			v = 1
@@ -404,7 +404,7 @@ func (s *state) buildProgressSection() tui.View {
 	return b
 }
 
-func (s *state) buildTabsSection() tui.View {
+func (s *state) buildTabsSection() rovel.View {
 	tab1 := s.buildInfoTab()
 	tab2 := s.buildScrollTab()
 	tab3 := s.buildVirtualListTab()
@@ -417,7 +417,7 @@ func (s *state) buildTabsSection() tui.View {
 			{Title: "VirtualList", Content: tab3},
 			{Title: "TextArea", Content: tab4},
 		},
-		OnTab: func(idx int, ctx *tui.Ctx) {
+		OnTab: func(idx int, ctx *rovel.Ctx) {
 			titles := []string{"Info", "ScrollView", "VirtualList", "TextArea"}
 			s.setStatus(ctx, "Tab: "+titles[idx])
 		},
@@ -429,7 +429,7 @@ func (s *state) buildTabsSection() tui.View {
 	return b
 }
 
-func (s *state) buildInfoTab() tui.View {
+func (s *state) buildInfoTab() rovel.View {
 	return widgets.NewLabel(
 		"Kitchen Sink — all widgets in one place\n" +
 			"\n" +
@@ -454,7 +454,7 @@ func (s *state) buildInfoTab() tui.View {
 			"HStack, VStack, Split, Padding")
 }
 
-func (s *state) buildScrollTab() tui.View {
+func (s *state) buildScrollTab() rovel.View {
 	// 200 lines to exercise scrolling + mouse wheel
 	var lines string
 	for i := 1; i <= 200; i++ {
@@ -472,11 +472,11 @@ func (s *state) buildScrollTab() tui.View {
 	return sv
 }
 
-func (s *state) buildVirtualListTab() tui.View {
+func (s *state) buildVirtualListTab() rovel.View {
 	s.vlist = virtual.NewVirtualList(virtual.VirtualListOpts{
 		RowHeight: 1,
 		Count:     func() int { return len(s.listItems) },
-		RenderRow: func(i int, selected, focused bool, d tui.Drawer, r geom.Rect) {
+		RenderRow: func(i int, selected, focused bool, d rovel.Drawer, r geom.Rect) {
 			var st style.Style
 
 			switch {
@@ -492,15 +492,15 @@ func (s *state) buildVirtualListTab() tui.View {
 
 			d.FillRect(r, st)
 			label := text.Truncate(s.listItems[i], r.W, false)
-			d.DrawText(tui.Point{X: r.X, Y: r.Y}, label, st)
+			d.DrawText(rovel.Point{X: r.X, Y: r.Y}, label, st)
 		},
-		OnActivate: func(i int, ctx *tui.Ctx) {
+		OnActivate: func(i int, ctx *rovel.Ctx) {
 			s.setStatus(ctx, "VirtualList activated: "+s.listItems[i])
 		},
 	})
 
 	return newScrollPanel(s.vlist, widgets.NewScrollbar(widgets.ScrollbarOpts{
-		OnScroll: func(pos int, ctx *tui.Ctx) {
+		OnScroll: func(pos int, ctx *rovel.Ctx) {
 			s.vlist.ScrollTo(ctx, pos)
 		},
 	}), func() (contentSize, viewSize, position int) {
@@ -508,7 +508,7 @@ func (s *state) buildVirtualListTab() tui.View {
 	})
 }
 
-func (s *state) buildTextAreaTab() tui.View {
+func (s *state) buildTextAreaTab() rovel.View {
 	s.textArea = widgets.NewTextArea()
 	s.textArea.SetText(nil, "Multi-line text editor\n"+
 		"\n"+
@@ -528,7 +528,7 @@ func (s *state) buildTextAreaTab() tui.View {
 		"original column position.")
 
 	return newScrollPanel(s.textArea, widgets.NewScrollbar(widgets.ScrollbarOpts{
-		OnScroll: func(pos int, ctx *tui.Ctx) {
+		OnScroll: func(pos int, ctx *rovel.Ctx) {
 			s.textArea.SetScrollY(ctx, pos)
 		},
 	}), func() (contentSize, viewSize, position int) {
@@ -538,7 +538,7 @@ func (s *state) buildTextAreaTab() tui.View {
 
 // ── dialog overlay ───────────────────────────────────────────────────
 
-func (s *state) openDialog(ctx *tui.Ctx) {
+func (s *state) openDialog(ctx *rovel.Ctx) {
 	if ctx == nil || ctx.ShowOverlay == nil {
 		return
 	}
@@ -549,7 +549,7 @@ func (s *state) openDialog(ctx *tui.Ctx) {
 		Buttons: []widgets.DialogButton{
 			{
 				Label: "OK",
-				OnPress: func(ctx *tui.Ctx) {
+				OnPress: func(ctx *rovel.Ctx) {
 					s.setStatus(ctx, "Dialog: OK")
 
 					if ctx.DismissOverlay != nil {
@@ -559,7 +559,7 @@ func (s *state) openDialog(ctx *tui.Ctx) {
 			},
 			{
 				Label: "Cancel",
-				OnPress: func(ctx *tui.Ctx) {
+				OnPress: func(ctx *rovel.Ctx) {
 					s.setStatus(ctx, "Dialog: Cancelled")
 
 					if ctx.DismissOverlay != nil {
@@ -570,7 +570,7 @@ func (s *state) openDialog(ctx *tui.Ctx) {
 		},
 	})
 
-	ctx.ShowOverlay(tui.OverlayOpts{
+	ctx.ShowOverlay(rovel.OverlayOpts{
 		Root:  dlg,
 		Modal: true,
 		Place: overlay.Centered{},
@@ -579,23 +579,23 @@ func (s *state) openDialog(ctx *tui.Ctx) {
 
 // ── helpers ──────────────────────────────────────────────────────────
 
-func (s *state) setStatus(ctx *tui.Ctx, msg string) {
+func (s *state) setStatus(ctx *rovel.Ctx, msg string) {
 	s.status.SetText(ctx, msg)
 }
 
 // rootView wraps the view tree with global action handling.
 type rootView struct {
-	tui.View
+	rovel.View
 
-	id    tui.ID
-	app   *tui.App
+	id    rovel.ID
+	app   *rovel.App
 	rect  geom.Rect
 	state *state
 }
 
-func (r *rootView) ID() tui.ID           { return r.id }
+func (r *rootView) ID() rovel.ID           { return r.id }
 func (r *rootView) Focusable() bool      { return false }
-func (r *rootView) Children() []tui.View { return []tui.View{r.View} }
+func (r *rootView) Children() []rovel.View { return []rovel.View{r.View} }
 
 func (r *rootView) Layout(rect geom.Rect) {
 	r.rect = rect
@@ -603,7 +603,7 @@ func (r *rootView) Layout(rect geom.Rect) {
 	r.View.Layout(geom.Rect{X: rect.X, Y: rect.Y + 1, W: rect.W, H: rect.H - 1})
 }
 
-func (r *rootView) Paint(d tui.Drawer, ctx *tui.Ctx) {
+func (r *rootView) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	barSt := ctx.Theme.Palette.SurfaceMuted
 	if barSt == (style.Style{}) {
 		barSt = ctx.Theme.Base
@@ -616,8 +616,8 @@ func (r *rootView) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	r.View.Paint(d, ctx)
 }
 
-func (r *rootView) Handle(e tui.Event, ctx *tui.Ctx) bool {
-	if cr, ok := e.(tui.ClipboardResponseEvent); ok {
+func (r *rootView) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
+	if cr, ok := e.(rovel.ClipboardResponseEvent); ok {
 		txt := cr.Text
 		if len(txt) > 60 {
 			txt = txt[:60] + "..."
@@ -631,7 +631,7 @@ func (r *rootView) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	return r.View.Handle(e, ctx)
 }
 
-func (r *rootView) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+func (r *rootView) HandleAction(act ui.Action, ctx *rovel.Ctx) bool {
 	if act == ActionQuit {
 		r.app.Quit()
 
@@ -654,8 +654,8 @@ func (r *rootView) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
 // it schedules a follow-up invalidation for the scrollbar column. This adds
 // one extra repaint frame for the scrollbar but is completely reliable.
 type scrollPanel struct {
-	id        tui.ID
-	content   tui.View
+	id        rovel.ID
+	content   rovel.View
 	scrollbar *widgets.Scrollbar
 	getState  func() (contentSize, viewSize, position int)
 	rect      geom.Rect
@@ -665,12 +665,12 @@ type scrollPanel struct {
 }
 
 func newScrollPanel(
-	content tui.View,
+	content rovel.View,
 	sb *widgets.Scrollbar,
 	getState func() (contentSize, viewSize, position int),
 ) *scrollPanel {
 	return &scrollPanel{
-		id:        tui.NewID(),
+		id:        rovel.NewID(),
 		content:   content,
 		scrollbar: sb,
 		getState:  getState,
@@ -678,10 +678,10 @@ func newScrollPanel(
 	}
 }
 
-func (sp *scrollPanel) ID() tui.ID           { return sp.id }
+func (sp *scrollPanel) ID() rovel.ID           { return sp.id }
 func (sp *scrollPanel) Rect() geom.Rect      { return sp.rect }
 func (sp *scrollPanel) Focusable() bool      { return false }
-func (sp *scrollPanel) Children() []tui.View { return []tui.View{sp.content} }
+func (sp *scrollPanel) Children() []rovel.View { return []rovel.View{sp.content} }
 
 // MouseOpaque ensures scrollPanel receives all mouse events for its rect,
 // so it can intercept scrollbar clicks/drags and wheel events.
@@ -704,7 +704,7 @@ func (sp *scrollPanel) Layout(r geom.Rect) {
 	}
 }
 
-func (sp *scrollPanel) Paint(d tui.Drawer, ctx *tui.Ctx) {
+func (sp *scrollPanel) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	sp.content.Paint(d, ctx)
 	cs, vs, pos := sp.getState()
 	sp.scrollbar.SetState(cs, vs, pos)
@@ -719,8 +719,8 @@ func (sp *scrollPanel) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	}
 }
 
-func (sp *scrollPanel) Handle(e tui.Event, ctx *tui.Ctx) bool {
-	if me, ok := e.(tui.MouseEvent); ok {
+func (sp *scrollPanel) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
+	if me, ok := e.(rovel.MouseEvent); ok {
 		// Scrollbar drag in progress — delegate regardless of X position
 		if sp.scrollbar.Dragging() {
 			sp.scrollbar.Handle(me, ctx)
@@ -739,7 +739,7 @@ func (sp *scrollPanel) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		}
 
 		// Wheel events: forward to content, then invalidate scrollbar
-		if me.Button == tui.MouseButtonWheelUp || me.Button == tui.MouseButtonWheelDown {
+		if me.Button == rovel.MouseButtonWheelUp || me.Button == rovel.MouseButtonWheelDown {
 			handled := sp.content.Handle(me, ctx)
 			ctx.Invalidate(sp.scrollbar.Rect())
 

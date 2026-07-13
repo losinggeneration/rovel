@@ -3,7 +3,7 @@ package render
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/rovel/geom"
 )
 
 func TestNewDamage(t *testing.T) {

@@ -3,12 +3,12 @@ package widgets
 import (
 	"strings"
 
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/event"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/style"
-	"github.com/losinggeneration/tui/text"
-	"github.com/losinggeneration/tui/ui"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/event"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/style"
+	"github.com/losinggeneration/rovel/text"
+	"github.com/losinggeneration/rovel/ui"
 )
 
 // CursorMoveReason describes what caused an OnCursorMove notification.
@@ -45,7 +45,7 @@ type CursorMoveEvent struct {
 
 // TextAreaOpts holds options for creating a TextArea.
 type TextAreaOpts struct {
-	ID tui.ID
+	ID rovel.ID
 
 	// Optional style overrides. When non-nil, the style replaces the
 	// palette-derived style for that state completely (no merging).
@@ -58,7 +58,7 @@ type TextAreaOpts struct {
 	// full current text and the same paint/event context that triggered
 	// the mutation, so callers can do invalidation or focus work
 	// synchronously without re-querying the widget.
-	OnChange func(text string, ctx *tui.Ctx)
+	OnChange func(text string, ctx *rovel.Ctx)
 
 	// OnCursorMove, if non-nil, fires whenever the cursor's byte offset
 	// changes: navigation (arrow keys, Home, End, PageUp, PageDown, click,
@@ -73,13 +73,13 @@ type TextAreaOpts struct {
 	// single input: an edit that moves the cursor fires OnChange first,
 	// then OnCursorMove. OnCursorMove is suppressed when an input leaves
 	// the cursor offset unchanged (e.g. Left at the start of the text).
-	OnCursorMove func(ev CursorMoveEvent, ctx *tui.Ctx)
+	OnCursorMove func(ev CursorMoveEvent, ctx *rovel.Ctx)
 }
 
 // TextArea is a multi-line text editing widget with cursor navigation.
 type TextArea struct {
-	id   tui.ID
-	rect tui.Rect
+	id   rovel.ID
+	rect rovel.Rect
 	text string
 
 	cursor     int // UTF-8 byte offset, always at a cluster boundary
@@ -97,8 +97,8 @@ type TextArea struct {
 	stFocused   *style.Style
 	stSelection *style.Style
 
-	onChange     func(text string, ctx *tui.Ctx)
-	onCursorMove func(ev CursorMoveEvent, ctx *tui.Ctx)
+	onChange     func(text string, ctx *rovel.Ctx)
+	onCursorMove func(ev CursorMoveEvent, ctx *rovel.Ctx)
 }
 
 // lineEntry tracks byte offsets for a single logical line.
@@ -114,7 +114,7 @@ func NewTextArea() *TextArea {
 func NewTextAreaOpts(opts TextAreaOpts) *TextArea {
 	id := opts.ID
 	if id == 0 {
-		id = tui.NewID()
+		id = rovel.NewID()
 	}
 
 	ta := &TextArea{
@@ -134,7 +134,7 @@ func NewTextAreaOpts(opts TextAreaOpts) *TextArea {
 
 // SetOnChange registers (or clears) a callback fired after every text
 // mutation. Safe to call any time after construction.
-func (ta *TextArea) SetOnChange(fn func(string, *tui.Ctx)) {
+func (ta *TextArea) SetOnChange(fn func(string, *rovel.Ctx)) {
 	ta.onChange = fn
 }
 
@@ -142,7 +142,7 @@ func (ta *TextArea) SetOnChange(fn func(string, *tui.Ctx)) {
 // cursor's byte offset changes (navigation or a cursor-moving edit).
 // See TextAreaOpts.OnCursorMove for the full contract. Safe to call any
 // time after construction.
-func (ta *TextArea) SetOnCursorMove(fn func(ev CursorMoveEvent, ctx *tui.Ctx)) {
+func (ta *TextArea) SetOnCursorMove(fn func(ev CursorMoveEvent, ctx *rovel.Ctx)) {
 	ta.onCursorMove = fn
 }
 
@@ -150,7 +150,7 @@ func (ta *TextArea) SetOnCursorMove(fn func(ev CursorMoveEvent, ctx *tui.Ctx)) {
 // cursor's current byte offset and the given reason. Prefer
 // notifyCursorMoveIfChanged from handlers so no-op moves don't spuriously
 // notify.
-func (ta *TextArea) notifyCursorMove(reason CursorMoveReason, ctx *tui.Ctx) {
+func (ta *TextArea) notifyCursorMove(reason CursorMoveReason, ctx *rovel.Ctx) {
 	if ta.onCursorMove != nil {
 		ta.onCursorMove(CursorMoveEvent{Cursor: ta.cursor, Reason: reason}, ctx)
 	}
@@ -159,7 +159,7 @@ func (ta *TextArea) notifyCursorMove(reason CursorMoveReason, ctx *tui.Ctx) {
 // notifyCursorMoveIfChanged fires OnCursorMove only when the cursor moved from
 // old. Cursor-moving paths capture the pre-move offset and call this so no-op
 // inputs (e.g. Left at offset 0, Right at end of text) don't notify.
-func (ta *TextArea) notifyCursorMoveIfChanged(old int, reason CursorMoveReason, ctx *tui.Ctx) {
+func (ta *TextArea) notifyCursorMoveIfChanged(old int, reason CursorMoveReason, ctx *rovel.Ctx) {
 	if ta.cursor != old {
 		ta.notifyCursorMove(reason, ctx)
 	}
@@ -167,13 +167,13 @@ func (ta *TextArea) notifyCursorMoveIfChanged(old int, reason CursorMoveReason, 
 
 // notifyChange fires the OnChange callback if registered. Called from each
 // text-mutating path so the callback sees the post-mutation value.
-func (ta *TextArea) notifyChange(ctx *tui.Ctx) {
+func (ta *TextArea) notifyChange(ctx *rovel.Ctx) {
 	if ta.onChange != nil {
 		ta.onChange(ta.text, ctx)
 	}
 }
 
-func (ta *TextArea) SetText(ctx *tui.Ctx, s string) {
+func (ta *TextArea) SetText(ctx *rovel.Ctx, s string) {
 	old := ta.cursor
 	ta.text = text.Sanitize(s)
 	ta.rebuildLineIndex()
@@ -198,9 +198,9 @@ func (ta *TextArea) SetReadOnly(ro bool) {
 	ta.readOnly = ro
 }
 
-func (ta *TextArea) ID() tui.ID         { return ta.id }
-func (ta *TextArea) Rect() tui.Rect     { return ta.rect }
-func (ta *TextArea) Layout(r tui.Rect)  { ta.rect = r }
+func (ta *TextArea) ID() rovel.ID         { return ta.id }
+func (ta *TextArea) Rect() rovel.Rect     { return ta.rect }
+func (ta *TextArea) Layout(r rovel.Rect)  { ta.rect = r }
 func (ta *TextArea) MinSize() geom.Size { return geom.Size{W: 10, H: 3} }
 func (ta *TextArea) Focusable() bool    { return true }
 
@@ -218,7 +218,7 @@ func (ta *TextArea) ScrollX() int { return ta.scrollX }
 // LineCount returns the number of lines in the text.
 func (ta *TextArea) LineCount() int { return len(ta.lines) }
 
-func (ta *TextArea) SetScrollY(ctx *tui.Ctx, y int) {
+func (ta *TextArea) SetScrollY(ctx *rovel.Ctx, y int) {
 	old := ta.scrollY
 	ta.scrollY = y
 	ta.clampScrollY()
@@ -229,12 +229,12 @@ func (ta *TextArea) SetScrollY(ctx *tui.Ctx, y int) {
 }
 
 // Paint renders the text area.
-func (ta *TextArea) Paint(d tui.Drawer, ctx *tui.Ctx) {
+func (ta *TextArea) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	if ta.rect.W <= 0 || ta.rect.H <= 0 {
 		return
 	}
 
-	cd, ok := tui.CellDrawerOf(d)
+	cd, ok := rovel.CellDrawerOf(d)
 	if !ok {
 		return
 	}
@@ -313,7 +313,7 @@ func (ta *TextArea) Paint(d tui.Drawer, ctx *tui.Ctx) {
 
 			cluster := lineText[byteOff:next]
 			for _, r := range cluster {
-				rw := tui.RuneWidth(r)
+				rw := rovel.RuneWidth(r)
 				if rw <= 0 {
 					continue
 				}
@@ -352,26 +352,26 @@ func (ta *TextArea) Paint(d tui.Drawer, ctx *tui.Ctx) {
 }
 
 // Handle processes keyboard, mouse, and paste events.
-func (ta *TextArea) Handle(e tui.Event, ctx *tui.Ctx) bool {
+func (ta *TextArea) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
 	// Mouse handling: press, drag, double-click, wheel
-	if me, ok := e.(tui.MouseEvent); ok {
+	if me, ok := e.(rovel.MouseEvent); ok {
 		wheelLines := 3
 		if me.WheelDelta > 0 {
 			wheelLines *= me.WheelDelta
 		}
 
 		switch {
-		case me.Button == tui.MouseButtonWheelUp:
+		case me.Button == rovel.MouseButtonWheelUp:
 			ta.scrollBy(-wheelLines)
 			ctx.Invalidate(ta.rect)
 
 			return true
-		case me.Button == tui.MouseButtonWheelDown:
+		case me.Button == rovel.MouseButtonWheelDown:
 			ta.scrollBy(wheelLines)
 			ctx.Invalidate(ta.rect)
 
 			return true
-		case me.Button == tui.MouseButtonLeft && me.Action == tui.MousePress:
+		case me.Button == rovel.MouseButtonLeft && me.Action == rovel.MousePress:
 			if ctx != nil && ctx.RequestFocus != nil {
 				ctx.RequestFocus(ta.id)
 			}
@@ -390,7 +390,7 @@ func (ta *TextArea) Handle(e tui.Event, ctx *tui.Ctx) bool {
 			ta.notifyCursorMoveIfChanged(old, CursorMoveNavigate, ctx)
 
 			return true
-		case me.Action == tui.MouseDrag:
+		case me.Action == rovel.MouseDrag:
 			old := ta.cursor
 			ta.positionCursorFromClick(me.X, me.Y)
 			// anchor stays fixed from press
@@ -410,7 +410,7 @@ func (ta *TextArea) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		return ta.handlePaste(pe, ctx)
 	}
 
-	ke, ok := e.(tui.KeyEvent)
+	ke, ok := e.(rovel.KeyEvent)
 	if !ok {
 		return false
 	}
@@ -419,7 +419,7 @@ func (ta *TextArea) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		return false
 	}
 
-	if ke.Key == tui.KeyRune {
+	if ke.Key == rovel.KeyRune {
 		if ta.readOnly {
 			return false
 		}
@@ -449,7 +449,7 @@ func (ta *TextArea) Handle(e tui.Event, ctx *tui.Ctx) bool {
 }
 
 // HandleAction handles semantic actions.
-func (ta *TextArea) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+func (ta *TextArea) HandleAction(act ui.Action, ctx *rovel.Ctx) bool {
 	if ctx.FocusedID != ta.id {
 		return false
 	}
@@ -769,7 +769,7 @@ func (ta *TextArea) scrollToCursor() {
 }
 
 // handlePaste inserts pasted text.
-func (ta *TextArea) handlePaste(e event.PasteEvent, ctx *tui.Ctx) bool {
+func (ta *TextArea) handlePaste(e event.PasteEvent, ctx *rovel.Ctx) bool {
 	if ctx.FocusedID != ta.id || ta.readOnly {
 		return false
 	}
@@ -866,8 +866,8 @@ func (ta *TextArea) ensureAnchor() {
 }
 
 // isShift checks if shift is held in the context.
-func isShift(ctx *tui.Ctx) bool {
-	return ctx.Mod&tui.ModShift != 0
+func isShift(ctx *rovel.Ctx) bool {
+	return ctx.Mod&rovel.ModShift != 0
 }
 
 // selectWordAtCursor selects the word at the current cursor position.

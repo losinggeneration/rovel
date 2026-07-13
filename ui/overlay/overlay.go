@@ -1,22 +1,22 @@
 // Package overlay provides placement strategies and helpers for the
 // overlay/layer subsystem defined in the tui package.
 //
-// The core overlay types ([tui.Overlay], [tui.OverlayManager]) live in
-// package tui to avoid import cycles. This package provides concrete
-// [tui.Placement] implementations and convenience constructors.
+// The core overlay types ([rovel.Overlay], [rovel.OverlayManager]) live in
+// package rovel to avoid import cycles. This package provides concrete
+// [rovel.Placement] implementations and convenience constructors.
 package overlay
 
 import (
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/ui/layout"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/ui/layout"
 )
 
 // Centered places the overlay in the center of the screen at its preferred
 // or minimum size.
 type Centered struct{}
 
-func (Centered) Resolve(root tui.View, screen geom.Size) geom.Rect {
+func (Centered) Resolve(root rovel.View, screen geom.Size) geom.Rect {
 	sz := preferredOrMin(root)
 	sz = clampSize(sz, screen)
 
@@ -35,7 +35,7 @@ type TopCentered struct {
 	H int
 }
 
-func (p TopCentered) Resolve(root tui.View, screen geom.Size) geom.Rect {
+func (p TopCentered) Resolve(root rovel.View, screen geom.Size) geom.Rect {
 	sz := preferredOrMin(root)
 	if p.W > 0 {
 		sz.W = p.W
@@ -59,7 +59,7 @@ type Anchored struct {
 	Anchor geom.Rect
 }
 
-func (a Anchored) Resolve(root tui.View, screen geom.Size) geom.Rect {
+func (a Anchored) Resolve(root rovel.View, screen geom.Size) geom.Rect {
 	sz := preferredOrMin(root)
 	sz = clampSize(sz, screen)
 
@@ -91,7 +91,7 @@ type PointAnchored struct {
 	Flip   bool
 }
 
-func (p PointAnchored) Resolve(root tui.View, screen geom.Size) geom.Rect {
+func (p PointAnchored) Resolve(root rovel.View, screen geom.Size) geom.Rect {
 	sz := preferredOrMin(root)
 	if p.W > 0 {
 		sz.W = p.W
@@ -130,18 +130,18 @@ func (p PointAnchored) Resolve(root tui.View, screen geom.Size) geom.Rect {
 // Fullscreen places the overlay covering the entire screen.
 type Fullscreen struct{}
 
-func (Fullscreen) Resolve(_ tui.View, screen geom.Size) geom.Rect {
+func (Fullscreen) Resolve(_ rovel.View, screen geom.Size) geom.Rect {
 	return geom.Rect{X: 0, Y: 0, W: screen.W, H: screen.H}
 }
 
 // FocusFirst sets focus to the first focusable view in an overlay's subtree.
-func FocusFirst(o *tui.Overlay, requestFocus func(tui.ID)) {
+func FocusFirst(o *rovel.Overlay, requestFocus func(rovel.ID)) {
 	if first := layout.FindFirstFocusable(o.Root()); first != nil {
 		requestFocus(first.ID())
 	}
 }
 
-func preferredOrMin(v tui.View) geom.Size {
+func preferredOrMin(v rovel.View) geom.Size {
 	type preferredSizer interface {
 		PreferredSize() geom.Size
 	}

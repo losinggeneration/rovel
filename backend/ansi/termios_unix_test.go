@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/losinggeneration/tui/internal/errbuf"
+	"github.com/losinggeneration/rovel/internal/errbuf"
 	"golang.org/x/sys/unix"
 )
 

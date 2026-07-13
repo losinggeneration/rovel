@@ -3,33 +3,33 @@ package widgets
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/event"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/render"
-	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/event"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/render"
+	"github.com/losinggeneration/rovel/style"
 )
 
 type mockView struct {
-	id          tui.ID
+	id          rovel.ID
 	minSize     geom.Size
 	rect        geom.Rect
 	focusable   bool
 	paintCalled int
 }
 
-func (m *mockView) ID() tui.ID         { return m.id }
+func (m *mockView) ID() rovel.ID         { return m.id }
 func (m *mockView) Rect() geom.Rect    { return m.rect }
 func (m *mockView) MinSize() geom.Size { return m.minSize }
 func (m *mockView) Focusable() bool    { return m.focusable }
 func (m *mockView) Layout(r geom.Rect) { m.rect = r }
-func (m *mockView) Paint(d tui.Drawer, ctx *tui.Ctx) {
+func (m *mockView) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	m.paintCalled++
 }
-func (m *mockView) Handle(e tui.Event, ctx *tui.Ctx) bool { return false }
+func (m *mockView) Handle(e rovel.Event, ctx *rovel.Ctx) bool { return false }
 
 func TestScrollView_New(t *testing.T) {
-	child := &mockView{id: tui.NewID(), minSize: geom.Size{W: 10, H: 50}}
+	child := &mockView{id: rovel.NewID(), minSize: geom.Size{W: 10, H: 50}}
 	sv := NewScrollView(ScrollViewOpts{
 		Child:     child,
 		Focusable: true,
@@ -45,7 +45,7 @@ func TestScrollView_New(t *testing.T) {
 }
 
 func TestScrollView_MinSize(t *testing.T) {
-	child := &mockView{id: tui.NewID(), minSize: geom.Size{W: 10, H: 50}}
+	child := &mockView{id: rovel.NewID(), minSize: geom.Size{W: 10, H: 50}}
 	sv := NewScrollView(ScrollViewOpts{
 		Child:     child,
 		Focusable: false,
@@ -58,7 +58,7 @@ func TestScrollView_MinSize(t *testing.T) {
 }
 
 func TestScrollView_Layout(t *testing.T) {
-	child := &mockView{id: tui.NewID(), minSize: geom.Size{W: 10, H: 50}}
+	child := &mockView{id: rovel.NewID(), minSize: geom.Size{W: 10, H: 50}}
 	sv := NewScrollView(ScrollViewOpts{
 		Child:     child,
 		Focusable: false,
@@ -78,7 +78,7 @@ func TestScrollView_Layout(t *testing.T) {
 }
 
 func TestScrollView_clampScroll(t *testing.T) {
-	child := &mockView{id: tui.NewID(), minSize: geom.Size{W: 10, H: 50}}
+	child := &mockView{id: rovel.NewID(), minSize: geom.Size{W: 10, H: 50}}
 	sv := NewScrollView(ScrollViewOpts{
 		Child:     child,
 		Focusable: false,
@@ -110,7 +110,7 @@ func TestScrollView_clampScroll(t *testing.T) {
 }
 
 func TestScrollView_ScrollTo(t *testing.T) {
-	child := &mockView{id: tui.NewID(), minSize: geom.Size{W: 10, H: 50}}
+	child := &mockView{id: rovel.NewID(), minSize: geom.Size{W: 10, H: 50}}
 	sv := NewScrollView(ScrollViewOpts{
 		Child:     child,
 		Focusable: false,
@@ -121,7 +121,7 @@ func TestScrollView_ScrollTo(t *testing.T) {
 	// Track invalidation
 	var invalidated bool
 
-	ctx := &tui.Ctx{
+	ctx := &rovel.Ctx{
 		Invalidate: func(r geom.Rect) {
 			if r == sv.Rect() {
 				invalidated = true
@@ -160,7 +160,7 @@ func TestScrollView_ScrollTo(t *testing.T) {
 }
 
 func TestScrollView_ScrollBy(t *testing.T) {
-	child := &mockView{id: tui.NewID(), minSize: geom.Size{W: 10, H: 50}}
+	child := &mockView{id: rovel.NewID(), minSize: geom.Size{W: 10, H: 50}}
 	sv := NewScrollView(ScrollViewOpts{
 		Child:     child,
 		Focusable: false,
@@ -168,7 +168,7 @@ func TestScrollView_ScrollBy(t *testing.T) {
 
 	sv.Layout(geom.Rect{X: 0, Y: 0, W: 20, H: 10})
 
-	ctx := &tui.Ctx{
+	ctx := &rovel.Ctx{
 		Invalidate: func(r geom.Rect) {},
 	}
 
@@ -187,7 +187,7 @@ func TestScrollView_ScrollBy(t *testing.T) {
 }
 
 func TestScrollView_Handle(t *testing.T) {
-	child := &mockView{id: tui.NewID(), minSize: geom.Size{W: 10, H: 50}}
+	child := &mockView{id: rovel.NewID(), minSize: geom.Size{W: 10, H: 50}}
 	sv := NewScrollView(ScrollViewOpts{
 		Child:     child,
 		Focusable: true,
@@ -195,7 +195,7 @@ func TestScrollView_Handle(t *testing.T) {
 
 	sv.Layout(geom.Rect{X: 0, Y: 0, W: 20, H: 10})
 
-	ctx := &tui.Ctx{
+	ctx := &rovel.Ctx{
 		Invalidate: func(r geom.Rect) {},
 	}
 
@@ -261,7 +261,7 @@ func TestScrollView_Handle(t *testing.T) {
 }
 
 func TestScrollView_ScrollTopBottom(t *testing.T) {
-	child := &mockView{id: tui.NewID(), minSize: geom.Size{W: 10, H: 50}}
+	child := &mockView{id: rovel.NewID(), minSize: geom.Size{W: 10, H: 50}}
 	sv := NewScrollView(ScrollViewOpts{
 		Child:     child,
 		Focusable: false,
@@ -269,7 +269,7 @@ func TestScrollView_ScrollTopBottom(t *testing.T) {
 
 	sv.Layout(geom.Rect{X: 0, Y: 0, W: 20, H: 10})
 
-	ctx := &tui.Ctx{
+	ctx := &rovel.Ctx{
 		Invalidate: func(r geom.Rect) {},
 	}
 
@@ -288,26 +288,26 @@ func TestScrollView_ScrollTopBottom(t *testing.T) {
 }
 
 type paintRowsView struct {
-	id   tui.ID
+	id   rovel.ID
 	rect geom.Rect
 }
 
-func (v *paintRowsView) ID() tui.ID         { return v.id }
+func (v *paintRowsView) ID() rovel.ID         { return v.id }
 func (v *paintRowsView) Rect() geom.Rect    { return v.rect }
 func (v *paintRowsView) MinSize() geom.Size { return geom.Size{W: 1, H: 4} }
 func (v *paintRowsView) Layout(r geom.Rect) { v.rect = r }
-func (v *paintRowsView) Handle(tui.Event, *tui.Ctx) bool {
+func (v *paintRowsView) Handle(rovel.Event, *rovel.Ctx) bool {
 	return false
 }
 
-func (v *paintRowsView) Paint(d tui.Drawer, _ *tui.Ctx) {
+func (v *paintRowsView) Paint(d rovel.Drawer, _ *rovel.Ctx) {
 	for i, ch := range []rune{'0', '1', '2', '3'} {
-		d.DrawText(tui.Point{X: v.rect.X, Y: v.rect.Y + i}, string(ch), style.Style{})
+		d.DrawText(rovel.Point{X: v.rect.X, Y: v.rect.Y + i}, string(ch), style.Style{})
 	}
 }
 
 func TestScrollViewPaint_DrawerAdapterOffsetAndClip(t *testing.T) {
-	child := &paintRowsView{id: tui.NewID()}
+	child := &paintRowsView{id: rovel.NewID()}
 	sv := NewScrollView(ScrollViewOpts{
 		Child:     child,
 		Scrollbar: ScrollbarHidden,
@@ -319,9 +319,9 @@ func TestScrollViewPaint_DrawerAdapterOffsetAndClip(t *testing.T) {
 	buf := render.NewBuffer(3, 2)
 	buf.Clear(render.Cell{R: ' ', Style: base})
 	rp := render.NewPainter(buf, geom.Rect{X: 0, Y: 0, W: 3, H: 2}, base)
-	p := tui.NewPainter(rp, base)
+	p := rovel.NewPainter(rp, base)
 
-	sv.Paint(tui.NewDrawer(p), &tui.Ctx{Theme: tui.DefaultTheme()})
+	sv.Paint(rovel.NewDrawer(p), &rovel.Ctx{Theme: rovel.DefaultTheme()})
 
 	if got := buf.At(0, 0).R; got != '1' {
 		t.Fatalf("row 0 = %q, want %q", got, '1')
@@ -337,7 +337,7 @@ func TestScrollViewPaint_DrawerAdapterOffsetAndClip(t *testing.T) {
 }
 
 func TestScrollView_contentHeight(t *testing.T) {
-	child := &mockView{id: tui.NewID(), minSize: geom.Size{W: 10, H: 50}}
+	child := &mockView{id: rovel.NewID(), minSize: geom.Size{W: 10, H: 50}}
 	sv := NewScrollView(ScrollViewOpts{
 		Child:     child,
 		Focusable: false,

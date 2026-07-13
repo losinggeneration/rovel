@@ -3,28 +3,28 @@ package widgets
 import (
 	"strings"
 
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/style"
-	"github.com/losinggeneration/tui/text"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/style"
+	"github.com/losinggeneration/rovel/text"
 )
 
 // Label is a static text display widget.
 type Label struct {
-	id   tui.ID
+	id   rovel.ID
 	text string
-	rect tui.Rect
+	rect rovel.Rect
 	st   style.Style
 }
 
 func NewLabel(text string) *Label {
 	return &Label{
-		id:   tui.NewID(),
+		id:   rovel.NewID(),
 		text: text,
 	}
 }
 
-func (l *Label) SetText(ctx *tui.Ctx, text string) {
+func (l *Label) SetText(ctx *rovel.Ctx, text string) {
 	if l.text == text {
 		return
 	}
@@ -35,7 +35,7 @@ func (l *Label) SetText(ctx *tui.Ctx, text string) {
 	}
 }
 
-func (l *Label) SetStyle(ctx *tui.Ctx, st style.Style) {
+func (l *Label) SetStyle(ctx *rovel.Ctx, st style.Style) {
 	if l.st == st {
 		return
 	}
@@ -46,15 +46,15 @@ func (l *Label) SetStyle(ctx *tui.Ctx, st style.Style) {
 	}
 }
 
-func (l *Label) ID() tui.ID {
+func (l *Label) ID() rovel.ID {
 	return l.id
 }
 
-func (l *Label) Rect() tui.Rect {
+func (l *Label) Rect() rovel.Rect {
 	return l.rect
 }
 
-func (l *Label) Layout(r tui.Rect) {
+func (l *Label) Layout(r rovel.Rect) {
 	l.rect = r
 }
 
@@ -76,7 +76,7 @@ func (l *Label) PreferredSize() geom.Size {
 	return l.MinSize()
 }
 
-func (l *Label) Paint(d tui.Drawer, ctx *tui.Ctx) {
+func (l *Label) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	x := l.rect.X
 	y := l.rect.Y
 
@@ -93,12 +93,12 @@ func (l *Label) Paint(d tui.Drawer, ctx *tui.Ctx) {
 			continue
 		}
 
-		d.DrawText(tui.Point{X: x, Y: y}, string(r), st)
-		x += tui.RuneWidth(r)
+		d.DrawText(rovel.Point{X: x, Y: y}, string(r), st)
+		x += rovel.RuneWidth(r)
 	}
 }
 
-func (l *Label) Handle(e tui.Event, ctx *tui.Ctx) bool {
+func (l *Label) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
 	return false
 }
 

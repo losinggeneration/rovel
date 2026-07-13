@@ -1,9 +1,9 @@
-package tui
+package rovel
 
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/rovel/style"
 )
 
 func TestDefaultTheme(t *testing.T) {

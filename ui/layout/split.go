@@ -1,8 +1,8 @@
 package layout
 
 import (
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/event"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/event"
 )
 
 // Orientation specifies the split direction.
@@ -16,10 +16,10 @@ const (
 // Split is a split-pane container with two children and a fixed ratio divider.
 // The ratio is static at 50/50. Interactive resizing is deferred to later.
 type Split struct {
-	id          tui.ID
-	first       tui.View
-	second      tui.View
-	rect        tui.Rect
+	id          rovel.ID
+	first       rovel.View
+	second      rovel.View
+	rect        rovel.Rect
 	orientation Orientation
 	ratio       float64 // fraction of space for first child (0.0 to 1.0)
 }
@@ -27,19 +27,19 @@ type Split struct {
 // NewSplit creates a new split container with the given orientation.
 func NewSplit(orientation Orientation) *Split {
 	return &Split{
-		id:          tui.NewID(),
+		id:          rovel.NewID(),
 		orientation: orientation,
 		ratio:       0.5, // 50/50 split by default
 	}
 }
 
 // SetFirst sets the first (top or left) child.
-func (s *Split) SetFirst(v tui.View) {
+func (s *Split) SetFirst(v rovel.View) {
 	s.first = v
 }
 
 // SetSecond sets the second (bottom or right) child.
-func (s *Split) SetSecond(v tui.View) {
+func (s *Split) SetSecond(v rovel.View) {
 	s.second = v
 }
 
@@ -58,17 +58,17 @@ func (s *Split) SetRatio(r float64) {
 }
 
 // ID returns the split's unique ID.
-func (s *Split) ID() tui.ID {
+func (s *Split) ID() rovel.ID {
 	return s.id
 }
 
 // Rect returns the split's current rect.
-func (s *Split) Rect() tui.Rect {
+func (s *Split) Rect() rovel.Rect {
 	return s.rect
 }
 
 // Layout positions the split within the given rect.
-func (s *Split) Layout(r tui.Rect) {
+func (s *Split) Layout(r rovel.Rect) {
 	s.rect = r
 
 	if s.first == nil && s.second == nil {
@@ -93,7 +93,7 @@ func (s *Split) Layout(r tui.Rect) {
 
 		// Layout first child
 		if s.first != nil {
-			firstRect := tui.Rect{
+			firstRect := rovel.Rect{
 				X: r.X,
 				Y: r.Y,
 				W: dividerPos,
@@ -104,7 +104,7 @@ func (s *Split) Layout(r tui.Rect) {
 
 		// Layout second child
 		if s.second != nil {
-			secondRect := tui.Rect{
+			secondRect := rovel.Rect{
 				X: r.X + dividerPos,
 				Y: r.Y,
 				W: totalW - dividerPos,
@@ -130,7 +130,7 @@ func (s *Split) Layout(r tui.Rect) {
 
 		// Layout first child
 		if s.first != nil {
-			firstRect := tui.Rect{
+			firstRect := rovel.Rect{
 				X: r.X,
 				Y: r.Y,
 				W: r.W,
@@ -141,7 +141,7 @@ func (s *Split) Layout(r tui.Rect) {
 
 		// Layout second child
 		if s.second != nil {
-			secondRect := tui.Rect{
+			secondRect := rovel.Rect{
 				X: r.X,
 				Y: r.Y + dividerPos,
 				W: r.W,
@@ -153,9 +153,9 @@ func (s *Split) Layout(r tui.Rect) {
 }
 
 // MinSize returns the minimum size needed for the split.
-func (s *Split) MinSize() tui.Size {
+func (s *Split) MinSize() rovel.Size {
 	if s.first == nil && s.second == nil {
-		return tui.Size{W: 1, H: 1}
+		return rovel.Size{W: 1, H: 1}
 	}
 
 	if s.orientation == Horizontal {
@@ -183,7 +183,7 @@ func (s *Split) MinSize() tui.Size {
 			}
 		}
 
-		return tui.Size{W: totalW, H: maxH}
+		return rovel.Size{W: totalW, H: maxH}
 	} else {
 		// Vertical: max widths, sum heights
 		maxW := 0
@@ -207,21 +207,21 @@ func (s *Split) MinSize() tui.Size {
 			totalH += sz.H
 		}
 
-		return tui.Size{W: maxW, H: totalH}
+		return rovel.Size{W: maxW, H: totalH}
 	}
 }
 
 // Paint renders the split and its children.
-func (s *Split) Paint(d tui.Drawer, ctx *tui.Ctx) {
-	d.WithClip(s.rect, func(d tui.Drawer) {
+func (s *Split) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
+	d.WithClip(s.rect, func(d rovel.Drawer) {
 		if s.first != nil {
-			d.WithClip(s.first.Rect(), func(d tui.Drawer) {
+			d.WithClip(s.first.Rect(), func(d rovel.Drawer) {
 				s.first.Paint(d, ctx)
 			})
 		}
 
 		if s.second != nil {
-			d.WithClip(s.second.Rect(), func(d tui.Drawer) {
+			d.WithClip(s.second.Rect(), func(d rovel.Drawer) {
 				s.second.Paint(d, ctx)
 			})
 		}
@@ -229,7 +229,7 @@ func (s *Split) Paint(d tui.Drawer, ctx *tui.Ctx) {
 }
 
 // Handle processes events and focus navigation.
-func (s *Split) Handle(e tui.Event, ctx *tui.Ctx) bool {
+func (s *Split) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
 	ke, ok := e.(event.KeyEvent)
 	if !ok {
 		return false
@@ -275,8 +275,8 @@ func (s *Split) Focusable() bool {
 }
 
 // Children returns the split's children.
-func (s *Split) Children() []tui.View {
-	children := make([]tui.View, 0, 2)
+func (s *Split) Children() []rovel.View {
+	children := make([]rovel.View, 0, 2)
 	if s.first != nil {
 		children = append(children, s.first)
 	}
@@ -289,18 +289,18 @@ func (s *Split) Children() []tui.View {
 }
 
 // findFocusedDescendant finds the view with the given ID in the subtree.
-func (s *Split) findFocusedDescendant(id tui.ID) tui.View {
+func (s *Split) findFocusedDescendant(id rovel.ID) rovel.View {
 	return FindByID(s, id)
 }
 
 // findFirstFocusable returns the first focusable descendant (searches recursively).
-func (s *Split) findFirstFocusable() tui.View {
+func (s *Split) findFirstFocusable() rovel.View {
 	return FindFirstFocusable(s)
 }
 
 // findNextFocusable returns the next focusable descendant after the currently focused ID,
 // and whether the search wrapped around.
-func (s *Split) findNextFocusable(currentFocusID tui.ID) (tui.View, bool) {
+func (s *Split) findNextFocusable(currentFocusID rovel.ID) (rovel.View, bool) {
 	// Collect all focusable descendants
 	focusableViews := s.collectFocusable()
 
@@ -332,6 +332,6 @@ func (s *Split) findNextFocusable(currentFocusID tui.ID) (tui.View, bool) {
 }
 
 // collectFocusable collects all focusable descendants in order.
-func (s *Split) collectFocusable() []tui.View {
+func (s *Split) collectFocusable() []rovel.View {
 	return CollectFocusable(s)
 }

@@ -1,6 +1,6 @@
-package tui
+package rovel
 
-import "github.com/losinggeneration/tui/backend"
+import "github.com/losinggeneration/rovel/backend"
 
 type runtimeHost interface {
 	Enable() (Size, error)

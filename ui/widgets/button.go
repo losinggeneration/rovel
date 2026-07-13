@@ -1,21 +1,21 @@
 package widgets
 
 import (
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/style"
-	"github.com/losinggeneration/tui/text"
-	"github.com/losinggeneration/tui/ui"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/style"
+	"github.com/losinggeneration/rovel/text"
+	"github.com/losinggeneration/rovel/ui"
 )
 
 // ButtonOpts holds options for creating a Button.
 type ButtonOpts struct {
-	ID tui.ID
+	ID rovel.ID
 
 	Label string
 
 	// Called when the button is "activated" (Enter or Space) while focused.
-	OnPress func(ctx *tui.Ctx)
+	OnPress func(ctx *rovel.Ctx)
 
 	Disabled bool
 
@@ -33,11 +33,11 @@ type ButtonOpts struct {
 
 // Button is a clickable button widget.
 type Button struct {
-	id       tui.ID
-	rect     tui.Rect
+	id       rovel.ID
+	rect     rovel.Rect
 	label    string
 	disabled bool
-	onPress  func(ctx *tui.Ctx)
+	onPress  func(ctx *rovel.Ctx)
 
 	stNormal   *style.Style
 	stFocused  *style.Style
@@ -62,7 +62,7 @@ func NewButton(label string) *Button {
 func NewButtonOpts(opts ButtonOpts) *Button {
 	id := opts.ID
 	if id == 0 {
-		id = tui.NewID()
+		id = rovel.NewID()
 	}
 
 	return &Button{
@@ -77,11 +77,11 @@ func NewButtonOpts(opts ButtonOpts) *Button {
 	}
 }
 
-func (b *Button) ID() tui.ID { return b.id }
+func (b *Button) ID() rovel.ID { return b.id }
 
-func (b *Button) Rect() tui.Rect { return b.rect }
+func (b *Button) Rect() rovel.Rect { return b.rect }
 
-func (b *Button) Layout(r tui.Rect) { b.rect = r }
+func (b *Button) Layout(r rovel.Rect) { b.rect = r }
 
 // MinSize returns the minimum size needed for the button.
 // MinSize reserves 4 extra columns for button chrome/padding.
@@ -100,7 +100,7 @@ func (b *Button) PreferredSize() geom.Size {
 	return b.MinSize()
 }
 
-func (b *Button) SetLabel(ctx *tui.Ctx, s string) {
+func (b *Button) SetLabel(ctx *rovel.Ctx, s string) {
 	if b.label == s {
 		return
 	}
@@ -111,7 +111,7 @@ func (b *Button) SetLabel(ctx *tui.Ctx, s string) {
 	}
 }
 
-func (b *Button) SetDisabled(ctx *tui.Ctx, v bool) {
+func (b *Button) SetDisabled(ctx *rovel.Ctx, v bool) {
 	if b.disabled == v {
 		return
 	}
@@ -122,11 +122,11 @@ func (b *Button) SetDisabled(ctx *tui.Ctx, v bool) {
 	}
 }
 
-func (b *Button) SetOnPress(fn func(ctx *tui.Ctx)) {
+func (b *Button) SetOnPress(fn func(ctx *rovel.Ctx)) {
 	b.onPress = fn
 }
 
-func (b *Button) Paint(d tui.Drawer, ctx *tui.Ctx) {
+func (b *Button) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	r := b.rect
 	if r.W <= 0 || r.H <= 0 {
 		return
@@ -137,9 +137,9 @@ func (b *Button) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	chrome := b.chrome
 	if chrome == ButtonChromeAuto && ctx != nil {
 		switch ctx.Theme.EffectiveAesthetic() {
-		case tui.AestheticModern:
+		case rovel.AestheticModern:
 			chrome = ButtonChromeSolid
-		case tui.AestheticClassic:
+		case rovel.AestheticClassic:
 		default:
 			chrome = ButtonChromeBrackets
 		}
@@ -190,12 +190,12 @@ func (b *Button) Paint(d tui.Drawer, ctx *tui.Ctx) {
 		x = r.X
 	}
 
-	d.DrawText(tui.Point{X: x, Y: y}, label, st)
+	d.DrawText(rovel.Point{X: x, Y: y}, label, st)
 }
 
-func (b *Button) Handle(e tui.Event, ctx *tui.Ctx) bool {
-	if me, ok := e.(tui.MouseEvent); ok {
-		if me.Button == tui.MouseButtonLeft && me.Action == tui.MousePress && !b.disabled {
+func (b *Button) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
+	if me, ok := e.(rovel.MouseEvent); ok {
+		if me.Button == rovel.MouseButtonLeft && me.Action == rovel.MousePress && !b.disabled {
 			if ctx != nil && ctx.RequestFocus != nil {
 				ctx.RequestFocus(b.id)
 			}
@@ -214,7 +214,7 @@ func (b *Button) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		return false
 	}
 
-	ke, ok := e.(tui.KeyEvent)
+	ke, ok := e.(rovel.KeyEvent)
 	if !ok {
 		return false
 	}
@@ -224,7 +224,7 @@ func (b *Button) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	}
 
 	switch ke.Key {
-	case tui.KeyEnter:
+	case rovel.KeyEnter:
 		if b.onPress != nil {
 			b.onPress(ctx)
 		}
@@ -235,7 +235,7 @@ func (b *Button) Handle(e tui.Event, ctx *tui.Ctx) bool {
 
 		return true
 
-	case tui.KeyRune:
+	case rovel.KeyRune:
 		// Space activates buttons in many TUIs.
 		if ke.Rune == ' ' {
 			if b.onPress != nil {
@@ -257,7 +257,7 @@ func (b *Button) Handle(e tui.Event, ctx *tui.Ctx) bool {
 }
 
 // HandleAction handles semantic actions.
-func (b *Button) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+func (b *Button) HandleAction(act ui.Action, ctx *rovel.Ctx) bool {
 	if b.disabled {
 		return false
 	}

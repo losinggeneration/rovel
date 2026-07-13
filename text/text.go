@@ -16,7 +16,7 @@
 package text
 
 import (
-	cellwidth "github.com/losinggeneration/tui/internal/width"
+	cellwidth "github.com/losinggeneration/rovel/internal/width"
 )
 
 func Width(s string) int {

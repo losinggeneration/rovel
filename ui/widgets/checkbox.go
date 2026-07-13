@@ -1,20 +1,20 @@
 package widgets
 
 import (
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/style"
-	"github.com/losinggeneration/tui/text"
-	"github.com/losinggeneration/tui/ui"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/style"
+	"github.com/losinggeneration/rovel/text"
+	"github.com/losinggeneration/rovel/ui"
 )
 
 // CheckboxOpts holds options for creating a Checkbox.
 type CheckboxOpts struct {
-	ID       tui.ID
+	ID       rovel.ID
 	Label    string
 	Checked  bool
 	Disabled bool
-	OnChange func(checked bool, ctx *tui.Ctx)
+	OnChange func(checked bool, ctx *rovel.Ctx)
 
 	// Optional style overrides. When non-nil, the style replaces the
 	// palette-derived style for that state completely (no merging).
@@ -25,12 +25,12 @@ type CheckboxOpts struct {
 
 // Checkbox is a toggle widget that shows [x] or [ ] with a label.
 type Checkbox struct {
-	id       tui.ID
-	rect     tui.Rect
+	id       rovel.ID
+	rect     rovel.Rect
 	label    string
 	checked  bool
 	disabled bool
-	onChange func(checked bool, ctx *tui.Ctx)
+	onChange func(checked bool, ctx *rovel.Ctx)
 
 	stNormal   *style.Style
 	stFocused  *style.Style
@@ -44,7 +44,7 @@ func NewCheckbox(label string) *Checkbox {
 func NewCheckboxOpts(opts CheckboxOpts) *Checkbox {
 	id := opts.ID
 	if id == 0 {
-		id = tui.NewID()
+		id = rovel.NewID()
 	}
 
 	return &Checkbox{
@@ -59,14 +59,14 @@ func NewCheckboxOpts(opts CheckboxOpts) *Checkbox {
 	}
 }
 
-func (c *Checkbox) ID() tui.ID        { return c.id }
-func (c *Checkbox) Rect() tui.Rect    { return c.rect }
-func (c *Checkbox) Layout(r tui.Rect) { c.rect = r }
+func (c *Checkbox) ID() rovel.ID        { return c.id }
+func (c *Checkbox) Rect() rovel.Rect    { return c.rect }
+func (c *Checkbox) Layout(r rovel.Rect) { c.rect = r }
 func (c *Checkbox) Focusable() bool   { return !c.disabled }
 
 func (c *Checkbox) Checked() bool { return c.checked }
 
-func (c *Checkbox) SetChecked(ctx *tui.Ctx, v bool) {
+func (c *Checkbox) SetChecked(ctx *rovel.Ctx, v bool) {
 	if c.checked == v {
 		return
 	}
@@ -77,7 +77,7 @@ func (c *Checkbox) SetChecked(ctx *tui.Ctx, v bool) {
 	}
 }
 
-func (c *Checkbox) SetLabel(ctx *tui.Ctx, s string) {
+func (c *Checkbox) SetLabel(ctx *rovel.Ctx, s string) {
 	if c.label == s {
 		return
 	}
@@ -88,14 +88,14 @@ func (c *Checkbox) SetLabel(ctx *tui.Ctx, s string) {
 	}
 }
 
-func (c *Checkbox) SetOnChange(fn func(bool, *tui.Ctx)) { c.onChange = fn }
+func (c *Checkbox) SetOnChange(fn func(bool, *rovel.Ctx)) { c.onChange = fn }
 
 func (c *Checkbox) MinSize() geom.Size {
 	// "[x] " + label
 	return geom.Size{W: 4 + text.Width(c.label), H: 1}
 }
 
-func (c *Checkbox) Paint(d tui.Drawer, ctx *tui.Ctx) {
+func (c *Checkbox) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	r := c.rect
 	if r.W <= 0 || r.H <= 0 {
 		return
@@ -113,18 +113,18 @@ func (c *Checkbox) Paint(d tui.Drawer, ctx *tui.Ctx) {
 
 	y := r.Y + r.H/2
 	x := r.X
-	d.DrawText(tui.Point{X: x, Y: y}, indicator, st)
+	d.DrawText(rovel.Point{X: x, Y: y}, indicator, st)
 	x += text.Width(indicator)
 
 	if x < r.X+r.W {
 		lbl := text.Truncate(c.label, r.W-4, false)
-		d.DrawText(tui.Point{X: x, Y: y}, lbl, st)
+		d.DrawText(rovel.Point{X: x, Y: y}, lbl, st)
 	}
 }
 
-func (c *Checkbox) Handle(e tui.Event, ctx *tui.Ctx) bool {
-	if me, ok := e.(tui.MouseEvent); ok {
-		if me.Button == tui.MouseButtonLeft && me.Action == tui.MousePress && !c.disabled {
+func (c *Checkbox) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
+	if me, ok := e.(rovel.MouseEvent); ok {
+		if me.Button == rovel.MouseButtonLeft && me.Action == rovel.MousePress && !c.disabled {
 			if ctx != nil && ctx.RequestFocus != nil {
 				ctx.RequestFocus(c.id)
 			}
@@ -137,7 +137,7 @@ func (c *Checkbox) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		return false
 	}
 
-	ke, ok := e.(tui.KeyEvent)
+	ke, ok := e.(rovel.KeyEvent)
 	if !ok {
 		return false
 	}
@@ -146,7 +146,7 @@ func (c *Checkbox) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		return false
 	}
 
-	if ke.Key == tui.KeyEnter || (ke.Key == tui.KeyRune && ke.Rune == ' ') {
+	if ke.Key == rovel.KeyEnter || (ke.Key == rovel.KeyRune && ke.Rune == ' ') {
 		c.toggle(ctx)
 
 		return true
@@ -156,7 +156,7 @@ func (c *Checkbox) Handle(e tui.Event, ctx *tui.Ctx) bool {
 }
 
 // HandleAction handles semantic actions.
-func (c *Checkbox) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+func (c *Checkbox) HandleAction(act ui.Action, ctx *rovel.Ctx) bool {
 	if c.disabled {
 		return false
 	}
@@ -170,7 +170,7 @@ func (c *Checkbox) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
 	return false
 }
 
-func (c *Checkbox) toggle(ctx *tui.Ctx) {
+func (c *Checkbox) toggle(ctx *rovel.Ctx) {
 	c.checked = !c.checked
 	if ctx != nil {
 		ctx.Invalidate(c.rect)
@@ -181,7 +181,7 @@ func (c *Checkbox) toggle(ctx *tui.Ctx) {
 	}
 }
 
-func (c *Checkbox) style(ctx *tui.Ctx, focused bool) style.Style {
+func (c *Checkbox) style(ctx *rovel.Ctx, focused bool) style.Style {
 	if ctx == nil {
 		return style.Style{}
 	}

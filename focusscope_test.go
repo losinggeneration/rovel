@@ -1,9 +1,9 @@
-package tui
+package rovel
 
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/rovel/geom"
 )
 
 // ---------------------------------------------------------------------------

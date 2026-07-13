@@ -1,6 +1,6 @@
 package ui
 
-import "github.com/losinggeneration/tui/event"
+import "github.com/losinggeneration/rovel/event"
 
 // Keystroke represents a normalized key press for keymap lookup.
 type Keystroke struct {

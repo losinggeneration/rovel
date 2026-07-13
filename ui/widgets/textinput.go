@@ -1,17 +1,17 @@
 package widgets
 
 import (
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/event"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/style"
-	"github.com/losinggeneration/tui/text"
-	"github.com/losinggeneration/tui/ui"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/event"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/style"
+	"github.com/losinggeneration/rovel/text"
+	"github.com/losinggeneration/rovel/ui"
 )
 
 // TextInputOpts holds options for creating a TextInput.
 type TextInputOpts struct {
-	ID tui.ID
+	ID rovel.ID
 
 	// Optional style overrides. When non-nil, the style replaces the
 	// palette-derived style for that state completely (no merging).
@@ -22,11 +22,11 @@ type TextInputOpts struct {
 
 // TextInput is a single-line text input widget with cursor navigation.
 type TextInput struct {
-	id      tui.ID
+	id      rovel.ID
 	text    string
 	cursor  int // UTF-8 byte offset in [0..len(text)], always at a cluster boundary
 	scrollX int // horizontal scroll in cells
-	rect    tui.Rect
+	rect    rovel.Rect
 	anchor  int // selection anchor; -1 = no selection
 
 	stNormal    *style.Style
@@ -41,7 +41,7 @@ func NewTextInput() *TextInput {
 func NewTextInputOpts(opts TextInputOpts) *TextInput {
 	id := opts.ID
 	if id == 0 {
-		id = tui.NewID()
+		id = rovel.NewID()
 	}
 
 	return &TextInput{
@@ -53,7 +53,7 @@ func NewTextInputOpts(opts TextInputOpts) *TextInput {
 	}
 }
 
-func (t *TextInput) SetText(ctx *tui.Ctx, s string) {
+func (t *TextInput) SetText(ctx *rovel.Ctx, s string) {
 	t.text = text.Sanitize(s)
 	t.cursor = len(t.text)
 	t.cursor = text.ClampCluster(t.text, t.cursor)
@@ -68,15 +68,15 @@ func (t *TextInput) Text() string {
 	return t.text
 }
 
-func (t *TextInput) ID() tui.ID {
+func (t *TextInput) ID() rovel.ID {
 	return t.id
 }
 
-func (t *TextInput) Rect() tui.Rect {
+func (t *TextInput) Rect() rovel.Rect {
 	return t.rect
 }
 
-func (t *TextInput) Layout(r tui.Rect) {
+func (t *TextInput) Layout(r rovel.Rect) {
 	t.rect = r
 }
 
@@ -94,12 +94,12 @@ func (t *TextInput) PreferredSize() geom.Size {
 }
 
 // Paint renders the text input.
-func (t *TextInput) Paint(d tui.Drawer, ctx *tui.Ctx) {
+func (t *TextInput) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	if t.rect.W <= 0 {
 		return
 	}
 
-	cd, ok := tui.CellDrawerOf(d)
+	cd, ok := rovel.CellDrawerOf(d)
 	if !ok {
 		return
 	}
@@ -154,7 +154,7 @@ func (t *TextInput) Paint(d tui.Drawer, ctx *tui.Ctx) {
 		// allows terminals to render ligatures across cells.
 		cluster := t.text[byteOff:next]
 		for _, r := range cluster {
-			rw := tui.RuneWidth(r)
+			rw := rovel.RuneWidth(r)
 			if rw <= 0 {
 				continue
 			}
@@ -192,10 +192,10 @@ func (t *TextInput) Paint(d tui.Drawer, ctx *tui.Ctx) {
 }
 
 // Handle processes keyboard, mouse, and paste events.
-func (t *TextInput) Handle(e tui.Event, ctx *tui.Ctx) bool {
+func (t *TextInput) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
 	// Mouse click positions the cursor
-	if me, ok := e.(tui.MouseEvent); ok {
-		if me.Button == tui.MouseButtonLeft && me.Action == tui.MousePress {
+	if me, ok := e.(rovel.MouseEvent); ok {
+		if me.Button == rovel.MouseButtonLeft && me.Action == rovel.MousePress {
 			if ctx != nil && ctx.RequestFocus != nil {
 				ctx.RequestFocus(t.id)
 			}
@@ -217,7 +217,7 @@ func (t *TextInput) Handle(e tui.Event, ctx *tui.Ctx) bool {
 		return t.handlePaste(pe, ctx)
 	}
 
-	ke, ok := e.(tui.KeyEvent)
+	ke, ok := e.(rovel.KeyEvent)
 	if !ok {
 		return false
 	}
@@ -227,7 +227,7 @@ func (t *TextInput) Handle(e tui.Event, ctx *tui.Ctx) bool {
 	}
 
 	switch ke.Key {
-	case tui.KeyRune:
+	case rovel.KeyRune:
 		// Insert character at cursor (replacing selection if any).
 		insert := text.Sanitize(string(ke.Rune))
 		if insert == "" {
@@ -248,28 +248,28 @@ func (t *TextInput) Handle(e tui.Event, ctx *tui.Ctx) bool {
 
 		return true
 
-	case tui.KeyLeft:
+	case rovel.KeyLeft:
 		t.cursor = text.PrevCluster(t.text, t.cursor)
 		t.updateScroll()
 		ctx.Invalidate(t.rect)
 
 		return true
 
-	case tui.KeyRight:
+	case rovel.KeyRight:
 		t.cursor = text.NextCluster(t.text, t.cursor)
 		t.updateScroll()
 		ctx.Invalidate(t.rect)
 
 		return true
 
-	case tui.KeyBackspace:
+	case rovel.KeyBackspace:
 		t.text, t.cursor = text.DeletePrevCluster(t.text, t.cursor)
 		t.updateScroll()
 		ctx.Invalidate(t.rect)
 
 		return true
 
-	case tui.KeyDelete:
+	case rovel.KeyDelete:
 		t.text, t.cursor = text.DeleteNextCluster(t.text, t.cursor)
 		t.updateScroll()
 		ctx.Invalidate(t.rect)
@@ -282,13 +282,13 @@ func (t *TextInput) Handle(e tui.Event, ctx *tui.Ctx) bool {
 }
 
 // HandleAction handles semantic actions.
-func (t *TextInput) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+func (t *TextInput) HandleAction(act ui.Action, ctx *rovel.Ctx) bool {
 	if ctx.FocusedID != t.id {
 		return false
 	}
 
 	// Handle shift+move for selection extension.
-	isShift := ctx.Mod&tui.ModShift != 0
+	isShift := ctx.Mod&rovel.ModShift != 0
 
 	switch act {
 	case ui.ActionMoveLeft:
@@ -411,7 +411,7 @@ func (t *TextInput) Focusable() bool {
 	return true
 }
 
-func (t *TextInput) handlePaste(e event.PasteEvent, ctx *tui.Ctx) bool {
+func (t *TextInput) handlePaste(e event.PasteEvent, ctx *rovel.Ctx) bool {
 	if ctx.FocusedID != t.id {
 		return false
 	}

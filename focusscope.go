@@ -1,4 +1,4 @@
-package tui
+package rovel
 
 // scopeState stores per-scope state (keyed by scope owner ID; 0 = root scope).
 type scopeState struct {

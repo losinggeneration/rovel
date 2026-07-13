@@ -3,7 +3,7 @@ package backend
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/rovel/style"
 )
 
 func TestCellFrameAtAndRowRunes(t *testing.T) {

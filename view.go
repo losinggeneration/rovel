@@ -1,9 +1,9 @@
-package tui
+package rovel
 
 import (
-	"github.com/losinggeneration/tui/backend"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/rovel/backend"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/style"
 )
 
 // View is the interface that all UI components must implement.

@@ -1,6 +1,6 @@
-package tui
+package rovel
 
-import "github.com/losinggeneration/tui/geom"
+import "github.com/losinggeneration/rovel/geom"
 
 // Placement determines how an overlay is positioned relative to the screen.
 type Placement interface {

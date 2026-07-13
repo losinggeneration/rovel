@@ -12,7 +12,7 @@
 //	go func() {
 //		result := fetchData()
 //
-//		_ = app.Post(func(ctx *tui.UpdateCtx) {
+//		_ = app.Post(func(ctx *rovel.UpdateCtx) {
 //			model.items = append(model.items, result)
 //			ctx.Invalidate(list.Rect())
 //		})
@@ -25,7 +25,7 @@
 //	go func() {
 //		time.Sleep(time.Second)
 //
-//		_ = app.Post(func(ctx *tui.UpdateCtx) {
+//		_ = app.Post(func(ctx *rovel.UpdateCtx) {
 //			ctx.ShowOverlay(OverlayOpts{
 //				Root:  dialog,
 //				Modal: true,
@@ -36,7 +36,7 @@
 //
 // Posted callbacks are serialized with input handling and run on the app loop.
 // Multiple posted updates coalesce into bounded rendering work.
-package tui
+package rovel
 
 import (
 	"slices"
@@ -44,12 +44,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/losinggeneration/tui/action"
-	"github.com/losinggeneration/tui/backend"
-	"github.com/losinggeneration/tui/event"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/internal/errbuf"
-	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/rovel/action"
+	"github.com/losinggeneration/rovel/backend"
+	"github.com/losinggeneration/rovel/event"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/internal/errbuf"
+	"github.com/losinggeneration/rovel/style"
 )
 
 // App represents a TUI application.
@@ -588,7 +588,7 @@ func (a *App) Post(fn func(ctx *UpdateCtx)) error {
 // It is safe to call from any goroutine.
 // This is a convenience wrapper that avoids the need to write:
 //
-//	_ = app.Post(func(ctx *tui.UpdateCtx) { ctx.Invalidate(r) })
+//	_ = app.Post(func(ctx *rovel.UpdateCtx) { ctx.Invalidate(r) })
 func (a *App) PostInvalidate(r geom.Rect) error {
 	return a.Post(func(ctx *UpdateCtx) {
 		ctx.Invalidate(r)
@@ -599,7 +599,7 @@ func (a *App) PostInvalidate(r geom.Rect) error {
 // It is safe to call from any goroutine.
 // This is a convenience wrapper that avoids the need to write:
 //
-//	_ = app.Post(func(ctx *tui.UpdateCtx) { ctx.InvalidateAll() })
+//	_ = app.Post(func(ctx *rovel.UpdateCtx) { ctx.InvalidateAll() })
 func (a *App) PostInvalidateAll() error {
 	return a.Post(func(ctx *UpdateCtx) {
 		ctx.InvalidateAll()

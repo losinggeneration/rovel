@@ -1,6 +1,6 @@
 package render
 
-import "github.com/losinggeneration/tui/geom"
+import "github.com/losinggeneration/rovel/geom"
 
 // ClipRect returns the intersection of a drawing rect with a clip bounds.
 func ClipRect(draw, clip geom.Rect) geom.Rect {

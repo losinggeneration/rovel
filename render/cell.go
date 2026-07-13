@@ -1,6 +1,6 @@
 package render
 
-import "github.com/losinggeneration/tui/style"
+import "github.com/losinggeneration/rovel/style"
 
 // zeroCell is the canonical empty cell.
 var zeroCell = Cell{

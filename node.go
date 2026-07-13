@@ -1,6 +1,6 @@
-package tui
+package rovel
 
-import "github.com/losinggeneration/tui/geom"
+import "github.com/losinggeneration/rovel/geom"
 
 // nodeEntry holds tree metadata for a single view node.
 type nodeEntry struct {

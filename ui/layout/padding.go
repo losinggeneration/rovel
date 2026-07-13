@@ -1,14 +1,14 @@
 package layout
 
 import (
-	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/rovel"
 )
 
 // Padding is a wrapper that adds insets around a single child.
 type Padding struct {
-	id     tui.ID
-	child  tui.View
-	rect   tui.Rect
+	id     rovel.ID
+	child  rovel.View
+	rect   rovel.Rect
 	Left   int
 	Top    int
 	Right  int
@@ -16,9 +16,9 @@ type Padding struct {
 }
 
 // NewPadding creates a new padding wrapper.
-func NewPadding(child tui.View) *Padding {
+func NewPadding(child rovel.View) *Padding {
 	return &Padding{
-		id:    tui.NewID(),
+		id:    rovel.NewID(),
 		child: child,
 	}
 }
@@ -32,42 +32,42 @@ func (p *Padding) SetInsets(left, top, right, bottom int) {
 }
 
 // ID returns the padding's unique ID.
-func (p *Padding) ID() tui.ID {
+func (p *Padding) ID() rovel.ID {
 	return p.id
 }
 
 // Rect returns the padding's current rect.
-func (p *Padding) Rect() tui.Rect {
+func (p *Padding) Rect() rovel.Rect {
 	return p.rect
 }
 
 // Layout positions the padding within the given rect.
-func (p *Padding) Layout(r tui.Rect) {
+func (p *Padding) Layout(r rovel.Rect) {
 	p.rect = r
 	inner := InsetRect(r, p.Left, p.Top, p.Right, p.Bottom)
 	p.child.Layout(inner)
 }
 
 // MinSize returns the minimum size needed for the padding.
-func (p *Padding) MinSize() tui.Size {
+func (p *Padding) MinSize() rovel.Size {
 	childMin := p.child.MinSize()
 
-	return tui.Size{
+	return rovel.Size{
 		W: childMin.W + p.Left + p.Right,
 		H: childMin.H + p.Top + p.Bottom,
 	}
 }
 
 // Paint renders the padding and its child.
-func (p *Padding) Paint(d tui.Drawer, ctx *tui.Ctx) {
+func (p *Padding) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	inner := InsetRect(p.rect, p.Left, p.Top, p.Right, p.Bottom)
-	d.WithClip(inner, func(d tui.Drawer) {
+	d.WithClip(inner, func(d rovel.Drawer) {
 		p.child.Paint(d, ctx)
 	})
 }
 
 // Handle processes events - delegates to child.
-func (p *Padding) Handle(e tui.Event, ctx *tui.Ctx) bool {
+func (p *Padding) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
 	return p.child.Handle(e, ctx)
 }
 
@@ -77,6 +77,6 @@ func (p *Padding) Focusable() bool {
 }
 
 // Children returns the child view for traversal consistency.
-func (p *Padding) Children() []tui.View {
-	return []tui.View{p.child}
+func (p *Padding) Children() []rovel.View {
+	return []rovel.View{p.child}
 }

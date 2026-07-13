@@ -3,20 +3,20 @@ package widgets
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/event"
-	"github.com/losinggeneration/tui/geom"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/event"
+	"github.com/losinggeneration/rovel/geom"
 )
 
 // dropdownCtx builds a Ctx wired to a real OverlayManager so Select's
 // dropdown lifecycle can be exercised without a full App.
-func dropdownCtx(om *tui.OverlayManager, dismissed *int) *tui.Ctx {
-	return &tui.Ctx{
+func dropdownCtx(om *rovel.OverlayManager, dismissed *int) *rovel.Ctx {
+	return &rovel.Ctx{
 		Invalidate: func(geom.Rect) {},
-		ShowOverlay: func(opts tui.OverlayOpts) *tui.Overlay {
+		ShowOverlay: func(opts rovel.OverlayOpts) *rovel.Overlay {
 			return om.PushOverlay(opts, 0)
 		},
-		DismissOverlay: func() *tui.Overlay {
+		DismissOverlay: func() *rovel.Overlay {
 			*dismissed++
 
 			return om.PopOverlay()
@@ -28,7 +28,7 @@ func TestSelect_DropdownDismissesOnEscape(t *testing.T) {
 	s := NewSelect([]string{"a", "b"})
 
 	var (
-		om        tui.OverlayManager
+		om        rovel.OverlayManager
 		dismissed int
 	)
 

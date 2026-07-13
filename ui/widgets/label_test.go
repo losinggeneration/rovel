@@ -3,13 +3,13 @@ package widgets
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui"
+	"github.com/losinggeneration/rovel"
 )
 
 func TestLabel(t *testing.T) {
 	label := NewLabel("test")
 
-	if label.ID() == (tui.ID(0)) {
+	if label.ID() == (rovel.ID(0)) {
 		t.Fatal("ID should not be zero")
 	}
 
@@ -22,7 +22,7 @@ func TestLabel(t *testing.T) {
 		t.Errorf("Expected MinSize.H to be 1, got %d", minSize.H)
 	}
 
-	rect := tui.Rect{X: 0, Y: 0, W: 10, H: 5}
+	rect := rovel.Rect{X: 0, Y: 0, W: 10, H: 5}
 	label.Layout(rect)
 
 	if label.Rect() != rect {
@@ -46,7 +46,7 @@ func TestLabelMultiline(t *testing.T) {
 func TestButton(t *testing.T) {
 	button := NewButton("OK")
 
-	if button.ID() == (tui.ID(0)) {
+	if button.ID() == (rovel.ID(0)) {
 		t.Fatal("ID should not be zero")
 	}
 
@@ -63,7 +63,7 @@ func TestButton(t *testing.T) {
 	// Test callback - now takes ctx parameter
 	pressed := false
 
-	button.SetOnPress(func(ctx *tui.Ctx) {
+	button.SetOnPress(func(ctx *rovel.Ctx) {
 		pressed = true
 	})
 	button.onPress(nil)
@@ -76,7 +76,7 @@ func TestButton(t *testing.T) {
 func TestTextInput(t *testing.T) {
 	input := NewTextInput()
 
-	if input.ID() == (tui.ID(0)) {
+	if input.ID() == (rovel.ID(0)) {
 		t.Fatal("ID should not be zero")
 	}
 
@@ -106,7 +106,7 @@ func TestFocusRing(t *testing.T) {
 	child := NewLabel("test")
 	ring := NewFocusRing(child)
 
-	if ring.ID() == (tui.ID(0)) {
+	if ring.ID() == (rovel.ID(0)) {
 		t.Fatal("ID should not be zero")
 	}
 

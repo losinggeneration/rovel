@@ -3,8 +3,8 @@ package sdl
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui/backend"
-	"github.com/losinggeneration/tui/event"
+	"github.com/losinggeneration/rovel/backend"
+	"github.com/losinggeneration/rovel/event"
 )
 
 var (

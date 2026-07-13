@@ -1,4 +1,4 @@
-package tui_test
+package rovel_test
 
 import (
 	"errors"
@@ -6,50 +6,50 @@ import (
 	"testing"
 	"time"
 
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/backend/headless"
-	"github.com/losinggeneration/tui/backend/memory"
-	"github.com/losinggeneration/tui/event"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/style"
-	"github.com/losinggeneration/tui/ui"
-	"github.com/losinggeneration/tui/ui/widgets"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/backend/headless"
+	"github.com/losinggeneration/rovel/backend/memory"
+	"github.com/losinggeneration/rovel/event"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/style"
+	"github.com/losinggeneration/rovel/ui"
+	"github.com/losinggeneration/rovel/ui/widgets"
 )
 
 type fixedPlacement struct {
 	rect geom.Rect
 }
 
-func (p fixedPlacement) Resolve(root tui.View, screenSize geom.Size) geom.Rect {
+func (p fixedPlacement) Resolve(root rovel.View, screenSize geom.Size) geom.Rect {
 	return p.rect
 }
 
 // integrationView is a test view that tracks paint calls and handles focus/input.
 type integrationView struct {
-	id          tui.ID
+	id          rovel.ID
 	rect        geom.Rect
 	paintCount  atomic.Int32
 	handleCount atomic.Int32
 	focusable   bool
-	children    []tui.View
+	children    []rovel.View
 }
 
 func newIntView(focusable bool) *integrationView {
-	return &integrationView{id: tui.NewID(), focusable: focusable}
+	return &integrationView{id: rovel.NewID(), focusable: focusable}
 }
 
-func (v *integrationView) ID() tui.ID           { return v.id }
+func (v *integrationView) ID() rovel.ID           { return v.id }
 func (v *integrationView) MinSize() geom.Size   { return geom.Size{W: 1, H: 1} }
 func (v *integrationView) Layout(r geom.Rect)   { v.rect = r }
 func (v *integrationView) Rect() geom.Rect      { return v.rect }
 func (v *integrationView) Focusable() bool      { return v.focusable }
-func (v *integrationView) Children() []tui.View { return v.children }
+func (v *integrationView) Children() []rovel.View { return v.children }
 
-func (v *integrationView) Paint(d tui.Drawer, ctx *tui.Ctx) {
+func (v *integrationView) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	v.paintCount.Add(1)
 }
 
-func (v *integrationView) Handle(e tui.Event, ctx *tui.Ctx) bool {
+func (v *integrationView) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
 	v.handleCount.Add(1)
 
 	return false
@@ -57,20 +57,20 @@ func (v *integrationView) Handle(e tui.Event, ctx *tui.Ctx) bool {
 
 // integrationRoot wraps children and handles layout distribution.
 type integrationRoot struct {
-	id         tui.ID
+	id         rovel.ID
 	rect       geom.Rect
-	children   []tui.View
+	children   []rovel.View
 	paintCount atomic.Int32
 }
 
-func newIntRoot(children ...tui.View) *integrationRoot {
-	return &integrationRoot{id: tui.NewID(), children: children}
+func newIntRoot(children ...rovel.View) *integrationRoot {
+	return &integrationRoot{id: rovel.NewID(), children: children}
 }
 
-func (r *integrationRoot) ID() tui.ID           { return r.id }
+func (r *integrationRoot) ID() rovel.ID           { return r.id }
 func (r *integrationRoot) MinSize() geom.Size   { return geom.Size{W: 1, H: 1} }
 func (r *integrationRoot) Rect() geom.Rect      { return r.rect }
-func (r *integrationRoot) Children() []tui.View { return r.children }
+func (r *integrationRoot) Children() []rovel.View { return r.children }
 
 func (r *integrationRoot) Layout(gr geom.Rect) {
 	r.rect = gr
@@ -79,7 +79,7 @@ func (r *integrationRoot) Layout(gr geom.Rect) {
 	}
 }
 
-func (r *integrationRoot) Paint(d tui.Drawer, ctx *tui.Ctx) {
+func (r *integrationRoot) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	r.paintCount.Add(1)
 
 	for _, c := range r.children {
@@ -87,7 +87,7 @@ func (r *integrationRoot) Paint(d tui.Drawer, ctx *tui.Ctx) {
 	}
 }
 
-func (r *integrationRoot) Handle(e tui.Event, ctx *tui.Ctx) bool {
+func (r *integrationRoot) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
 	for _, c := range r.children {
 		if c.Handle(e, ctx) {
 			return true
@@ -98,43 +98,43 @@ func (r *integrationRoot) Handle(e tui.Event, ctx *tui.Ctx) bool {
 }
 
 type asyncInvalidateView struct {
-	id    tui.ID
+	id    rovel.ID
 	rect  geom.Rect
 	value atomic.Int32
 }
 
 func newAsyncInvalidateView(initial int32) *asyncInvalidateView {
-	v := &asyncInvalidateView{id: tui.NewID()}
+	v := &asyncInvalidateView{id: rovel.NewID()}
 	v.value.Store(initial)
 
 	return v
 }
 
-func (v *asyncInvalidateView) ID() tui.ID         { return v.id }
+func (v *asyncInvalidateView) ID() rovel.ID         { return v.id }
 func (v *asyncInvalidateView) MinSize() geom.Size { return geom.Size{W: 1, H: 1} }
 func (v *asyncInvalidateView) Rect() geom.Rect    { return v.rect }
 func (v *asyncInvalidateView) Layout(r geom.Rect) { v.rect = r }
-func (v *asyncInvalidateView) Paint(d tui.Drawer, ctx *tui.Ctx) {
-	d.FillRect(v.rect, tui.Style{})
+func (v *asyncInvalidateView) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
+	d.FillRect(v.rect, rovel.Style{})
 	d.DrawText(
-		tui.Point{X: v.rect.X, Y: v.rect.Y},
+		rovel.Point{X: v.rect.X, Y: v.rect.Y},
 		string(rune('0'+v.value.Load())),
-		tui.Style{},
+		rovel.Style{},
 	)
 }
-func (v *asyncInvalidateView) Handle(e tui.Event, ctx *tui.Ctx) bool { return false }
+func (v *asyncInvalidateView) Handle(e rovel.Event, ctx *rovel.Ctx) bool { return false }
 
 func TestIntegration_FullLifecycle(t *testing.T) {
 	be := headless.New(geom.Size{W: 80, H: 24})
 	c := style.Capability{HasBasic: true}
-	opts := tui.AppOpts{
+	opts := rovel.AppOpts{
 		Backend:       be,
 		Capability:    &c,
-		Theme:         tui.DefaultTheme(),
+		Theme:         rovel.DefaultTheme(),
 		ResolveAction: ui.DefaultAppResolver(),
 	}
 
-	app, err := tui.New(opts)
+	app, err := rovel.New(opts)
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -191,7 +191,7 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 
 	// Verify size via Post to avoid racing with the app loop.
 	sizeCh := make(chan geom.Size, 1)
-	_ = app.Post(func(ctx *tui.UpdateCtx) {
+	_ = app.Post(func(ctx *rovel.UpdateCtx) {
 		sizeCh <- app.Size()
 	})
 
@@ -207,7 +207,7 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 	// 4. Test Post from background goroutine.
 	var postRan atomic.Bool
 
-	err = app.Post(func(ctx *tui.UpdateCtx) {
+	err = app.Post(func(ctx *rovel.UpdateCtx) {
 		postRan.Store(true)
 		ctx.InvalidateAll()
 	})
@@ -240,17 +240,17 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 	}
 
 	// 7. Post after shutdown should return ErrClosed.
-	err = app.Post(func(ctx *tui.UpdateCtx) {})
-	if !errors.Is(err, tui.ErrClosed) {
+	err = app.Post(func(ctx *rovel.UpdateCtx) {})
+	if !errors.Is(err, rovel.ErrClosed) {
 		t.Errorf("Post after shutdown: got %v, want ErrClosed", err)
 	}
 }
 
 func TestIntegration_PostInvalidate_RepaintsThroughRunLoop(t *testing.T) {
 	be := memory.New(geom.Size{W: 12, H: 3})
-	opts := tui.AppOpts{Backend: be}
+	opts := rovel.AppOpts{Backend: be}
 
-	app, err := tui.New(opts)
+	app, err := rovel.New(opts)
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -326,10 +326,10 @@ func TestIntegration_MemoryBackendCapturesLogicalFrames(t *testing.T) {
 	be := memory.New(geom.Size{W: 12, H: 4})
 	c := style.Capability{HasBasic: true}
 
-	app, err := tui.New(tui.AppOpts{
+	app, err := rovel.New(rovel.AppOpts{
 		Backend:    be,
 		Capability: &c,
-		Theme:      tui.DefaultTheme(),
+		Theme:      rovel.DefaultTheme(),
 	})
 	if err != nil {
 		t.Fatalf("New: %v", err)
@@ -415,10 +415,10 @@ func TestIntegration_MemoryBackendCapturesPostedUpdatesAndOverlays(t *testing.T)
 	be := memory.New(geom.Size{W: 16, H: 6})
 	c := style.Capability{HasBasic: true}
 
-	app, err := tui.New(tui.AppOpts{
+	app, err := rovel.New(rovel.AppOpts{
 		Backend:    be,
 		Capability: &c,
-		Theme:      tui.DefaultTheme(),
+		Theme:      rovel.DefaultTheme(),
 	})
 	if err != nil {
 		t.Fatalf("New: %v", err)
@@ -456,7 +456,7 @@ func TestIntegration_MemoryBackendCapturesPostedUpdatesAndOverlays(t *testing.T)
 
 	initialFrames := be.FrameCount()
 
-	err = app.Post(func(ctx *tui.UpdateCtx) {
+	err = app.Post(func(ctx *rovel.UpdateCtx) {
 		label.SetText(nil, "updated")
 		ctx.Invalidate(label.Rect())
 	})
@@ -479,8 +479,8 @@ func TestIntegration_MemoryBackendCapturesPostedUpdatesAndOverlays(t *testing.T)
 
 	framesBeforeOverlay := be.FrameCount()
 
-	err = app.Post(func(ctx *tui.UpdateCtx) {
-		o := ctx.ShowOverlay(tui.OverlayOpts{
+	err = app.Post(func(ctx *rovel.UpdateCtx) {
+		o := ctx.ShowOverlay(rovel.OverlayOpts{
 			Root:  widgets.NewLabel("OVR"),
 			Modal: false,
 			Place: fixedPlacement{rect: geom.Rect{X: 2, Y: 2, W: 3, H: 1}},

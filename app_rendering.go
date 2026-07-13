@@ -1,13 +1,13 @@
-package tui
+package rovel
 
 import (
 	"errors"
 	"fmt"
 
-	"github.com/losinggeneration/tui/backend"
-	"github.com/losinggeneration/tui/geom"
-	"github.com/losinggeneration/tui/render"
-	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/rovel/backend"
+	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/render"
+	"github.com/losinggeneration/rovel/style"
 )
 
 var errNoSinkOrTransport = errors.New("backend provides neither CellFrameSink nor ANSITransport")

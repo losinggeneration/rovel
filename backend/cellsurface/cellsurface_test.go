@@ -3,8 +3,8 @@ package cellsurface
 import (
 	"testing"
 
-	"github.com/losinggeneration/tui/backend"
-	"github.com/losinggeneration/tui/style"
+	"github.com/losinggeneration/rovel/backend"
+	"github.com/losinggeneration/rovel/style"
 )
 
 func TestMetricsMapping(t *testing.T) {

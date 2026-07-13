@@ -11,11 +11,11 @@
 // # Type Aliases
 //
 // This package uses type aliases to tui types for ergonomic API:
-//   - ui.View is tui.View
-//   - ui.ID is tui.ID
-//   - ui.Rect is tui.Rect
-//   - ui.Size is tui.Size
-//   - ui.Painter is tui.Painter
-//   - ui.Ctx is tui.Ctx
-//   - ui.Event is tui.Event
+//   - ui.View is rovel.View
+//   - ui.ID is rovel.ID
+//   - ui.Rect is rovel.Rect
+//   - ui.Size is rovel.Size
+//   - ui.Painter is rovel.Painter
+//   - ui.Ctx is rovel.Ctx
+//   - ui.Event is rovel.Event
 package ui

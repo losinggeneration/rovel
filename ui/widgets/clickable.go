@@ -1,26 +1,26 @@
 package widgets
 
 import (
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/ui"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/ui"
 )
 
 // Clickable wraps any View to add mouse click handling.
 // All View methods delegate to the embedded View. On left-click,
 // it requests focus on the wrapped view and calls OnClick.
 type Clickable struct {
-	tui.View
+	rovel.View
 
-	OnClick func(ctx *tui.Ctx)
+	OnClick func(ctx *rovel.Ctx)
 }
 
 type actionHandler interface {
-	HandleAction(act ui.Action, ctx *tui.Ctx) bool
+	HandleAction(act ui.Action, ctx *rovel.Ctx) bool
 }
 
-func (c *Clickable) Handle(e tui.Event, ctx *tui.Ctx) bool {
-	if me, ok := e.(tui.MouseEvent); ok {
-		if me.Button == tui.MouseButtonLeft && me.Action == tui.MousePress {
+func (c *Clickable) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
+	if me, ok := e.(rovel.MouseEvent); ok {
+		if me.Button == rovel.MouseButtonLeft && me.Action == rovel.MousePress {
 			if ctx != nil && ctx.RequestFocus != nil {
 				ctx.RequestFocus(c.ID())
 			}
@@ -54,7 +54,7 @@ func (c *Clickable) Focusable() bool {
 	return false
 }
 
-func (c *Clickable) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
+func (c *Clickable) HandleAction(act ui.Action, ctx *rovel.Ctx) bool {
 	if ah, ok := c.View.(actionHandler); ok {
 		return ah.HandleAction(act, ctx)
 	}
@@ -64,8 +64,8 @@ func (c *Clickable) HandleAction(act ui.Action, ctx *tui.Ctx) bool {
 
 // Children delegates to the wrapped view if it implements the Children interface.
 // This preserves hit-test traversal for composite views.
-func (c *Clickable) Children() []tui.View {
-	if vc, ok := c.View.(interface{ Children() []tui.View }); ok {
+func (c *Clickable) Children() []rovel.View {
+	if vc, ok := c.View.(interface{ Children() []rovel.View }); ok {
 		return vc.Children()
 	}
 

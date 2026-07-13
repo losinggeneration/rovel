@@ -1,4 +1,4 @@
-// Package render contains low-level rendering primitives for tui.
+// Package render contains low-level rendering primitives for rovel.
 //
 // This package is under active development and its API is not yet stable.
 // It is intended for internal use and advanced integrations.

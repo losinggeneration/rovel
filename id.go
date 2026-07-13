@@ -1,4 +1,4 @@
-package tui
+package rovel
 
 import "sync/atomic"
 

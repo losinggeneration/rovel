@@ -1,8 +1,8 @@
 package ui
 
 import (
-	"github.com/losinggeneration/tui"
-	"github.com/losinggeneration/tui/action"
+	"github.com/losinggeneration/rovel"
+	"github.com/losinggeneration/rovel/action"
 )
 
 // Action is a semantic UI action. It aliases action.Action so ui-layer code and
@@ -38,5 +38,5 @@ const (
 
 // ActionHandler is implemented by views that can handle semantic actions.
 type ActionHandler interface {
-	HandleAction(act Action, ctx *tui.Ctx) bool
+	HandleAction(act Action, ctx *rovel.Ctx) bool
 }

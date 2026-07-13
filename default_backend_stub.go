@@ -1,12 +1,12 @@
 //go:build !unix
 
-package tui
+package rovel
 
 import (
 	"errors"
 
-	"github.com/losinggeneration/tui/backend"
-	"github.com/losinggeneration/tui/internal/errbuf"
+	"github.com/losinggeneration/rovel/backend"
+	"github.com/losinggeneration/rovel/internal/errbuf"
 )
 
 // defaultBackend returns an error on non-Unix platforms.

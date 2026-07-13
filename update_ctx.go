@@ -1,6 +1,6 @@
-package tui
+package rovel
 
-import "github.com/losinggeneration/tui/geom"
+import "github.com/losinggeneration/rovel/geom"
 
 // UpdateCtx is passed to posted callbacks, providing app-loop-safe mutations.
 type UpdateCtx struct {
