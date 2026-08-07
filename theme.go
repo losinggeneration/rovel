@@ -236,6 +236,7 @@ func (t Theme) effectiveAesthetic() Aesthetic {
 type InputOpts struct {
 	Mouse                  bool
 	BracketedPaste         bool
+	ModifiedKeys           bool
 	ClipboardWrite         bool
 	ClipboardRead          bool
 	ClipboardWriteMaxBytes int // default 64 KiB if 0

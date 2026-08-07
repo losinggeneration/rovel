@@ -2,12 +2,18 @@
 
 package ansi
 
-import "github.com/losinggeneration/rovel/backend"
+import (
+	"os"
+	"strings"
+
+	"github.com/losinggeneration/rovel/backend"
+)
 
 // inputFeatures tracks which input features are currently enabled.
 type inputFeatures struct {
 	mouse          bool
 	bracketedPaste bool
+	modifiedKeys   bool
 }
 
 // InputCapabilities reports which input features this backend supports.
@@ -22,6 +28,7 @@ func (b *Backend) InputCapabilities() backend.InputCapabilities {
 		Mouse:          true,
 		MouseMotion:    true,
 		BracketedPaste: true,
+		ModifiedKeys:   true,
 		ClipboardWrite: true,
 		ClipboardRead:  true,
 	}
@@ -59,7 +66,43 @@ func (b *Backend) SetInputFeatures(f backend.InputFeatures) error {
 		b.inputFeats.bracketedPaste = false
 	}
 
+	// Modified key reporting. This asks terminals that support the CSI-u / Kitty
+	// keyboard protocol to encode otherwise ambiguous modified keys such as
+	// Shift+Enter as CSI 13;2u. We also enable xterm's modifyOtherKeys level 2,
+	// used by terminals that report Shift+Enter as CSI 27;2;13~ instead of CSI-u.
+	//
+	// tmux filters extended-key request sequences unless the pane has passthrough
+	// enabled. Wrap the requests in a tmux Device Control String so the outer
+	// terminal receives them; tmux itself already decodes many modified keys when
+	// extended-keys is enabled and will ignore the payload otherwise. Unsupported
+	// terminals ignore these private sequences, so enabling the feature is safe
+	// but still best-effort.
+	if f.ModifiedKeys && !b.inputFeats.modifiedKeys {
+		if _, err := b.w.WriteString(tmuxPassthroughIfNeeded("\x1b[>1u\x1b[>4;2m")); err != nil {
+			return err
+		}
+
+		b.inputFeats.modifiedKeys = true
+	} else if !f.ModifiedKeys && b.inputFeats.modifiedKeys {
+		if _, err := b.w.WriteString(tmuxPassthroughIfNeeded("\x1b[<u\x1b[>4;0m")); err != nil {
+			return err
+		}
+
+		b.inputFeats.modifiedKeys = false
+	}
+
 	return b.w.Flush()
+}
+
+// tmuxPassthroughIfNeeded wraps terminal control sequences in tmux's DCS
+// passthrough envelope when running inside tmux. The doubled ESC bytes are the
+// escaping tmux expects inside passthrough payloads.
+func tmuxPassthroughIfNeeded(seq string) string {
+	if os.Getenv("TMUX") == "" {
+		return seq
+	}
+
+	return "\x1bPtmux;" + strings.ReplaceAll(seq, "\x1b", "\x1b\x1b") + "\x1b\\"
 }
 
 // disableInputFeatures disables all enabled input features.

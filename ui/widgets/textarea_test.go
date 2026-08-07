@@ -650,3 +650,34 @@ func TestTextArea_OnCursorMove_Reason(t *testing.T) {
 		}
 	})
 }
+func TestTextArea_DoubleClickSelectsWord(t *testing.T) {
+	ta := NewTextArea()
+	ctx := mkTextAreaCtx(ta)
+	ta.Layout(geom.Rect{X: 0, Y: 0, W: 20, H: 3})
+	ta.SetText(ctx, "hello world")
+
+	press := rovel.MouseEvent{Button: rovel.MouseButtonLeft, Action: rovel.MousePress, X: 2, Y: 0, ClickCount: 2}
+	if !ta.Handle(press, ctx) {
+		t.Fatal("double-click was not handled")
+	}
+
+	if got := ta.selectedText(); got != "hello" {
+		t.Fatalf("double-click selection = %q, want %q", got, "hello")
+	}
+}
+
+func TestTextArea_TripleClickSelectsLine(t *testing.T) {
+	ta := NewTextArea()
+	ctx := mkTextAreaCtx(ta)
+	ta.Layout(geom.Rect{X: 0, Y: 0, W: 20, H: 3})
+	ta.SetText(ctx, "hello world\nsecond line")
+
+	press := rovel.MouseEvent{Button: rovel.MouseButtonLeft, Action: rovel.MousePress, X: 5, Y: 0, ClickCount: 3}
+	if !ta.Handle(press, ctx) {
+		t.Fatal("triple-click was not handled")
+	}
+
+	if got := ta.selectedText(); got != "hello world" {
+		t.Fatalf("triple-click selection = %q, want %q", got, "hello world")
+	}
+}

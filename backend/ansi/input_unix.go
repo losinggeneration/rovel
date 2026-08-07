@@ -173,13 +173,30 @@ func dispatchCSIU(p0 int) event.Key {
 		return event.KeyBackspace
 	case 9:
 		return event.KeyTab
-	case 13:
+	case 10, 13:
 		return event.KeyEnter
 	case 27:
 		return event.KeyEsc
 	default:
 		return event.KeyNone
 	}
+}
+
+func dispatchCSIUEvent(p0 int, mod event.ModMask) (event.KeyEvent, bool) {
+	if key := dispatchCSIU(p0); key != event.KeyNone {
+		return event.KeyEvent{Key: key, Mod: mod}, true
+	}
+
+	if p0 < 0 || p0 > utf8.MaxRune {
+		return event.KeyEvent{}, false
+	}
+
+	r := rune(p0)
+	if !utf8.ValidRune(r) {
+		return event.KeyEvent{}, false
+	}
+
+	return event.KeyEvent{Key: event.KeyRune, Rune: r, Mod: mod}, true
 }
 
 func dispatchCSITilde(p0 int) event.Key {
@@ -369,8 +386,7 @@ func (d *InputDecoder) handleEsc(
 	// ESC + CR / LF is the xterm Alt-prefix encoding of a modified Enter,
 	// consistent with ESC + rune -> Alt+rune handled below. Emit Alt+Enter so
 	// the meta convention is uniform. Terminals with a real Shift+Enter send
-	// CSI-u (13;2u), which the decoder handles separately; apps that want
-	// "modified Enter = newline" can bind both ModAlt and ModShift.
+	// CSI-u (13;2u), which the decoder handles separately.
 	case 0x0a, 0x0d:
 		d.state = stateGround
 
@@ -508,8 +524,10 @@ func (d *InputDecoder) pushUTF8(
 }
 
 // parseCSIParams2 parses at most two semicolon-separated numeric CSI params.
-// It rejects private markers, intermediates, empty groups, and more than two
-// params.
+// It accepts Kitty keyboard protocol sub-parameters separated by ':' and uses
+// the first numeric value in each semicolon group. That normalizes both
+// CSI 13;2:1u and CSI 13:10;2u the same way as CSI 13;2u while still rejecting
+// private markers, intermediates, empty groups, and more than two params.
 //
 // Returns p0, p1: parsed params; n: count (0, 1, or 2); ok: whether parsing
 // succeeded.
@@ -519,6 +537,7 @@ func parseCSIParams2(buf []byte) (p0, p1, n int, ok bool) {
 	}
 
 	cur := -1
+	skipSubParams := false
 	commit := func(v int) bool {
 		switch n {
 		case 0:
@@ -537,12 +556,20 @@ func parseCSIParams2(buf []byte) (p0, p1, n int, ok bool) {
 	for _, b := range buf {
 		switch {
 		case b >= '0' && b <= '9':
+			if skipSubParams {
+				continue
+			}
 			if cur < 0 {
 				cur = 0
 			}
 
 			// Saturate rather than let digit runs overflow int.
 			cur = min(cur*10+int(b-'0'), maxCSIParam)
+		case b == ':':
+			if cur < 0 {
+				return 0, 0, 0, false
+			}
+			skipSubParams = true
 		case b == ';':
 			if cur < 0 {
 				return 0, 0, 0, false
@@ -553,6 +580,7 @@ func parseCSIParams2(buf []byte) (p0, p1, n int, ok bool) {
 			}
 
 			cur = -1
+			skipSubParams = false
 		default:
 			return 0, 0, 0, false
 		}
@@ -649,20 +677,33 @@ func acceptsCSIKey(final byte, p0, _ /* mod */, n int) bool {
 		// Accept: CSI H, CSI F, CSI Z (no params)
 		return n == 0
 	case '~':
-		// Accept known tilde params with exactly one param
-		if n != 1 {
+		// Accept known tilde params with an optional modifier param. Some
+		// terminals encode modified Enter as CSI 13;2~ instead of CSI-u or
+		// modifyOtherKeys' CSI 27;2;13~ form.
+		if n != 1 && n != 2 {
 			return false
 		}
 
-		switch p0 {
-		case 1, 2, 3, 4, 5, 6, 15, 17, 18, 19, 20, 21, 23, 24:
+		if dispatchCSITilde(p0) != event.KeyNone {
+			return true
+		}
+
+		if _, ok := dispatchCSIUEvent(p0, 0); ok {
 			return true
 		}
 
 		return false
 	case 'u':
-		// Accept CSI-u encoded control keys, e.g. CSI 13;2u for Shift+Enter.
-		return (n == 1 || n == 2) && dispatchCSIU(p0) != event.KeyNone
+		// Accept CSI-u encoded keys, e.g. CSI 13;2u for Shift+Enter and
+		// CSI 99;5u for Ctrl+C. The first parameter is either a special key
+		// code handled by dispatchCSIU or a Unicode codepoint for KeyRune.
+		if n != 1 && n != 2 {
+			return false
+		}
+
+		_, ok := dispatchCSIUEvent(p0, 0)
+
+		return ok
 	default:
 		return false
 	}
@@ -709,6 +750,20 @@ func (d *InputDecoder) pushCSI(
 				return dst
 			}
 			// CSI 201~ outside paste state: ignore (shouldn't happen normally)
+
+			// xterm modifyOtherKeys encodes modified keys as CSI 27;<mod>;<code>~.
+			// Some terminals use this for Shift+Enter instead of CSI-u, so normalize
+			// it through the same dispatch path as CSI <code>;<mod>u.
+			mok0, mok1, mok2, mokN, mokOK := parseCSIParams3(d.csiBuf[:d.csiN])
+			if mokOK && mokN == 3 && mok0 == 27 {
+				mod := csiModToMask(mok1, 2)
+				if ke, ok := dispatchCSIUEvent(mok2, mod); ok {
+					d.state = stateGround
+					d.csiN = 0
+
+					return append(dst, ke)
+				}
+			}
 		}
 
 		p0, p1, n, ok := parseCSIParams2(d.csiBuf[:d.csiN])
@@ -722,12 +777,18 @@ func (d *InputDecoder) pushCSI(
 
 					return append(dst, event.KeyEvent{Key: key, Mod: mod})
 				}
-			} else if b == 'u' {
-				if key := dispatchCSIU(p0); key != event.KeyNone {
+				if ke, ok := dispatchCSIUEvent(p0, mod); ok {
 					d.state = stateGround
 					d.csiN = 0
 
-					return append(dst, event.KeyEvent{Key: key, Mod: mod})
+					return append(dst, ke)
+				}
+			} else if b == 'u' {
+				if ke, ok := dispatchCSIUEvent(p0, mod); ok {
+					d.state = stateGround
+					d.csiN = 0
+
+					return append(dst, ke)
 				}
 			} else if key := dispatchCSI(b); key != event.KeyNone {
 				d.state = stateGround

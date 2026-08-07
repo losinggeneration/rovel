@@ -326,7 +326,10 @@ func TestInputDecoder_CSIU_ModifiedEnter(t *testing.T) {
 		mod  event.ModMask
 	}{
 		{"Enter", "\x1b[13u", 0},
-		{"Shift+Enter", "\x1b[13;2u", event.ModShift},
+		{"Shift+Enter CR", "\x1b[13;2u", event.ModShift},
+		{"Shift+Enter LF", "\x1b[10;2u", event.ModShift},
+		{"Kitty event-type Shift+Enter CR", "\x1b[13;2:1u", event.ModShift},
+		{"Kitty alternate-code Shift+Enter CR", "\x1b[13:10;2u", event.ModShift},
 	}
 
 	for _, tt := range tests {
@@ -344,6 +347,67 @@ func TestInputDecoder_CSIU_ModifiedEnter(t *testing.T) {
 			}
 			if k.Mod != tt.mod {
 				t.Fatalf("got mod %d, want %d", k.Mod, tt.mod)
+			}
+		})
+	}
+}
+
+func TestInputDecoder_CSI_TildeModifiedEnter(t *testing.T) {
+	tests := []struct {
+		name string
+		seq  string
+		mod  event.ModMask
+	}{
+		{"modifyOtherKeys Shift+Enter CR", "\x1b[27;2;13~", event.ModShift},
+		{"modifyOtherKeys Shift+Enter LF", "\x1b[27;2;10~", event.ModShift},
+		{"modifyOtherKeys Alt+Enter", "\x1b[27;3;13~", event.ModAlt},
+		{"tilde Shift+Enter CR", "\x1b[13;2~", event.ModShift},
+		{"tilde Shift+Enter LF", "\x1b[10;2~", event.ModShift},
+		{"tilde Ctrl+Enter CR", "\x1b[13;5~", event.ModCtrl},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &InputDecoder{}
+			evs := pushAll(d, []byte(tt.seq))
+
+			if len(evs) != 1 {
+				t.Fatalf("got %d events, want 1: %#v", len(evs), evs)
+			}
+
+			k := ke(t, evs[0], 0)
+			if k.Key != event.KeyEnter {
+				t.Fatalf("got key %v, want KeyEnter", k.Key)
+			}
+			if k.Mod != tt.mod {
+				t.Fatalf("got mod %d, want %d", k.Mod, tt.mod)
+			}
+		})
+	}
+}
+
+func TestInputDecoder_CSIU_ControlRunes(t *testing.T) {
+	tests := []struct {
+		name string
+		seq  string
+		r    rune
+	}{
+		{"Ctrl+C", "\x1b[99;5u", 'c'},
+		{"Ctrl+D", "\x1b[100;5u", 'd'},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &InputDecoder{}
+			evs := pushAll(d, []byte(tt.seq))
+
+			if len(evs) != 1 {
+				t.Fatalf("got %d events, want 1: %#v", len(evs), evs)
+			}
+
+			k := ke(t, evs[0], 0)
+			if k.Key != event.KeyRune || k.Rune != tt.r || k.Mod != event.ModCtrl {
+				t.Fatalf("got %#v, want KeyRune %q ModCtrl", k, tt.r)
 			}
 		})
 	}

@@ -88,6 +88,7 @@ type InputCapabilities struct {
 	Mouse          bool
 	MouseMotion    bool
 	BracketedPaste bool
+	ModifiedKeys   bool
 	ClipboardWrite bool
 	ClipboardRead  bool
 }
@@ -102,6 +103,7 @@ type InputFeatures struct {
 	Mouse          bool
 	MouseMotion    bool
 	BracketedPaste bool
+	ModifiedKeys   bool
 }
 
 // InputFeatureEnabler is implemented by backends that can enable/disable input features.

@@ -198,11 +198,11 @@ func (ta *TextArea) SetReadOnly(ro bool) {
 	ta.readOnly = ro
 }
 
-func (ta *TextArea) ID() rovel.ID         { return ta.id }
-func (ta *TextArea) Rect() rovel.Rect     { return ta.rect }
-func (ta *TextArea) Layout(r rovel.Rect)  { ta.rect = r }
-func (ta *TextArea) MinSize() geom.Size { return geom.Size{W: 10, H: 3} }
-func (ta *TextArea) Focusable() bool    { return true }
+func (ta *TextArea) ID() rovel.ID        { return ta.id }
+func (ta *TextArea) Rect() rovel.Rect    { return ta.rect }
+func (ta *TextArea) Layout(r rovel.Rect) { ta.rect = r }
+func (ta *TextArea) MinSize() geom.Size  { return geom.Size{W: 10, H: 3} }
+func (ta *TextArea) Focusable() bool     { return true }
 
 // IsTextInputMode returns true when the text area is not read-only.
 func (ta *TextArea) IsTextInputMode() bool { return !ta.readOnly }
@@ -381,7 +381,10 @@ func (ta *TextArea) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
 			ta.anchor = ta.cursor // Set anchor for potential drag
 
 			ta.desiredCol = -1
-			if me.ClickCount >= 2 {
+			switch {
+			case me.ClickCount >= 3:
+				ta.selectLineAtCursor()
+			case me.ClickCount == 2:
 				ta.selectWordAtCursor()
 			}
 
@@ -908,6 +911,21 @@ func (ta *TextArea) selectWordAtCursor() {
 
 	ta.anchor = start
 	ta.cursor = end
+}
+
+func (ta *TextArea) selectLineAtCursor() {
+	line := ta.cursorLine()
+	if line < 0 || line >= len(ta.lines) {
+		return
+	}
+
+	ln := ta.lines[line]
+	if ln.startByte == ln.endByte {
+		return
+	}
+
+	ta.anchor = ln.startByte
+	ta.cursor = ln.endByte
 }
 
 // positionCursorFromClick sets cursor from screen coordinates.

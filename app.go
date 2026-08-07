@@ -265,6 +265,7 @@ func (a *App) Enable() error {
 	features := backend.InputFeatures{
 		Mouse:          a.opts.Input.Mouse && a.inputCaps.Mouse,
 		BracketedPaste: a.opts.Input.BracketedPaste && a.inputCaps.BracketedPaste,
+		ModifiedKeys:   a.opts.Input.ModifiedKeys && a.inputCaps.ModifiedKeys,
 	}
 	if err := a.host.SetInputFeatures(features); err != nil {
 		return unwind(err)
