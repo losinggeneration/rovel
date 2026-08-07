@@ -15,6 +15,23 @@ func NextCluster(s string, i int) int {
 		return len(s)
 	}
 
+	// Plain ASCII at and around i settles both the boundary and the cluster
+	// length locally. Taking it before the checks below keeps stepping through
+	// ordinary text off the whole-string validity scan and the clamp scan.
+	//
+	// Both ends have to be boundaries: an ASCII byte can still be the start of
+	// a longer cluster when what follows is a combining mark, as in "e" + U+0301.
+	if s[i] < utf8.RuneSelf && asciiClusterBoundary(s, i) {
+		end := i + 1
+		if s[i] == '\r' && end < len(s) && s[end] == '\n' {
+			end++
+		}
+
+		if asciiClusterBoundary(s, end) {
+			return end
+		}
+	}
+
 	if !utf8.ValidString(s) {
 		if i+1 > len(s) {
 			return len(s)
@@ -28,25 +45,11 @@ func NextCluster(s string, i int) int {
 		return len(s)
 	}
 
-	next := len(s)
-	found := false
-
-	forEachCluster(s, func(start, end int) bool {
-		if start == i {
-			next = end
-			found = true
-
-			return false
-		}
-
-		return true
-	})
-
-	if !found {
-		return len(s)
-	}
-
-	return next
+	// i is a cluster boundary, so the next boundary is one cluster away. This
+	// used to scan the whole string looking for the cluster that starts at i,
+	// which made any caller stepping through a string cluster by cluster
+	// quadratic in its length.
+	return clusterEndAt(s, i)
 }
 
 func PrevCluster(s string, i int) int {
@@ -204,6 +207,10 @@ func ClampCluster(s string, byteOff int) int {
 
 	if byteOff >= len(s) {
 		return len(s)
+	}
+
+	if asciiClusterBoundary(s, byteOff) {
+		return byteOff
 	}
 
 	if !utf8.ValidString(s) {

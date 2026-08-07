@@ -96,6 +96,8 @@ func wrapSegmentClusters(
 		return
 	}
 
+	cur := newClusterCursor(s)
+
 	pos := startByte
 	for pos < endByte {
 		lineStart := pos
@@ -103,7 +105,9 @@ func wrapSegmentClusters(
 		lineEnd := pos
 
 		for pos < endByte {
-			next := NextCluster(s, pos)
+			cur.seek(pos)
+
+			next := cur.next()
 			if next > endByte {
 				next = endByte
 			}
@@ -128,7 +132,9 @@ func wrapSegmentClusters(
 		}
 
 		if lineEnd == lineStart {
-			next := NextCluster(s, lineStart)
+			cur.seek(lineStart)
+
+			next := cur.next()
 			if next > endByte {
 				next = endByte
 			}
@@ -162,6 +168,8 @@ func wrapSegmentWords(
 		return
 	}
 
+	cur := newClusterCursor(s)
+
 	pos := startByte
 	for pos < endByte {
 		lineStart := pos
@@ -172,7 +180,9 @@ func wrapSegmentWords(
 		lastBreakCols := 0
 
 		for pos < endByte {
-			next := NextCluster(s, pos)
+			cur.seek(pos)
+
+			next := cur.next()
 			if next > endByte {
 				next = endByte
 			}
@@ -215,7 +225,9 @@ func wrapSegmentWords(
 		}
 
 		if lineEnd == lineStart {
-			next := NextCluster(s, lineStart)
+			cur.seek(lineStart)
+
+			next := cur.next()
 			if next > endByte {
 				next = endByte
 			}
