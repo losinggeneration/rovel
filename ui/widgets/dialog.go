@@ -92,7 +92,7 @@ func NewDialog(opts DialogOpts) *Dialog {
 func (d *Dialog) ID() rovel.ID        { return d.id }
 func (d *Dialog) Rect() rovel.Rect    { return d.rect }
 func (d *Dialog) Layout(r rovel.Rect) { d.rect = r }
-func (d *Dialog) Focusable() bool   { return len(d.buttons) > 0 }
+func (d *Dialog) Focusable() bool     { return len(d.buttons) > 0 }
 
 func (d *Dialog) MinSize() geom.Size {
 	lines := splitLines(d.message)

@@ -14,7 +14,7 @@ type stubView struct {
 	rect    geom.Rect
 }
 
-func (v *stubView) ID() rovel.ID         { return v.id }
+func (v *stubView) ID() rovel.ID       { return v.id }
 func (v *stubView) MinSize() geom.Size { return v.minSize }
 func (v *stubView) PreferredSize() geom.Size {
 	if v.pref != (geom.Size{}) {
@@ -23,8 +23,8 @@ func (v *stubView) PreferredSize() geom.Size {
 
 	return v.minSize
 }
-func (v *stubView) Layout(r geom.Rect)                    { v.rect = r }
-func (v *stubView) Rect() geom.Rect                       { return v.rect }
+func (v *stubView) Layout(r geom.Rect)                        { v.rect = r }
+func (v *stubView) Rect() geom.Rect                           { return v.rect }
 func (v *stubView) Paint(d rovel.Drawer, ctx *rovel.Ctx)      {}
 func (v *stubView) Handle(e rovel.Event, ctx *rovel.Ctx) bool { return false }
 

@@ -18,7 +18,7 @@ type mockView struct {
 	paintCalled int
 }
 
-func (m *mockView) ID() rovel.ID         { return m.id }
+func (m *mockView) ID() rovel.ID       { return m.id }
 func (m *mockView) Rect() geom.Rect    { return m.rect }
 func (m *mockView) MinSize() geom.Size { return m.minSize }
 func (m *mockView) Focusable() bool    { return m.focusable }
@@ -292,7 +292,7 @@ type paintRowsView struct {
 	rect geom.Rect
 }
 
-func (v *paintRowsView) ID() rovel.ID         { return v.id }
+func (v *paintRowsView) ID() rovel.ID       { return v.id }
 func (v *paintRowsView) Rect() geom.Rect    { return v.rect }
 func (v *paintRowsView) MinSize() geom.Size { return geom.Size{W: 1, H: 4} }
 func (v *paintRowsView) Layout(r geom.Rect) { v.rect = r }
@@ -360,4 +360,32 @@ func TestScrollView_noChild(t *testing.T) {
 
 	// Should not panic on layout/paint
 	sv.Layout(geom.Rect{X: 0, Y: 0, W: 20, H: 10})
+}
+
+// Scroll position is often driven outside a paint or event context — startup,
+// programmatic follow-the-tail, tests. Those callers should not have to guard
+// every call site against a nil ctx.
+func TestScrollViewScrollsWithNilCtx(t *testing.T) {
+	child := NewScrollbar(ScrollbarOpts{})
+	s := NewScrollView(ScrollViewOpts{Child: child, Scrollbar: ScrollbarHidden})
+	s.Layout(geom.Rect{X: 0, Y: 0, W: 20, H: 5})
+
+	// Must not panic, whatever the resulting position is.
+	s.ScrollTo(nil, 3)
+	s.ScrollBy(nil, 2)
+	s.ScrollTop(nil)
+	s.ScrollBottom(nil)
+
+	if got := s.ScrollPos(); got < 0 {
+		t.Fatalf("ScrollPos = %d, want a clamped position", got)
+	}
+}
+
+// A ctx with no Invalidate hook is equally valid.
+func TestScrollViewScrollsWithCtxLackingInvalidate(t *testing.T) {
+	child := NewScrollbar(ScrollbarOpts{})
+	s := NewScrollView(ScrollViewOpts{Child: child, Scrollbar: ScrollbarHidden})
+	s.Layout(geom.Rect{X: 0, Y: 0, W: 20, H: 5})
+
+	s.ScrollTo(&rovel.Ctx{}, 2)
 }

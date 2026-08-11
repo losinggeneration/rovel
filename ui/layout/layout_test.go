@@ -28,7 +28,7 @@ func (v *simpleView) ID() rovel.ID           { return v.id }
 func (v *simpleView) Rect() rovel.Rect       { return v.rect }
 func (v *simpleView) Layout(r rovel.Rect)    { v.rect = r }
 func (v *simpleView) MinSize() rovel.Size    { return v.minSize }
-func (v *simpleView) Focusable() bool      { return v.focusable }
+func (v *simpleView) Focusable() bool        { return v.focusable }
 func (v *simpleView) Children() []rovel.View { return nil }
 
 func (v *simpleView) Paint(d rovel.Drawer, ctx *rovel.Ctx)      {}

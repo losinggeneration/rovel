@@ -73,7 +73,7 @@ func NewSelectOpts(opts SelectOpts) *Select {
 func (s *Select) ID() rovel.ID        { return s.id }
 func (s *Select) Rect() rovel.Rect    { return s.rect }
 func (s *Select) Layout(r rovel.Rect) { s.rect = r }
-func (s *Select) Focusable() bool   { return true }
+func (s *Select) Focusable() bool     { return true }
 
 func (s *Select) Selected() int { return s.selected }
 
@@ -242,7 +242,7 @@ func newSelectList(items []string, initial int, onSelect func(int, *rovel.Ctx)) 
 func (l *selectList) ID() rovel.ID        { return l.id }
 func (l *selectList) Rect() rovel.Rect    { return l.rect }
 func (l *selectList) Layout(r rovel.Rect) { l.rect = r }
-func (l *selectList) Focusable() bool   { return true }
+func (l *selectList) Focusable() bool     { return true }
 
 func (l *selectList) MinSize() geom.Size {
 	maxW := 0

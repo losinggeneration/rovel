@@ -61,9 +61,9 @@ func NewTabsOpts(opts TabsOpts) *Tabs {
 	}
 }
 
-func (t *Tabs) ID() rovel.ID      { return t.id }
-func (t *Tabs) Rect() rovel.Rect  { return t.rect }
-func (t *Tabs) Focusable() bool { return len(t.tabs) > 0 }
+func (t *Tabs) ID() rovel.ID     { return t.id }
+func (t *Tabs) Rect() rovel.Rect { return t.rect }
+func (t *Tabs) Focusable() bool  { return len(t.tabs) > 0 }
 
 func (t *Tabs) Selected() int { return t.selected }
 

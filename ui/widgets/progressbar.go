@@ -57,7 +57,7 @@ func NewProgressBarOpts(opts ProgressBarOpts) *ProgressBar {
 func (b *ProgressBar) ID() rovel.ID        { return b.id }
 func (b *ProgressBar) Rect() rovel.Rect    { return b.rect }
 func (b *ProgressBar) Layout(r rovel.Rect) { b.rect = r }
-func (b *ProgressBar) Focusable() bool   { return false }
+func (b *ProgressBar) Focusable() bool     { return false }
 
 func (b *ProgressBar) Value() float64 { return b.value }
 

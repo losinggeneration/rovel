@@ -105,7 +105,7 @@ type ContentView struct {
 func (c *ContentView) ID() rovel.ID        { return c.id }
 func (c *ContentView) Rect() rovel.Rect    { return c.rect }
 func (c *ContentView) MinSize() rovel.Size { return rovel.Size{W: 40, H: len(c.lines)} }
-func (c *ContentView) Focusable() bool   { return true }
+func (c *ContentView) Focusable() bool     { return true }
 func (c *ContentView) Layout(r rovel.Rect) { c.rect = r }
 
 func (c *ContentView) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
@@ -126,7 +126,7 @@ type StatusView struct {
 func (s *StatusView) ID() rovel.ID        { return 0 }
 func (s *StatusView) Rect() rovel.Rect    { return s.rect }
 func (s *StatusView) MinSize() rovel.Size { return rovel.Size{W: len(s.text), H: 1} }
-func (s *StatusView) Focusable() bool   { return false }
+func (s *StatusView) Focusable() bool     { return false }
 
 func (s *StatusView) Layout(r rovel.Rect) {
 	s.rect = r

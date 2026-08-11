@@ -70,7 +70,7 @@ func NewRadioGroupOpts(opts RadioGroupOpts) *RadioGroup {
 func (r *RadioGroup) ID() rovel.ID         { return r.id }
 func (r *RadioGroup) Rect() rovel.Rect     { return r.rect }
 func (r *RadioGroup) Layout(rr rovel.Rect) { r.rect = rr }
-func (r *RadioGroup) Focusable() bool    { return !r.disabled && len(r.items) > 0 }
+func (r *RadioGroup) Focusable() bool      { return !r.disabled && len(r.items) > 0 }
 
 func (r *RadioGroup) Selected() int { return r.selected }
 

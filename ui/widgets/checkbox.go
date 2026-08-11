@@ -62,7 +62,7 @@ func NewCheckboxOpts(opts CheckboxOpts) *Checkbox {
 func (c *Checkbox) ID() rovel.ID        { return c.id }
 func (c *Checkbox) Rect() rovel.Rect    { return c.rect }
 func (c *Checkbox) Layout(r rovel.Rect) { c.rect = r }
-func (c *Checkbox) Focusable() bool   { return !c.disabled }
+func (c *Checkbox) Focusable() bool     { return !c.disabled }
 
 func (c *Checkbox) Checked() bool { return c.checked }
 

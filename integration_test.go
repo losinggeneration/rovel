@@ -39,10 +39,10 @@ func newIntView(focusable bool) *integrationView {
 }
 
 func (v *integrationView) ID() rovel.ID           { return v.id }
-func (v *integrationView) MinSize() geom.Size   { return geom.Size{W: 1, H: 1} }
-func (v *integrationView) Layout(r geom.Rect)   { v.rect = r }
-func (v *integrationView) Rect() geom.Rect      { return v.rect }
-func (v *integrationView) Focusable() bool      { return v.focusable }
+func (v *integrationView) MinSize() geom.Size     { return geom.Size{W: 1, H: 1} }
+func (v *integrationView) Layout(r geom.Rect)     { v.rect = r }
+func (v *integrationView) Rect() geom.Rect        { return v.rect }
+func (v *integrationView) Focusable() bool        { return v.focusable }
 func (v *integrationView) Children() []rovel.View { return v.children }
 
 func (v *integrationView) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
@@ -68,8 +68,8 @@ func newIntRoot(children ...rovel.View) *integrationRoot {
 }
 
 func (r *integrationRoot) ID() rovel.ID           { return r.id }
-func (r *integrationRoot) MinSize() geom.Size   { return geom.Size{W: 1, H: 1} }
-func (r *integrationRoot) Rect() geom.Rect      { return r.rect }
+func (r *integrationRoot) MinSize() geom.Size     { return geom.Size{W: 1, H: 1} }
+func (r *integrationRoot) Rect() geom.Rect        { return r.rect }
 func (r *integrationRoot) Children() []rovel.View { return r.children }
 
 func (r *integrationRoot) Layout(gr geom.Rect) {
@@ -110,7 +110,7 @@ func newAsyncInvalidateView(initial int32) *asyncInvalidateView {
 	return v
 }
 
-func (v *asyncInvalidateView) ID() rovel.ID         { return v.id }
+func (v *asyncInvalidateView) ID() rovel.ID       { return v.id }
 func (v *asyncInvalidateView) MinSize() geom.Size { return geom.Size{W: 1, H: 1} }
 func (v *asyncInvalidateView) Rect() geom.Rect    { return v.rect }
 func (v *asyncInvalidateView) Layout(r geom.Rect) { v.rect = r }

@@ -257,12 +257,16 @@ func (s *ScrollView) ScrollPos() int {
 	return s.scrollY
 }
 
+// ScrollTo moves the viewport to y, clamped into range. A nil ctx (or one
+// without an Invalidate hook) scrolls without requesting a repaint, so callers
+// driving scroll position outside a paint or event context — startup, tests,
+// programmatic follow-the-tail — do not have to guard every call site.
 func (s *ScrollView) ScrollTo(ctx *rovel.Ctx, y int) {
 	old := s.scrollY
 	s.scrollY = y
 	s.clampScroll()
 
-	if s.scrollY != old {
+	if s.scrollY != old && ctx != nil && ctx.Invalidate != nil {
 		ctx.Invalidate(s.rect)
 	}
 }

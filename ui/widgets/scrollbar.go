@@ -54,7 +54,7 @@ func NewScrollbar(opts ScrollbarOpts) *Scrollbar {
 	}
 }
 
-func (s *Scrollbar) ID() rovel.ID      { return s.id }
+func (s *Scrollbar) ID() rovel.ID    { return s.id }
 func (s *Scrollbar) Rect() geom.Rect { return s.rect }
 func (s *Scrollbar) Focusable() bool { return false }
 

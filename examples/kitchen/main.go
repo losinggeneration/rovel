@@ -594,7 +594,7 @@ type rootView struct {
 }
 
 func (r *rootView) ID() rovel.ID           { return r.id }
-func (r *rootView) Focusable() bool      { return false }
+func (r *rootView) Focusable() bool        { return false }
 func (r *rootView) Children() []rovel.View { return []rovel.View{r.View} }
 
 func (r *rootView) Layout(rect geom.Rect) {
@@ -679,8 +679,8 @@ func newScrollPanel(
 }
 
 func (sp *scrollPanel) ID() rovel.ID           { return sp.id }
-func (sp *scrollPanel) Rect() geom.Rect      { return sp.rect }
-func (sp *scrollPanel) Focusable() bool      { return false }
+func (sp *scrollPanel) Rect() geom.Rect        { return sp.rect }
+func (sp *scrollPanel) Focusable() bool        { return false }
 func (sp *scrollPanel) Children() []rovel.View { return []rovel.View{sp.content} }
 
 // MouseOpaque ensures scrollPanel receives all mouse events for its rect,
