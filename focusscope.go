@@ -10,8 +10,9 @@ type scopeState struct {
 // (nested scope boundary).
 func (a *App) collectFocusableInScope(scopeID ID) []ID {
 	var (
-		result []ID
-		walk   func(v View)
+		result  []ID
+		walk    func(v View)
+		visited = make(map[ID]struct{}, len(a.nodes))
 	)
 
 	walk = func(v View) {
@@ -24,6 +25,13 @@ func (a *App) collectFocusableInScope(scopeID ID) []ID {
 		// If this node is in a different scope, don't descend.
 		if entry.focusScopeID != scopeID {
 			return
+		}
+
+		if id != 0 {
+			if _, seen := visited[id]; seen {
+				return
+			}
+			visited[id] = struct{}{}
 		}
 
 		if entry.focusable {

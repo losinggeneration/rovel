@@ -1,6 +1,10 @@
 package rovel
 
-import "github.com/losinggeneration/rovel/geom"
+import (
+	"fmt"
+
+	"github.com/losinggeneration/rovel/geom"
+)
 
 // nodeEntry holds tree metadata for a single view node.
 type nodeEntry struct {
@@ -70,9 +74,21 @@ func (a *App) rebuildTree() {
 			focusScopeID: scopeID, // the *ancestor* scope (before this node)
 			overlayID:    overlayID,
 		}
-		a.nodes[id] = entry
 
-		// Wire child pointers.
+		// View ID 0 is the sentinel for "no focus" throughout App state and
+		// therefore is intentionally not indexed. Multiple zero-ID views can be
+		// purely structural, but they cannot participate in focus/dispatch lookup.
+		if id != 0 {
+			if existing, ok := a.nodes[id]; ok {
+				a.errs.Add(fmt.Errorf("rovel: duplicate view id %d in mounted tree: %T and %T", id, existing.view, v))
+			} else {
+				a.nodes[id] = entry
+			}
+		}
+
+		// Wire child pointers. If a child reuses its parent's ID, parentID == id;
+		// look up the parent before inserting/rejecting the duplicate so the
+		// duplicate does not overwrite the parent's metadata.
 		if parentID != 0 {
 			if parent, ok := a.nodes[parentID]; ok {
 				parent.childIDs = append(parent.childIDs, id)
@@ -110,6 +126,7 @@ func (a *App) updateBounds() {
 	}
 
 	screenRect := geom.Rect{X: 0, Y: 0, W: a.size.W, H: a.size.H}
+	visited := make(map[ID]struct{}, len(a.nodes))
 
 	var walk func(v View, parentClip geom.Rect)
 
@@ -119,6 +136,12 @@ func (a *App) updateBounds() {
 		entry, ok := a.nodes[id]
 		if !ok {
 			return
+		}
+		if id != 0 {
+			if _, seen := visited[id]; seen {
+				return
+			}
+			visited[id] = struct{}{}
 		}
 
 		r := v.Rect()

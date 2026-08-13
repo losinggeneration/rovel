@@ -229,6 +229,76 @@ type fixedPlacement struct {
 
 func (f *fixedPlacement) Resolve(_ View, _ geom.Size) geom.Rect { return f.rect }
 
+func TestRebuildTree_DuplicateIDReportsErrorAndKeepsFirstNode(t *testing.T) {
+	app, _ := New(AppOpts{})
+	child := newMockNode(true)
+	root := &duplicateIDContainer{
+		mockContainer: *newMockContainer(child),
+		dupID:         child.ID(),
+	}
+	app.root = root
+
+	app.rebuildTree()
+
+	if len(app.nodes) != 1 {
+		t.Fatalf("expected duplicate not to add/overwrite node, got %d nodes", len(app.nodes))
+	}
+
+	entry := app.nodes[child.ID()]
+	if entry == nil {
+		t.Fatal("expected first node with duplicate ID to be retained")
+	}
+	if entry.view != root {
+		t.Fatalf("duplicate overwrote first node: got %T, want %T", entry.view, root)
+	}
+	if got := len(app.Errors()); got != 1 {
+		t.Fatalf("expected one duplicate-ID error, got %d", got)
+	}
+}
+
+func TestUpdateBounds_DuplicateIDKeepsFirstGeometry(t *testing.T) {
+	app, _ := New(AppOpts{})
+	app.size = geom.Size{W: 20, H: 10}
+	child := newMockNode(true)
+	root := &duplicateIDContainer{
+		mockContainer: *newMockContainer(child),
+		dupID:         child.ID(),
+	}
+	app.root = root
+	root.rect = geom.Rect{X: 0, Y: 0, W: 10, H: 5}
+	child.rect = geom.Rect{X: 1, Y: 1, W: 3, H: 2}
+
+	app.rebuildTree()
+	app.updateBounds()
+
+	entry := app.nodes[root.ID()]
+	if entry.rect != root.rect {
+		t.Fatalf("duplicate child updated retained parent geometry: got %v, want %v", entry.rect, root.rect)
+	}
+}
+
+func TestFocusFirstIn_DuplicateIDDoesNotRecurseForever(t *testing.T) {
+	app, _ := New(AppOpts{})
+	child := newMockNode(true)
+	root := &duplicateIDContainer{
+		mockContainer: *newMockContainer(child),
+		dupID:         child.ID(),
+	}
+
+	app.focusFirstIn(root)
+
+	if app.focusedID != 0 {
+		t.Fatalf("duplicate-ID child should be skipped after parent ID is visited, focused %v", app.focusedID)
+	}
+}
+
+type duplicateIDContainer struct {
+	mockContainer
+	dupID ID
+}
+
+func (d *duplicateIDContainer) ID() ID { return d.dupID }
+
 // ---------------------------------------------------------------------------
 // ancestorIDs tests
 // ---------------------------------------------------------------------------

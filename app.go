@@ -1049,13 +1049,28 @@ func (a *App) findFocusedView() View {
 
 // findViewInTree walks the view tree looking for a view with the given ID.
 func (a *App) findViewInTree(v View, id ID) View {
-	if v.ID() == id {
+	return a.findViewInTreeSeen(v, id, nil)
+}
+
+func (a *App) findViewInTreeSeen(v View, id ID, seen map[ID]struct{}) View {
+	vID := v.ID()
+	if vID == id {
 		return v
+	}
+
+	if vID != 0 {
+		if _, ok := seen[vID]; ok {
+			return nil
+		}
+		if seen == nil {
+			seen = make(map[ID]struct{})
+		}
+		seen[vID] = struct{}{}
 	}
 
 	if c, ok := v.(viewChildren); ok {
 		for _, child := range c.Children() {
-			if found := a.findViewInTree(child, id); found != nil {
+			if found := a.findViewInTreeSeen(child, id, seen); found != nil {
 				return found
 			}
 		}
@@ -1531,9 +1546,18 @@ func (a *App) wake() {
 
 // focusFirstIn sets focus to the first focusable descendant of v.
 func (a *App) focusFirstIn(v View) {
+	seen := make(map[ID]struct{})
 	var walk func(View) bool
 
 	walk = func(v View) bool {
+		id := v.ID()
+		if id != 0 {
+			if _, ok := seen[id]; ok {
+				return false
+			}
+			seen[id] = struct{}{}
+		}
+
 		if f, ok := v.(viewFocusable); ok && f.Focusable() {
 			a.setRequestFocus(v.ID())
 
