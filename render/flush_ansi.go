@@ -300,6 +300,26 @@ func (f *ANSIFlusher) ShowCursor() error {
 	return err
 }
 
+// ParkBottom moves the cursor to column 1 of row (1-based) and erases that
+// whole line with EL — with SGR reset beforehand, background-color erase
+// fills it with the terminal default background. Intended for teardown: the
+// next writer (a shell's job-control notice after a suspend, or the app's
+// exit message) lands at the start of a clean, predictably-placed line
+// instead of wherever the last frame left the cursor. Absolute positioning
+// by design, so the flusher's tracked position is irrelevant; tracking is
+// reset to match.
+func (f *ANSIFlusher) ParkBottom(row int) error {
+	if _, err := fmt.Fprintf(f.w, "\x1b[%d;1H\x1b[K", row); err != nil {
+		return err
+	}
+
+	f.curX = 0
+	f.curY = row - 1
+	f.relative = false
+
+	return nil
+}
+
 // Flush flushes the underlying buffer.
 func (f *ANSIFlusher) Flush() error {
 	return f.w.Flush()

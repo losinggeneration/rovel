@@ -492,8 +492,9 @@ func (a *App) suspend() error {
 }
 
 // Suspend suspends the application: it restores the terminal to its pre-Enable
-// state, stops the process (as if by Ctrl+Z under job control), and on resume
-// (fg/SIGCONT) re-enters raw mode and repaints.
+// state, stops the process with an uncatchable stop signal (the job-control
+// equivalent of Ctrl+Z), and on resume (fg/SIGCONT) re-enters raw mode and
+// repaints.
 //
 // It must be called from the app loop — an event handler (via ctx.Suspend) or a
 // posted callback. In raw mode Ctrl+Z arrives as a key event rather than a

@@ -344,9 +344,24 @@ func (b *Backend) Signals() <-chan backend.LifecycleSignal {
 	return b.signals.LifecycleChan()
 }
 
-// Suspend restores cooked terminal state, stops the process via SIGTSTP, and on
-// resume re-enters raw/cbreak mode and refreshes the cached terminal size. It
-// blocks while the process is stopped. It implements backend.SignalController.
+// suspendStopSignal is the signal Backend.Suspend raises to stop the process
+// while the terminal is restored to cooked mode.
+//
+// It must be SIGSTOP, not a re-raised SIGTSTP. After signal.Reset(SIGTSTP) the
+// Go runtime's handler remains installed (sigdisable only restores the prior
+// disposition when sigInstallGoHandler is false, which it is not for SIGTSTP),
+// and with no Notify watcher registered sighandler drops the signal — the
+// process never stops. Suspend would then return immediately after tearing
+// down the screen, so each attempt repaints instead of suspending (visible as
+// flicker under key-repeat). SIGSTOP cannot be caught, blocked, or ignored, so
+// the stop is guaranteed regardless of runtime signal bookkeeping; fg
+// (SIGCONT) resumes the job exactly as it would for a Ctrl+Z stop.
+const suspendStopSignal = unix.SIGSTOP
+
+// Suspend restores cooked terminal state, stops the process with an
+// uncatchable stop signal (see suspendStopSignal), and on resume re-enters
+// raw/cbreak mode and refreshes the cached terminal size. It blocks while the
+// process is stopped. It implements backend.SignalController.
 //
 // The size re-query on resume is deliberate: the terminal is commonly resized
 // while the process is stopped, and a pending SIGWINCH delivered on continue
@@ -368,7 +383,9 @@ func (b *Backend) Suspend() error {
 	}
 
 	// Stop the process. Execution blocks here until SIGCONT (fg) resumes it.
-	if err := unix.Kill(unix.Getpid(), unix.SIGTSTP); err != nil {
+	// See suspendStopSignal for why this is SIGSTOP rather than a re-raised
+	// SIGTSTP (which the Go runtime swallows after signal.Reset).
+	if err := unix.Kill(unix.Getpid(), suspendStopSignal); err != nil {
 		// Best-effort recovery: re-arm and re-enter raw mode so the terminal
 		// is not left cooked.
 		if b.handleSignals && b.signals != nil {
@@ -377,7 +394,7 @@ func (b *Backend) Suspend() error {
 
 		b.errs.Add(b.reenterRawMode(fd))
 
-		return fmt.Errorf("kill SIGTSTP: %w", err)
+		return fmt.Errorf("kill %v: %w", suspendStopSignal, err)
 	}
 
 	// --- resumed here on SIGCONT ---

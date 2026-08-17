@@ -143,8 +143,11 @@ func (h *signalHandler) LifecycleChan() <-chan backend.LifecycleSignal {
 	return h.lifecycleCh
 }
 
-// disarmSuspend removes the SIGTSTP handler so a re-raised SIGTSTP takes the
-// default disposition (stop the process) instead of being delivered to sigCh.
+// disarmSuspend removes the SIGTSTP handler so a SIGTSTP arriving while the
+// process is stopped (e.g. an external kill -TSTP) takes the default
+// disposition instead of being delivered to sigCh. The stop itself uses
+// SIGSTOP (see Backend.Suspend), so this is hygiene for the stopped window,
+// not a prerequisite for stopping.
 func (h *signalHandler) disarmSuspend() {
 	signal.Reset(unix.SIGTSTP)
 }

@@ -154,6 +154,7 @@ type ansiPresenter struct {
 	flusher     *render.ANSIFlusher
 	mode        backend.TerminalMode
 	regionH     int // inline-region height, set in InitScreen for cbreak
+	screenH     int // render height in raw mode, for teardown cursor parking
 	clearOnExit bool
 }
 
@@ -177,6 +178,8 @@ func (p *ansiPresenter) InitScreen(size geom.Size) error {
 		}
 	} else {
 		// Raw mode: clear the screen so rendering starts from a blank state.
+		p.screenH = size.H
+
 		if err := p.flusher.ClearScreen(); err != nil {
 			return err
 		}
@@ -211,12 +214,35 @@ func (p *ansiPresenter) RestoreScreen() error {
 		return err
 	}
 
+	// Raw mode: park the cursor at the bottom-left on a line erased to the
+	// terminal default background. The first output after the process stops
+	// or exits — the shell's job-control notice on suspend, or the app's exit
+	// message — then always lands in the same place rather than wherever the
+	// last frame left the cursor, on a line still carrying the app's
+	// background color.
+	if p.mode != backend.ModeCBreak && p.screenH > 0 {
+		if err := p.flusher.ParkBottom(p.screenH); err != nil {
+			return err
+		}
+	}
+
 	err := p.flusher.ShowCursor()
 	if err != nil {
 		return err
 	}
 
-	return p.flusher.Flush()
+	// Drain the flusher's buffer into the transport...
+	if err := p.flusher.Flush(); err != nil {
+		return err
+	}
+
+	// ...and the transport to the terminal. The flusher's Flush only reaches
+	// the backend's buffered writer; without this second push the teardown
+	// stays in userspace. That is harmless on the exit path (the backend's
+	// Restore flushes again) but fatal on suspend: the process stops
+	// immediately after RestoreScreen returns, and the terminal keeps showing
+	// the app's frozen UI until resume — the suspend looks like a no-op.
+	return p.transport.Flush()
 }
 
 func (p *ansiPresenter) ResetCursor() {

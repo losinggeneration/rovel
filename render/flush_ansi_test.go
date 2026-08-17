@@ -606,3 +606,33 @@ func TestEmitSGRParams(t *testing.T) {
 		})
 	}
 }
+
+// ParkBottom erases a full row to the terminal default background and parks
+// the cursor at its first column, for teardown. The erase must be a plain
+// EL (background color erase), which uses the default background only when
+// SGR has been reset first — callers own that ordering.
+func TestANSIFlusher_ParkBottom(t *testing.T) {
+	var buf bytes.Buffer
+
+	f := NewANSIFlusher(&buf)
+	f.curX = 7
+	f.curY = 2
+	f.relative = true
+
+	if err := f.ParkBottom(24); err != nil {
+		t.Fatalf("ParkBottom() error: %v", err)
+	}
+
+	if err := f.Flush(); err != nil {
+		t.Fatalf("Flush() error: %v", err)
+	}
+
+	want := "\x1b[24;1H\x1b[K"
+	if buf.String() != want {
+		t.Errorf("ParkBottom(24) wrote %q, want %q", buf.String(), want)
+	}
+
+	if f.curX != 0 || f.curY != 23 || f.relative {
+		t.Errorf("ParkBottom() tracking = (%d,%d) relative=%v, want (0,23) relative=false", f.curX, f.curY, f.relative)
+	}
+}

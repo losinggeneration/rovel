@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/losinggeneration/rovel/event"
+	"golang.org/x/sys/unix"
 )
 
 // testBackend creates a test backend with a pipe for input.
@@ -975,5 +976,31 @@ func TestBackend_SS3(t *testing.T) {
 				t.Errorf("got Key %v, want %v", ke.Key, tt.wantKey)
 			}
 		})
+	}
+}
+
+// The stop signal used by Suspend must be uncatchable. Re-raising SIGTSTP
+// after signal.Reset does NOT stop a Go process: sigdisable leaves the Go
+// runtime's handler installed for SIGTSTP (sigInstallGoHandler(SIGTSTP) is
+// true, so the restore-to-fwdSig branch is skipped), and with no Notify
+// watcher registered sighandler drops the signal (sigtable classifies SIGTSTP
+// as _SigNotify+_SigDefault+_SigIgn; sigsend fails and there is no _SigKill
+// or _SigThrow fallback). Reproduced empirically: Reset+Kill(pid, SIGTSTP)
+// leaves the process state S, not T.
+//
+// The consequence of getting this wrong is severe: Suspend returns without
+// ever stopping, after the app has already torn down the screen, so every
+// suspend attempt (including key-repeat while Ctrl+Z is held) produces a
+// screen teardown/re-init flicker and the shell never regains the terminal.
+//
+// SIGSTOP cannot be caught, blocked, or ignored, so the stop is guaranteed
+// regardless of Go runtime signal bookkeeping; fg (SIGCONT) resumes it and
+// the TSTP handler can simply be re-armed on resume.
+//
+// This invariant cannot be exercised in-process (stopping the test binary
+// would stop the test runner), so it is pinned by value here.
+func TestSuspendStopSignalIsUncatchableSIGSTOP(t *testing.T) {
+	if suspendStopSignal != unix.SIGSTOP {
+		t.Fatalf("suspendStopSignal = %v, want SIGSTOP (an uncatchable stop; a re-raised SIGTSTP is swallowed by the Go runtime after signal.Reset)", suspendStopSignal)
 	}
 }
