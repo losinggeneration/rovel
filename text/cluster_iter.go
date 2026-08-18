@@ -84,7 +84,7 @@ func asciiClusterBoundary(s string, i int) bool {
 		return false
 	}
 
-	return !(prev == '\r' && cur == '\n')
+	return prev != '\r' || cur != '\n'
 }
 
 // clusterCursor walks grapheme clusters forward, carrying uniseg's break state
