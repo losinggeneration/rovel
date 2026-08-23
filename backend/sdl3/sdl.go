@@ -1,22 +1,23 @@
-// Package sdl will provide a windowed cell-surface backend built on SDL.
+// Package sdl3 provides a windowed cell-surface backend built on SDL3 via the
+// purego-based github.com/Zyko0/go-sdl3 binding.
 //
-// The intended implementation model is:
+// The intended implementation model mirrors backend/sdl:
 //
 //   - SDL owns window lifecycle and event polling
-//   - tui still owns the retained widget/runtime model
+//   - rovel still owns the retained widget/runtime model
 //   - logical cell frames are consumed through backend.CellFrameSink
 //   - backend/cellsurface provides the frame traversal and cell-to-pixel helpers
 //
-// If this backend is implemented, prefer github.com/veandco/go-sdl2 for now.
-// The SDL3 Go bindings are still experimental and should not be the default
-// target yet.
+// Unlike backend/sdl this module does not require cgo, because the Zyko0
+// binding loads the SDL3 shared library at runtime via purego. This makes the
+// build considerably faster and removes the cgo toolchain requirement.
 //
 // This package is under active development and its API is not yet stable.
 //
 // # Unstable API
 //
 // Before v1.0.0, the API may change without notice. Use with caution.
-package sdl
+package sdl3
 
 import (
 	"sync"
@@ -28,10 +29,10 @@ import (
 	"github.com/losinggeneration/rovel/style"
 )
 
-// Core is the pure-Go state and mapping layer for the future SDL backend.
+// Core is the pure-Go state and mapping layer for the SDL3 backend.
 //
-// It intentionally contains no SDL dependency. The concrete go-sdl2 binding can
-// later use this type for:
+// It intentionally contains no SDL dependency. The concrete go-sdl3 binding
+// uses this type for:
 //   - lifecycle/backend state
 //   - logical frame storage
 //   - cell metrics
@@ -48,7 +49,7 @@ type Core struct {
 	features backend.InputFeatures
 }
 
-// Options configures the future SDL backend.
+// Options configures the SDL3 backend.
 type Options struct {
 	Title string
 
@@ -84,7 +85,7 @@ func DefaultOptions() Options {
 	}
 }
 
-// NewCore creates the dependency-free SDL backend core.
+// NewCore creates the dependency-free SDL3 backend core.
 func NewCore(opts Options) *Core {
 	if opts.CellWidth <= 0 || opts.CellHeight <= 0 {
 		def := DefaultOptions()
@@ -275,7 +276,7 @@ func (c *Core) MapMouse(pixelX, pixelY int, button event.MouseButton, action eve
 	}
 }
 
-// Options returns the current SDL options.
+// Options returns the current SDL3 options.
 func (c *Core) Options() Options {
 	c.mu.Lock()
 	defer c.mu.Unlock()
