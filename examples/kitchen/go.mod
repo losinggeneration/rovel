@@ -1,6 +1,6 @@
 module github.com/losinggeneration/rovel/examples/kitchen
 
-go 1.26.6
+go 1.26.5
 
 require (
 	github.com/losinggeneration/rovel v0.0.0-00010101000000-000000000000

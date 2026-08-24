@@ -1,6 +1,6 @@
 module github.com/losinggeneration/rovel
 
-go 1.26.0
+go 1.26.5
 
 require (
 	github.com/rivo/uniseg v0.4.7

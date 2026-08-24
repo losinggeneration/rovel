@@ -1,6 +1,6 @@
 module github.com/losinggeneration/rovel/backend/sdl
 
-go 1.25.6
+go 1.26.5
 
 require (
 	github.com/losinggeneration/rovel v0.0.0-00010101000000-000000000000
