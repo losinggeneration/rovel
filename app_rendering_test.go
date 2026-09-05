@@ -6,6 +6,7 @@ import (
 
 	"github.com/losinggeneration/rovel/backend"
 	"github.com/losinggeneration/rovel/geom"
+	"github.com/losinggeneration/rovel/style"
 )
 
 // fakeANSITransport models the real backend's buffering: writes land in a
@@ -31,7 +32,25 @@ func (f *fakeANSITransport) Flush() error {
 	return nil
 }
 
-// RestoreScreen must push the teardown all the way to the terminal, not just
+func TestPresentFrameFlushesRawDrawsFromPaintedFrame(t *testing.T) {
+	ft := &fakeANSITransport{}
+	p := newANSIPresenter(ft, backend.ModeRaw, false)
+	f := newCellRenderer(geom.Size{W: 4, H: 2}).Frame(geom.Size{W: 4, H: 2}, style.Style{})
+
+	rd, ok := f.Drawer().(RawDrawer)
+	if !ok {
+		t.Fatal("frame drawer does not support raw draws")
+	}
+	rd.DrawRaw(geom.Point{X: 1, Y: 1}, "\x1b_Gtest\x1b\\")
+
+	if err := p.PresentFrame(f); err != nil {
+		t.Fatalf("PresentFrame: %v", err)
+	}
+	if !bytes.Contains(ft.visible, []byte("\x1b_Gtest\x1b\\")) {
+		t.Fatalf("raw draw was not flushed: visible=%q", ft.visible)
+	}
+}
+
 // into the backend's buffered writer. The suspend path depends on this: the
 // process stops immediately after RestoreScreen returns, so teardown bytes
 // still buffered in userspace are invisible until resume — the terminal keeps

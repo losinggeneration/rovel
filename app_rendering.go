@@ -14,6 +14,7 @@ var errNoSinkOrTransport = errors.New("backend provides neither CellFrameSink no
 
 type runtimeFrame interface {
 	Drawer() Drawer
+	RawDraws() []rawDraw
 }
 
 type runtimeRenderer interface {
@@ -46,6 +47,7 @@ type cellFrame struct {
 	damage   *render.Damage
 	size     geom.Size
 	base     style.Style
+	raw      []rawDraw
 }
 
 func newCellRenderer(size geom.Size) *cellRenderer {
@@ -116,7 +118,14 @@ func (f *cellFrame) Drawer() Drawer {
 	clip := geom.Rect{X: 0, Y: 0, W: f.size.W, H: f.size.H}
 	rp := render.NewPainter(f.backBuf, clip, f.base)
 
-	return NewDrawer(NewPainter(rp, f.base))
+	return newDrawerWithRaw(NewPainter(rp, f.base), &f.raw)
+}
+
+func (f *cellFrame) RawDraws() []rawDraw {
+	out := append([]rawDraw(nil), f.raw...)
+	f.raw = nil
+
+	return out
 }
 
 // cellFrameFor fills the presenter's reusable cell buffer from f and returns a
@@ -267,6 +276,12 @@ func (p *ansiPresenter) PresentFrame(frame runtimeFrame) error {
 		}
 	}
 
+	for _, raw := range f.RawDraws() {
+		if err := p.flusher.Raw(raw.pos.Y, raw.pos.X, raw.text); err != nil {
+			return err
+		}
+	}
+
 	return p.transport.Flush()
 }
 
@@ -332,17 +347,22 @@ func (a *App) paintFramePass() {
 	}
 
 	a.renderer.ClearDamaged(a.resolvedTheme.Base)
-	frame := a.renderer.Frame(a.size, a.resolvedTheme.Base)
+	if a.frame == nil {
+		a.frame = a.renderer.Frame(a.size, a.resolvedTheme.Base)
+	}
 
 	ctx := a.mkCtx()
-	d := frame.Drawer()
+	d := a.frame.Drawer()
 	a.paintView(a.root, d, ctx)
 	a.overlays.paintOverlays(d, ctx)
 }
 
 func (a *App) presentFrame() {
-	frame := a.renderer.Frame(a.size, a.resolvedTheme.Base)
-	a.errs.Add(a.presenter.PresentFrame(frame))
+	if a.frame == nil {
+		a.frame = a.renderer.Frame(a.size, a.resolvedTheme.Base)
+	}
+	a.errs.Add(a.presenter.PresentFrame(a.frame))
+	a.frame = nil
 }
 
 func (a *App) paintView(v View, d Drawer, ctx *Ctx) {

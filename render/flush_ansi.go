@@ -439,3 +439,13 @@ func (f *ANSIFlusher) emitRune(r rune) error {
 
 	return err
 }
+
+func (f *ANSIFlusher) Raw(y, x int, s string) error {
+	if err := f.moveCursorTo(y, x); err != nil {
+		return err
+	}
+	if _, err := f.w.WriteString(s); err != nil {
+		return err
+	}
+	return f.w.Flush()
+}

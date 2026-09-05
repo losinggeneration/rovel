@@ -61,6 +61,7 @@ type App struct {
 
 	renderer  runtimeRenderer
 	presenter runtimePresenter
+	frame     runtimeFrame
 
 	errs *errbuf.ErrorBuffer
 
@@ -716,6 +717,8 @@ func (a *App) SetTheme(theme Theme) {
 
 // doInitialPaint performs the initial paint of the screen.
 func (a *App) doInitialPaint() {
+	defer func() { a.frame = nil }()
+
 	if a.root == nil {
 		return
 	}
@@ -1497,6 +1500,8 @@ func (a *App) shouldSkipRender() bool {
 
 // render performs a single render frame.
 func (a *App) render() {
+	defer func() { a.frame = nil }()
+
 	// If no damage and no layout needed, nothing to do
 	if len(a.invalidRects) == 0 && !a.layoutDirty {
 		return

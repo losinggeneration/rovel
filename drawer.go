@@ -31,13 +31,27 @@ type CellDrawer interface {
 	SetCell(x, y int, r rune, s style.Style)
 }
 
+type rawDraw struct {
+	pos  geom.Point
+	text string
+}
+
+type RawDrawer interface {
+	DrawRaw(pos geom.Point, text string)
+}
+
 type painterDrawer struct {
-	p *Painter
+	p   *Painter
+	raw *[]rawDraw
 }
 
 // NewDrawer adapts a Painter to the Drawer interface.
 func NewDrawer(p *Painter) Drawer {
 	return &painterDrawer{p: p}
+}
+
+func newDrawerWithRaw(p *Painter, raw *[]rawDraw) Drawer {
+	return &painterDrawer{p: p, raw: raw}
 }
 
 // CellDrawerOf returns a cell-specific drawer when the current Drawer supports
@@ -57,6 +71,13 @@ func (d *painterDrawer) DrawText(pos geom.Point, text string, st style.Style) {
 	d.p.Text(pos.X, pos.Y, text, st)
 }
 
+func (d *painterDrawer) DrawRaw(pos geom.Point, text string) {
+	if d.raw == nil || text == "" {
+		return
+	}
+	*d.raw = append(*d.raw, rawDraw{pos: pos, text: text})
+}
+
 func (d *painterDrawer) DrawBorder(r geom.Rect, bs BoxStyle) {
 	d.p.BoxStyled(r, bs)
 }
@@ -71,12 +92,12 @@ func (d *painterDrawer) ClipRect() geom.Rect {
 
 func (d *painterDrawer) WithClip(r geom.Rect, fn func(Drawer)) {
 	d.p.WithClip(r, func(p *Painter) {
-		fn(&painterDrawer{p: p})
+		fn(&painterDrawer{p: p, raw: d.raw})
 	})
 }
 
 func (d *painterDrawer) WithOffset(x, y int, fn func(Drawer)) {
 	d.p.WithOffset(x, y, func(p *Painter) {
-		fn(&painterDrawer{p: p})
+		fn(&painterDrawer{p: p, raw: d.raw})
 	})
 }
