@@ -73,8 +73,9 @@ type App struct {
 
 	invalidRects []geom.Rect
 
-	focusedID   ID
-	scopeMemory map[ID]*scopeState
+	focusedID     ID
+	onFocusChange func(FocusChange)
+	scopeMemory   map[ID]*scopeState
 
 	eventCh chan Event
 
@@ -703,6 +704,30 @@ func (a *App) DismissOverlayByID(id ID) *Overlay {
 // Must be called from the app loop goroutine (e.g., via App.Post).
 func (a *App) Focus(id ID) {
 	a.setRequestFocus(id)
+}
+
+// FocusChange reports a committed focus transition. An ID of 0 means "no
+// view focused".
+type FocusChange struct {
+	From ID
+	To   ID
+}
+
+// SetFocusObserver registers fn to be invoked on every committed focus
+// transition, including startup auto-focus, explicit App.Focus requests,
+// overlay push/pop focus moves, and focus repair after the focused view is
+// removed or disabled. fn runs on the app loop goroutine and must not block.
+// Passing nil removes the observer. Call SetFocusObserver before Run or from
+// the app loop (e.g., via App.Post); it is not safe to call concurrently with
+// a running app loop.
+func (a *App) SetFocusObserver(fn func(FocusChange)) {
+	a.onFocusChange = fn
+}
+
+func (a *App) notifyFocusChange(from, to ID) {
+	if a.onFocusChange != nil {
+		a.onFocusChange(FocusChange{From: from, To: to})
+	}
 }
 
 // SetTheme changes the application theme at runtime.
@@ -1420,13 +1445,20 @@ func (a *App) mkUpdateCtx() *UpdateCtx {
 }
 
 // setRequestFocus requests focus for a view, using bounded invalidation when
-// rects are known.
+// rects are known. Every committed transition is reported to the focus
+// observer registered with SetFocusObserver.
 func (a *App) setRequestFocus(id ID) {
 	old := a.focusedID
 	if old == id {
 		return
 	}
+	a.commitFocus(old, id)
+	a.notifyFocusChange(old, id)
+}
 
+// commitFocus applies a focus transition from old to id. The caller has
+// already verified old != id.
+func (a *App) commitFocus(old, id ID) {
 	a.focusedID = id
 
 	// Update scope memory for the new focus target.
