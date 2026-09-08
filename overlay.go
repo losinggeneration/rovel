@@ -1,6 +1,10 @@
 package rovel
 
-import "github.com/losinggeneration/rovel/geom"
+import (
+	"slices"
+
+	"github.com/losinggeneration/rovel/geom"
+)
 
 // Placement determines how an overlay is positioned relative to the screen.
 type Placement interface {
@@ -103,6 +107,41 @@ func (m *OverlayManager) TopModal() *Overlay {
 	}
 
 	return nil
+}
+
+// RaiseOverlay moves the overlay with the given id to the top of the stack,
+// preserving its identity. No onDismiss fires and no saved focus is restored —
+// raising is purely a z-order change. A non-modal overlay is raised only above
+// other non-modal overlays: it stays below the topmost modal overlay, so a
+// modal keeps blocking clicks and keys regardless of z-order changes.
+// Returns the raised overlay, or nil if the id is unknown.
+func (m *OverlayManager) RaiseOverlay(id ID) *Overlay {
+	i := slices.IndexFunc(m.stack, func(o *Overlay) bool { return o.id == id })
+	if i < 0 {
+		return nil
+	}
+
+	o := m.stack[i]
+
+	// Top of the allowed region: the raised overlay stops below the *lowest*
+	// modal above it, so every modal it was under keeps blocking it.
+	insertAt := len(m.stack)
+	if !o.modal {
+		for j := i + 1; j < len(m.stack); j++ {
+			if m.stack[j].modal {
+				insertAt = j
+				break
+			}
+		}
+	}
+
+	m.stack = append(m.stack[:i], m.stack[i+1:]...)
+	if insertAt > i {
+		insertAt--
+	}
+	m.stack = slices.Insert(m.stack, insertAt, o)
+
+	return o
 }
 
 // OverlayCount returns the number of overlays.

@@ -83,6 +83,11 @@ type Ctx struct {
 	// ShowOverlay pushes an overlay. Nil if overlay system not available.
 	ShowOverlay func(opts OverlayOpts) *Overlay
 
+	// RaiseOverlay moves an existing overlay to the top of the stack
+	// (below any modal overlay), preserving its ID and firing no dismiss
+	// side effects. Nil if not available.
+	RaiseOverlay func(id ID) *Overlay
+
 	// DismissOverlay removes the topmost overlay. Nil if not available.
 	DismissOverlay func() *Overlay
 

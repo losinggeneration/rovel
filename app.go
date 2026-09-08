@@ -706,6 +706,22 @@ func (a *App) DismissOverlayByID(id ID) *Overlay {
 	return o
 }
 
+// RaiseOverlay moves the overlay with the given id to the top of the stack
+// (below any modal overlay), preserving its identity and firing no dismiss
+// side effects or focus changes. The raised region is invalidated for
+// repaint. Returns the raised overlay, or nil if the id is unknown.
+// Must be called from the app loop (or via App.Post).
+func (a *App) RaiseOverlay(id ID) *Overlay {
+	o := a.overlays.RaiseOverlay(id)
+	if o == nil {
+		return nil
+	}
+
+	a.Invalidate(o.rect)
+
+	return o
+}
+
 // Focus sets the keyboard focus to the view with the given ID.
 // Must be called from the app loop goroutine (e.g., via App.Post).
 func (a *App) Focus(id ID) {
@@ -1431,6 +1447,7 @@ func (a *App) buildCtx() *Ctx {
 		Quit:               func() { a.Quit() },
 		InputCaps:          a.inputCaps,
 		ShowOverlay:        func(opts OverlayOpts) *Overlay { return a.ShowOverlay(opts) },
+		RaiseOverlay:       func(id ID) *Overlay { return a.RaiseOverlay(id) },
 		DismissOverlay:     func() *Overlay { return a.DismissOverlay() },
 		DismissOverlayByID: func(id ID) *Overlay { return a.DismissOverlayByID(id) },
 	}
@@ -1483,6 +1500,7 @@ func (a *App) mkUpdateCtx() *UpdateCtx {
 		RequestFocus:       func(id ID) { a.setRequestFocus(id) },
 		Quit:               func() { a.Quit() },
 		ShowOverlay:        func(opts OverlayOpts) *Overlay { return a.ShowOverlay(opts) },
+		RaiseOverlay:       func(id ID) *Overlay { return a.RaiseOverlay(id) },
 		DismissOverlay:     func() *Overlay { return a.DismissOverlay() },
 		DismissOverlayByID: func(id ID) *Overlay { return a.DismissOverlayByID(id) },
 	}

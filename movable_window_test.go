@@ -1,6 +1,7 @@
 package rovel_test
 
 import (
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -47,15 +48,18 @@ func repeatRune(r rune, n int) string {
 	return string(out)
 }
 
-// titleBarView paints its title at its rect origin and drags the shared
-// Floating placement while the button is held.
+// titleBarView paints its title at its rect origin, raises its window's
+// overlay on press, and drags the shared Floating placement while the button
+// is held.
 type titleBarView struct {
-	id     rovel.ID
-	rect   geom.Rect
-	title  string
-	place  *overlay.Floating
-	drag   bool
-	anchor geom.Point
+	id       rovel.ID
+	rect     geom.Rect
+	title    string
+	place    *overlay.Floating
+	raiseID  rovel.ID // set after ShowOverlay; press raises the overlay
+	raised   atomic.Pointer[rovel.Overlay]
+	dragging bool
+	anchor   geom.Point
 }
 
 func (t *titleBarView) ID() rovel.ID           { return t.id }
@@ -76,12 +80,16 @@ func (t *titleBarView) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
 
 	switch me.Action {
 	case rovel.MousePress:
-		t.drag = true
+		if t.raiseID != 0 && ctx != nil && ctx.RaiseOverlay != nil {
+			t.raised.Store(ctx.RaiseOverlay(t.raiseID))
+		}
+
+		t.dragging = true
 		t.anchor = geom.Point{X: me.X, Y: me.Y}
 
 		return true
 	case rovel.MouseDrag:
-		if !t.drag {
+		if !t.dragging {
 			return false
 		}
 
@@ -91,7 +99,7 @@ func (t *titleBarView) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
 
 		return true
 	case rovel.MouseRelease:
-		t.drag = false
+		t.dragging = false
 
 		return true
 	}
@@ -125,6 +133,7 @@ type windowView struct {
 	rect     geom.Rect
 	titleBar *titleBarView
 	body     *bodyView
+	keyCount atomic.Int32
 }
 
 func newWindowView(title string, place *overlay.Floating) *windowView {
@@ -153,6 +162,12 @@ func (w *windowView) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 }
 
 func (w *windowView) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
+	if _, ok := e.(rovel.KeyEvent); ok {
+		w.keyCount.Add(1)
+
+		return true
+	}
+
 	return w.titleBar.Handle(e, ctx)
 }
 
@@ -225,6 +240,26 @@ func frameRuneAt(t *testing.T, be *memory.Backend, x, y int) rune {
 	}
 
 	return frame.RowRunes(y)[x]
+}
+
+// waitRuneAt polls the last frame until the cell shows the wanted rune.
+func waitRuneAt(t *testing.T, be *memory.Backend, x, y int, want rune, what string) {
+	t.Helper()
+
+	deadline := time.After(2 * time.Second)
+
+	for {
+		if got := frameRuneAt(t, be, x, y); got == want {
+			return
+		}
+
+		select {
+		case <-deadline:
+			t.Fatalf("timeout waiting for %q at (%d,%d), got %q", what, x, y, frameRuneAt(t, be, x, y))
+		default:
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
 }
 
 func pressDragRelease(be *memory.Backend, pressX, pressY int, drags [][2]int) {
@@ -461,5 +496,241 @@ func TestMovableWindow_DismissDuringDragDropsGrab(t *testing.T) {
 
 	if got := (geom.Rect{X: 3, Y: 3, W: 10, H: 5}); place.Rect != got {
 		t.Fatalf("placement moved after dismissal: %v, want %v (grab must be dropped)", place.Rect, got)
+	}
+}
+
+// showWindowAt shows one floating window whose title bar raises on press.
+// The returned channel delivers the overlay ID once shown (race-free read
+// from the test goroutine).
+func showWindowAt(t *testing.T, app *rovel.App, title string, rect geom.Rect) (*windowView, *overlay.Floating, <-chan rovel.ID) {
+	t.Helper()
+
+	place := &overlay.Floating{Rect: rect}
+	win := newWindowView(title, place)
+	idCh := make(chan rovel.ID, 1)
+
+	err := app.Post(func(ctx *rovel.UpdateCtx) {
+		o := ctx.ShowOverlay(rovel.OverlayOpts{Root: win, Place: place})
+		win.titleBar.raiseID = o.ID()
+		idCh <- o.ID()
+	})
+	if err != nil {
+		t.Fatalf("Post ShowOverlay: %v", err)
+	}
+
+	return win, place, idCh
+}
+
+// recvID receives an overlay ID from a showWindowAt channel.
+func recvID(t *testing.T, ch <-chan rovel.ID) rovel.ID {
+	t.Helper()
+
+	select {
+	case id := <-ch:
+		return id
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for overlay id")
+		return 0
+	}
+}
+
+func TestMovableWindow_RaiseOnClick(t *testing.T) {
+	be := memory.New(geom.Size{W: 40, H: 12})
+	caps := style.Capability{HasBasic: true}
+
+	app, err := rovel.New(rovel.AppOpts{Backend: be, Capability: &caps, Theme: rovel.DefaultTheme()})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	app.SetRoot(newDesktopView())
+
+	if err := app.Enable(); err != nil {
+		t.Fatalf("Enable: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- app.Run() }()
+
+	t.Cleanup(func() {
+		app.Quit()
+		be.Close()
+
+		select {
+		case <-done:
+		case <-time.After(3 * time.Second):
+			t.Error("timeout waiting for Run to return")
+		}
+	})
+
+	// Back window below, front window above, overlapping. onDismiss fires on
+	// dismissal only — raising must never trigger it.
+	var dismissals atomic.Int32
+
+	backPlace := &overlay.Floating{Rect: geom.Rect{X: 2, Y: 2, W: 10, H: 5}}
+	back := newWindowView("BACK", backPlace)
+	backIDCh := make(chan rovel.ID, 1)
+
+	err = app.Post(func(ctx *rovel.UpdateCtx) {
+		o := ctx.ShowOverlay(rovel.OverlayOpts{Root: back, Place: backPlace, OnDismiss: func() { dismissals.Add(1) }})
+		back.titleBar.raiseID = o.ID()
+		backIDCh <- o.ID()
+	})
+	if err != nil {
+		t.Fatalf("Post back: %v", err)
+	}
+
+	front, _, _ := showWindowAt(t, app, "FRNT", geom.Rect{X: 6, Y: 3, W: 10, H: 5})
+	backID := recvID(t, backIDCh)
+
+	// Overlap cell (7,3) is on the front window's title row while front is
+	// on top ("FRNT" starts at x=6, so (7,3) is its 'R').
+	waitRuneAt(t, be, 7, 3, 'R', "front window on top before raise")
+
+	// Press the back window's exposed title bar cell (3,2): front starts at
+	// x=6, so this cell belongs to the back window only.
+	be.SendEvent(event.MouseEvent{X: 3, Y: 2, Button: event.MouseButtonLeft, Action: event.MousePress})
+	be.SendEvent(event.MouseEvent{X: 3, Y: 2, Button: event.MouseButtonLeft, Action: event.MouseRelease})
+
+	// Back window now paints over the front one.
+	waitRuneAt(t, be, 7, 3, 'B', "back window raised above front")
+
+	// Identity preserved: RaiseOverlay returned the same overlay ID.
+	if raised := back.titleBar.raised.Load(); raised == nil || raised.ID() != backID {
+		t.Fatalf("RaiseOverlay returned %v, want overlay %d", raised, backID)
+	}
+
+	// No dismiss side effect fired.
+	if n := dismissals.Load(); n != 0 {
+		t.Fatalf("onDismiss fired %d times during raise, want 0", n)
+	}
+
+	// Keys now route to the raised window, not the covered one.
+	be.SendEvent(event.KeyEvent{Key: event.KeyRune, Rune: 'k'})
+
+	deadline := time.After(2 * time.Second)
+
+	for back.keyCount.Load() == 0 {
+		select {
+		case <-deadline:
+			t.Fatal("timeout waiting for key on raised window")
+		default:
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
+
+	if n := front.keyCount.Load(); n != 0 {
+		t.Fatalf("covered window received %d key events, want 0", n)
+	}
+}
+
+func TestMovableWindow_ModalBlocksAfterRaise(t *testing.T) {
+	be := memory.New(geom.Size{W: 40, H: 12})
+	caps := style.Capability{HasBasic: true}
+
+	app, err := rovel.New(rovel.AppOpts{Backend: be, Capability: &caps, Theme: rovel.DefaultTheme()})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	app.SetRoot(newDesktopView())
+
+	if err := app.Enable(); err != nil {
+		t.Fatalf("Enable: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- app.Run() }()
+
+	t.Cleanup(func() {
+		app.Quit()
+		be.Close()
+
+		select {
+		case <-done:
+		case <-time.After(3 * time.Second):
+			t.Error("timeout waiting for Run to return")
+		}
+	})
+
+	back, _, backIDCh := showWindowAt(t, app, "BACK", geom.Rect{X: 2, Y: 2, W: 10, H: 5})
+	showWindowAt(t, app, "FRNT", geom.Rect{X: 6, Y: 3, W: 10, H: 5})
+
+	// Lower modal, overlapping the back window: a raise must stop below it,
+	// not merely below the topmost modal.
+	lowModalPlace := &overlay.Floating{Rect: geom.Rect{X: 4, Y: 4, W: 10, H: 3}}
+	lowModal := newWindowView("MDLA", lowModalPlace)
+
+	err = app.Post(func(ctx *rovel.UpdateCtx) {
+		ctx.ShowOverlay(rovel.OverlayOpts{Root: lowModal, Place: lowModalPlace, Modal: true})
+	})
+	if err != nil {
+		t.Fatalf("Post lower modal: %v", err)
+	}
+
+	// Topmost modal dialog at the bottom-right, away from both windows.
+	modalPlace := &overlay.Floating{Rect: geom.Rect{X: 28, Y: 8, W: 10, H: 3}}
+	modal := newWindowView("MODL", modalPlace)
+
+	err = app.Post(func(ctx *rovel.UpdateCtx) {
+		ctx.ShowOverlay(rovel.OverlayOpts{Root: modal, Place: modalPlace, Modal: true})
+	})
+	if err != nil {
+		t.Fatalf("Post modal: %v", err)
+	}
+
+	// Wait for all three overlays to land.
+	waitRuneAt(t, be, 7, 3, 'R', "front window on top before modal click")
+
+	// A click on the back window's exposed title bar never arrives: the modal
+	// blocks all clicks to lower overlays, even on a miss.
+	be.SendEvent(event.MouseEvent{X: 3, Y: 2, Button: event.MouseButtonLeft, Action: event.MousePress})
+	be.SendEvent(event.MouseEvent{X: 3, Y: 2, Button: event.MouseButtonLeft, Action: event.MouseRelease})
+	time.Sleep(150 * time.Millisecond)
+
+	if back.titleBar.raised.Load() != nil {
+		t.Fatal("click reached a lower overlay while a modal overlay was active")
+	}
+
+	if got := frameRuneAt(t, be, 7, 3); got != 'R' {
+		t.Fatalf("z-order changed under a modal: overlap cell = %q, want 'R' (front on top)", got)
+	}
+
+	// Raise the back window programmatically; the guard keeps it below the
+	// modal, so keys still route to the modal.
+	backID := recvID(t, backIDCh)
+
+	err = app.Post(func(ctx *rovel.UpdateCtx) {
+		ctx.RaiseOverlay(backID)
+	})
+	if err != nil {
+		t.Fatalf("Post raise: %v", err)
+	}
+
+	// The guarded raise repaints the overlap with the back window on top of
+	// the front one (but below the modal).
+	waitRuneAt(t, be, 7, 3, 'B', "back raised above front, below modal")
+
+	// ...but still below the lower modal it was under: the lower modal's
+	// title row survives the raise.
+	if got := frameRuneAt(t, be, 5, 4); got != 'D' {
+		t.Fatalf("raise crossed a lower modal: cell (5,4) = %q, want 'D' (MDLA on top)", got)
+	}
+
+	be.SendEvent(event.KeyEvent{Key: event.KeyRune, Rune: 'k'})
+
+	deadline := time.After(2 * time.Second)
+
+	for modal.keyCount.Load() == 0 {
+		select {
+		case <-deadline:
+			t.Fatal("timeout waiting for key on modal")
+		default:
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
+
+	if n := back.keyCount.Load(); n != 0 {
+		t.Fatalf("raised non-modal window received %d keys under a modal, want 0", n)
 	}
 }

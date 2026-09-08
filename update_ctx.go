@@ -15,6 +15,11 @@ type UpdateCtx struct {
 	// If modal, focus is saved and moved to the first focusable view in the overlay subtree.
 	ShowOverlay func(opts OverlayOpts) *Overlay
 
+	// RaiseOverlay moves an existing overlay to the top of the stack
+	// (below any modal overlay), preserving its ID and firing no dismiss
+	// side effects.
+	RaiseOverlay func(id ID) *Overlay
+
 	// DismissOverlay removes the topmost overlay. Restores saved focus if modal.
 	// Returns the dismissed overlay, or nil if no overlays exist.
 	DismissOverlay func() *Overlay
