@@ -41,8 +41,9 @@ const (
 )
 
 var (
-	BoxGlyphsLight = render.BoxGlyphsLight
-	BoxGlyphsASCII = render.BoxGlyphsASCII
+	BoxGlyphsLight  = render.BoxGlyphsLight
+	BoxGlyphsASCII  = render.BoxGlyphsASCII
+	BoxGlyphsDouble = render.BoxGlyphsDouble
 )
 
 // NewPainter creates a new Painter wrapping a render.Painter.

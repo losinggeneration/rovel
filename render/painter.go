@@ -176,6 +176,14 @@ var (
 		BL: '+',
 		BR: '+',
 	}
+	BoxGlyphsDouble = BoxGlyphs{
+		H:  '═',
+		V:  '║',
+		TL: '╔',
+		TR: '╗',
+		BL: '╚',
+		BR: '╝',
+	}
 )
 
 // Box draws a box border.
