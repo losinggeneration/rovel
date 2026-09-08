@@ -164,3 +164,38 @@ func TestPointAnchored_ClampsWithoutFlip(t *testing.T) {
 		t.Fatalf("PointAnchored.Resolve = %v, want %v", got, want)
 	}
 }
+
+func TestFloating_ReturnsStoredRect(t *testing.T) {
+	view := &stubView{minSize: geom.Size{W: 12, H: 4}}
+	screen := geom.Size{W: 80, H: 24}
+	want := geom.Rect{X: 5, Y: 7, W: 20, H: 6}
+
+	f := &Floating{Rect: want}
+	if got := f.Resolve(view, screen); got != want {
+		t.Fatalf("Floating.Resolve = %v, want %v", got, want)
+	}
+}
+
+func TestFloating_ClampsToScreen(t *testing.T) {
+	view := &stubView{minSize: geom.Size{W: 1, H: 1}}
+	screen := geom.Size{W: 40, H: 12}
+
+	f := &Floating{Rect: geom.Rect{X: 100, Y: 100, W: 10, H: 5}}
+	got := f.Resolve(view, screen)
+	want := geom.Rect{X: 30, Y: 7, W: 10, H: 5}
+	if got != want {
+		t.Fatalf("Floating.Resolve = %v, want %v", got, want)
+	}
+
+	f.MoveBy(-500, -500)
+	got = f.Resolve(view, screen)
+	want = geom.Rect{X: 0, Y: 0, W: 10, H: 5}
+	if got != want {
+		t.Fatalf("Floating.Resolve after MoveBy = %v, want %v", got, want)
+	}
+
+	f.MoveBy(3, 4)
+	if f.Rect.X != 3 || f.Rect.Y != 4 {
+		t.Fatalf("Floating.MoveBy = %v, want origin (3,4)", f.Rect)
+	}
+}

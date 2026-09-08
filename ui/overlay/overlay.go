@@ -134,6 +134,56 @@ func (Fullscreen) Resolve(_ rovel.View, screen geom.Size) geom.Rect {
 	return geom.Rect{X: 0, Y: 0, W: screen.W, H: screen.H}
 }
 
+// Floating places the overlay at a caller-controlled rect, clamped to the
+// screen. Unlike the other placements it is mutable: drag and resize handlers
+// move a window by calling MoveBy/ResizeBy on the placement (pointer — pass
+// *Floating to OverlayOpts.Place) and requesting a layout invalidation;
+// Resolve returns the stored rect, clamped.
+//
+//	place := &overlay.Floating{Rect: geom.Rect{X: 4, Y: 2, W: 20, H: 8}}
+//	o := ctx.ShowOverlay(rovel.OverlayOpts{Root: win, Place: place})
+type Floating struct {
+	// Rect is the desired overlay rect in screen coordinates. Resolve
+	// clamps it to the screen and writes the clamped rect back, so reads
+	// between layout passes stay truthful.
+	Rect geom.Rect
+}
+
+func (f *Floating) Resolve(_ rovel.View, screen geom.Size) geom.Rect {
+	f.Rect = clampRect(f.Rect, screen)
+	return f.Rect
+}
+
+// MoveBy shifts the window by (dx, dy). The new position is clamped to the
+// screen on the next Resolve (layout pass).
+func (f *Floating) MoveBy(dx, dy int) {
+	f.Rect = geom.Rect{X: f.Rect.X + dx, Y: f.Rect.Y + dy, W: f.Rect.W, H: f.Rect.H}
+}
+
+// clampRect fits r inside the screen: size first, then position so the rect
+// stays fully on screen.
+func clampRect(r geom.Rect, screen geom.Size) geom.Rect {
+	if r.W > screen.W {
+		r.W = screen.W
+	}
+	if r.H > screen.H {
+		r.H = screen.H
+	}
+	if r.X+r.W > screen.W {
+		r.X = screen.W - r.W
+	}
+	if r.Y+r.H > screen.H {
+		r.Y = screen.H - r.H
+	}
+	if r.X < 0 {
+		r.X = 0
+	}
+	if r.Y < 0 {
+		r.Y = 0
+	}
+	return r
+}
+
 // FocusFirst sets focus to the first focusable view in an overlay's subtree.
 func FocusFirst(o *rovel.Overlay, requestFocus func(rovel.ID)) {
 	if first := layout.FindFirstFocusable(o.Root()); first != nil {

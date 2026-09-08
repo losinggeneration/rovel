@@ -115,6 +115,12 @@ type mouseState struct {
 	pressY      int
 	dragging    bool
 
+	// grab is the hit-tested target of the current press. While non-nil,
+	// drag and release events route to it directly (no re-hit-test), so a
+	// drag keeps working when the pointer outruns the view — e.g. moving a
+	// floating window. Cleared on release.
+	grab View
+
 	lastClickTime   time.Time
 	lastClickX      int
 	lastClickY      int
@@ -827,6 +833,11 @@ func (a *App) layout() {
 	fullRect := geom.Rect{X: 0, Y: 0, W: a.size.W, H: a.size.H}
 	a.root.Layout(fullRect)
 
+	// Layout overlays before the tree rebuild and rect diff so overlay
+	// geometry changes (e.g. a moved floating window) are captured by the
+	// diff, invalidating both the old and the new rects.
+	a.overlays.layoutOverlays(a.size)
+
 	// Rebuild tree structure (handles dynamic children like Tabs).
 	a.rebuildTree()
 
@@ -838,9 +849,6 @@ func (a *App) layout() {
 
 	// If the focused view disappeared or is no longer focusable, repair focus.
 	a.ensureValidFocus()
-
-	// Layout overlays after main tree.
-	a.overlays.layoutOverlays(a.size)
 
 	a.layoutDirty = false
 }
@@ -1170,6 +1178,8 @@ func (a *App) dispatchAction(act action.Action, ctx *Ctx) bool {
 // handleMouseEvent dispatches a mouse event via hit-testing the view tree.
 // Overlays are tested first (top to bottom); a modal overlay blocks the main tree.
 // The deepest hit-tested view receives the event directly (flat dispatch).
+// A press implicitly grabs the hit-tested target: until release, drag and
+// release events route to that target without re-hit-testing.
 func (a *App) handleMouseEvent(e MouseEvent) {
 	if a.root == nil {
 		return
@@ -1180,8 +1190,31 @@ func (a *App) handleMouseEvent(e MouseEvent) {
 
 	ctx := a.mkCtx()
 
+	// Drop a grab whose target left the mounted tree (e.g. its overlay was
+	// dismissed mid-drag): routing to an unmounted view would move a window
+	// nobody can see, and would pin its subtree in memory until the next
+	// release — which may never arrive.
+	if a.mouse.grab != nil {
+		if _, mounted := a.nodes[a.mouse.grab.ID()]; !mounted {
+			a.mouse.grab = nil
+		}
+	}
+
+	// Implicit grab: drags and release go to the pressed target even when
+	// the pointer has left its rect.
+	if a.mouse.grab != nil && (e.Action == event.MouseDrag || e.Action == event.MouseRelease) {
+		a.mouse.grab.Handle(e, ctx)
+
+		if e.Action == event.MouseRelease {
+			a.mouse.grab = nil
+		}
+
+		return
+	}
+
 	// Check overlays first
 	if target, blocked := a.overlays.overlayHitTest(e.X, e.Y); target != nil {
+		a.tryGrab(e, target)
 		target.Handle(e, ctx)
 
 		return
@@ -1190,8 +1223,19 @@ func (a *App) handleMouseEvent(e MouseEvent) {
 	}
 
 	if target := a.hitTest(a.root, e.X, e.Y); target != nil {
+		a.tryGrab(e, target)
 		target.Handle(e, ctx)
 	}
+}
+
+// tryGrab records the implicit grab target for a press. Wheel buttons are
+// excluded: they are delivered as presses but never get a release.
+func (a *App) tryGrab(e MouseEvent, target View) {
+	if e.Action != event.MousePress || e.Button == event.MouseButtonWheelUp || e.Button == event.MouseButtonWheelDown {
+		return
+	}
+
+	a.mouse.grab = target
 }
 
 const doubleClickTimeout = 500 * time.Millisecond
