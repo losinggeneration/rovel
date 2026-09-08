@@ -160,6 +160,20 @@ func (f *Floating) MoveBy(dx, dy int) {
 	f.Rect = geom.Rect{X: f.Rect.X + dx, Y: f.Rect.Y + dy, W: f.Rect.W, H: f.Rect.H}
 }
 
+// ResizeBy grows the window by (dw, dh), never below min. The origin stays
+// put — right/bottom resize handles change only the size. The result is
+// clamped to the screen on the next Resolve (layout pass).
+func (f *Floating) ResizeBy(dw, dh int, min geom.Size) {
+	w, h := f.Rect.W+dw, f.Rect.H+dh
+	if w < min.W {
+		w = min.W
+	}
+	if h < min.H {
+		h = min.H
+	}
+	f.Rect = geom.Rect{X: f.Rect.X, Y: f.Rect.Y, W: w, H: h}
+}
+
 // clampRect fits r inside the screen: size first, then position so the rect
 // stays fully on screen.
 func clampRect(r geom.Rect, screen geom.Size) geom.Rect {

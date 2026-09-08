@@ -52,9 +52,18 @@ func inputCell(r geom.Rect) geom.Point { return geom.Point{X: r.X + 2, Y: r.Y + 
 // grabCell is a spot on the top edge clear of both the close box and title.
 func grabCell(r geom.Rect) geom.Point { return geom.Point{X: r.X + r.W - shadowW - 2, Y: r.Y} }
 
-// frameCornerTL is the one corner no focus change ever damages, which makes it
-// the honest place to check that losing focus repainted the whole frame.
-func frameCornerTL(r geom.Rect) geom.Point { return geom.Point{X: r.X, Y: r.Y} }
+func frameCornerTR(r geom.Rect) geom.Point {
+	return geom.Point{X: r.X + r.W - shadowW - 1, Y: r.Y}
+}
+
+func frameCornerBR(r geom.Rect) geom.Point {
+	return geom.Point{X: r.X + r.W - shadowW - 1, Y: r.Y + r.H - shadowH - 1}
+}
+
+// rightEdgeCell is on the right resize handle, clear of the corner cell.
+func rightEdgeCell(r geom.Rect) geom.Point {
+	return geom.Point{X: r.X + r.W - shadowW - 1, Y: r.Y + 3}
+}
 
 // stubDrawer swallows painting; this test only cares which rects the window
 // asks to have repainted.
@@ -218,4 +227,33 @@ func TestDemo_MovableWindows(t *testing.T) {
 	finalTitle := titleCell(finalRect, "Notes")
 
 	waitRune(t, be, finalTitle.X, finalTitle.Y, 'N', "Notes title after second drag")
+
+	// Drag the right edge out by 6: the frame's corners track the new width.
+	// Notes is the active window here, so those corners are double-line.
+	const growBy = 6
+
+	edge := rightEdgeCell(finalRect)
+
+	be.SendEvent(event.MouseEvent{X: edge.X, Y: edge.Y, Button: event.MouseButtonLeft, Action: event.MousePress})
+	be.SendEvent(event.MouseEvent{X: edge.X + growBy, Y: edge.Y, Button: event.MouseButtonLeft, Action: event.MouseMove})
+	be.SendEvent(event.MouseEvent{X: edge.X + growBy, Y: edge.Y, Button: event.MouseButtonLeft, Action: event.MouseRelease})
+
+	wideRect := finalRect
+	wideRect.W += growBy
+	wideTR, wideBR := frameCornerTR(wideRect), frameCornerBR(wideRect)
+
+	waitRune(t, be, wideTR.X, wideTR.Y, '╗', "top-right corner after right-edge resize")
+	waitRune(t, be, wideBR.X, wideBR.Y, '╝', "resize corner after right-edge resize")
+
+	// Drag that corner up and left past everything: the minimum size wins.
+	be.SendEvent(event.MouseEvent{X: wideBR.X, Y: wideBR.Y, Button: event.MouseButtonLeft, Action: event.MousePress})
+	be.SendEvent(event.MouseEvent{X: 0, Y: 0, Button: event.MouseButtonLeft, Action: event.MouseMove})
+	be.SendEvent(event.MouseEvent{X: 0, Y: 0, Button: event.MouseButtonLeft, Action: event.MouseRelease})
+
+	minRect := finalRect
+	minRect.W, minRect.H = notes.MinSize().W, notes.MinSize().H
+	minTR, minBR := frameCornerTR(minRect), frameCornerBR(minRect)
+
+	waitRune(t, be, minTR.X, minTR.Y, '╗', "top-right corner at minimum size")
+	waitRune(t, be, minBR.X, minBR.Y, '╝', "resize corner at minimum size")
 }

@@ -98,7 +98,8 @@ func (d *desktop) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
 }
 
 // window is one floating window: a title bar (raise on press, drag to move,
-// × to close) over a text input that shows keyboard focus.
+// × to close) over a text input that shows keyboard focus, plus right/bottom
+// resize handles.
 type window struct {
 	id        rovel.ID
 	rect      rovel.Rect
@@ -106,6 +107,8 @@ type window struct {
 	place     *overlay.Floating
 	input     *widgets.TextInput
 	clickable *widgets.Clickable
+	right     *resizeHandle
+	bottom    *resizeHandle
 	overlayID rovel.ID // set once shown
 	drag      bool
 	anchor    geom.Point
@@ -139,6 +142,10 @@ func newWindow(title string, place *overlay.Floating) *window {
 		},
 	}
 
+	min := w.MinSize()
+	w.right = &resizeHandle{id: rovel.NewID(), place: place, right: true, min: min}
+	w.bottom = &resizeHandle{id: rovel.NewID(), place: place, right: false, min: min}
+
 	return w
 }
 
@@ -147,13 +154,18 @@ func (w *window) ID() rovel.ID { return w.id }
 // MinSize leaves room for the frame, the shadow, and one interior row.
 func (w *window) MinSize() geom.Size     { return geom.Size{W: 20, H: 5} }
 func (w *window) Rect() rovel.Rect       { return w.rect }
-func (w *window) Children() []rovel.View { return []rovel.View{w.clickable} }
+func (w *window) Children() []rovel.View { return []rovel.View{w.clickable, w.bottom, w.right} }
 
 func (w *window) Layout(r rovel.Rect) {
 	w.rect = r
 
 	f := w.frame()
 	w.input.Layout(geom.Rect{X: f.X + 2, Y: f.Y + 2, W: max(f.W-4, 0), H: 1})
+
+	// The handles sit on the frame's own right and bottom edges, so the
+	// frame corner doubles as the resize grip.
+	w.right.Layout(geom.Rect{X: f.X + f.W - 1, Y: f.Y + 1, W: 1, H: max(f.H-1, 0)})
+	w.bottom.Layout(geom.Rect{X: f.X, Y: f.Y + f.H - 1, W: max(f.W-1, 0), H: 1})
 }
 
 // frame is the window proper: the overlay rect less the shadow it casts.
@@ -241,6 +253,8 @@ func (w *window) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
 			return true
 		}
 
+		// Resize handles (children) get their own events via hit-testing;
+		// everything else on the window frame raises and starts a drag.
 		w.drag = true
 		w.anchor = geom.Point{X: me.X, Y: me.Y}
 		ctx.RequestFocus(w.input.ID())
@@ -258,6 +272,72 @@ func (w *window) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
 		return true
 	case rovel.MouseRelease:
 		w.drag = false
+
+		return true
+	}
+
+	return false
+}
+
+// resizeHandle is a 1-cell edge strip that resizes the window's Floating
+// placement by the drag delta, respecting a minimum size. right=true makes
+// it the right edge (its bottom cell is the corner and resizes both axes);
+// right=false is the bottom edge. It paints nothing — the frame's own corner
+// glyph is the grip.
+type resizeHandle struct {
+	id     rovel.ID
+	rect   rovel.Rect
+	place  *overlay.Floating
+	right  bool
+	min    geom.Size
+	drag   bool
+	both   bool // press started on the corner cell
+	anchor geom.Point
+}
+
+func (h *resizeHandle) ID() rovel.ID           { return h.id }
+func (h *resizeHandle) MinSize() geom.Size     { return geom.Size{W: 1, H: 1} }
+func (h *resizeHandle) Rect() rovel.Rect       { return h.rect }
+func (h *resizeHandle) Layout(r rovel.Rect)    { h.rect = r }
+func (h *resizeHandle) Children() []rovel.View { return nil }
+
+func (h *resizeHandle) Paint(cd rovel.Drawer, ctx *rovel.Ctx) {}
+
+func (h *resizeHandle) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
+	me, ok := e.(rovel.MouseEvent)
+	if !ok {
+		return false
+	}
+
+	switch me.Action {
+	case rovel.MousePress:
+		h.drag = true
+		h.both = h.right && h.rect.H > 0 && me.Y == h.rect.Y+h.rect.H-1
+		h.anchor = geom.Point{X: me.X, Y: me.Y}
+
+		return true
+	case rovel.MouseDrag:
+		if !h.drag {
+			return false
+		}
+
+		dw, dh := me.X-h.anchor.X, me.Y-h.anchor.Y
+		if !h.both { // single-axis: right edge → width only, bottom → height only
+			if h.right {
+				dh = 0
+			} else {
+				dw = 0
+			}
+		}
+
+		h.place.ResizeBy(dw, dh, h.min)
+		h.anchor = geom.Point{X: me.X, Y: me.Y}
+		ctx.InvalidateLayout()
+
+		return true
+	case rovel.MouseRelease:
+		h.drag = false
+		h.both = false
 
 		return true
 	}

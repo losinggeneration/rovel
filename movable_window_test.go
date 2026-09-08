@@ -128,11 +128,15 @@ func (b *bodyView) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 func (b *bodyView) Handle(e rovel.Event, ctx *rovel.Ctx) bool { return false }
 
 // windowView composes title bar + body: title bar occupies the top row.
+// Optional resize handles overlay the right edge (from below the title bar,
+// covering the corner) and the bottom row.
 type windowView struct {
 	id       rovel.ID
 	rect     geom.Rect
 	titleBar *titleBarView
 	body     *bodyView
+	right    *resizeHandle
+	bottom   *resizeHandle
 	keyCount atomic.Int32
 }
 
@@ -152,9 +156,20 @@ func (w *windowView) Layout(r geom.Rect) {
 	w.rect = r
 	w.titleBar.Layout(geom.Rect{X: r.X, Y: r.Y, W: r.W, H: 1})
 	w.body.Layout(geom.Rect{X: r.X, Y: r.Y + 1, W: r.W, H: max(r.H-1, 0)})
+
+	if w.right != nil {
+		w.right.Layout(geom.Rect{X: r.X + r.W - 1, Y: r.Y + 1, W: 1, H: max(r.H-1, 0)})
+		w.bottom.Layout(geom.Rect{X: r.X, Y: r.Y + r.H - 1, W: max(r.W-1, 0), H: 1})
+	}
 }
 
-func (w *windowView) Children() []rovel.View { return []rovel.View{w.titleBar, w.body} }
+func (w *windowView) Children() []rovel.View {
+	if w.right == nil {
+		return []rovel.View{w.titleBar, w.body}
+	}
+
+	return []rovel.View{w.titleBar, w.body, w.bottom, w.right}
+}
 
 func (w *windowView) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 	w.titleBar.Paint(d, ctx)
@@ -205,9 +220,10 @@ func runWindowApp(t *testing.T, screen geom.Size, winRect geom.Rect) (be *memory
 	})
 
 	place = &overlay.Floating{Rect: winRect}
+	win := newWindowView("WIN", place).withResizeHandles(geom.Size{W: 6, H: 3})
 
 	err = app.Post(func(ctx *rovel.UpdateCtx) {
-		ctx.ShowOverlay(rovel.OverlayOpts{Root: newWindowView("WIN", place), Place: place})
+		ctx.ShowOverlay(rovel.OverlayOpts{Root: win, Place: place})
 	})
 	if err != nil {
 		t.Fatalf("Post ShowOverlay: %v", err)
@@ -732,5 +748,189 @@ func TestMovableWindow_ModalBlocksAfterRaise(t *testing.T) {
 
 	if n := back.keyCount.Load(); n != 0 {
 		t.Fatalf("raised non-modal window received %d keys under a modal, want 0", n)
+	}
+}
+
+// resizeHandle is a 1-cell edge strip that resizes the window's Floating
+// placement by the drag delta, respecting a minimum size. right=true makes it
+// the right edge (its bottom cell is the corner and resizes both axes);
+// right=false is the bottom edge. It paints nothing — pure hit region.
+type resizeHandle struct {
+	id     rovel.ID
+	rect   geom.Rect
+	place  *overlay.Floating
+	right  bool
+	min    geom.Size
+	drag   bool
+	both   bool // press started on the corner cell
+	anchor geom.Point
+}
+
+func (h *resizeHandle) ID() rovel.ID           { return h.id }
+func (h *resizeHandle) MinSize() geom.Size     { return geom.Size{W: 1, H: 1} }
+func (h *resizeHandle) Rect() geom.Rect        { return h.rect }
+func (h *resizeHandle) Layout(r geom.Rect)     { h.rect = r }
+func (h *resizeHandle) Children() []rovel.View { return nil }
+
+func (h *resizeHandle) Paint(d rovel.Drawer, ctx *rovel.Ctx) {}
+
+func (h *resizeHandle) Handle(e rovel.Event, ctx *rovel.Ctx) bool {
+	me, ok := e.(rovel.MouseEvent)
+	if !ok {
+		return false
+	}
+
+	switch me.Action {
+	case rovel.MousePress:
+		h.drag = true
+		h.both = h.right && h.rect.H > 0 && me.Y == h.rect.Y+h.rect.H-1
+		h.anchor = geom.Point{X: me.X, Y: me.Y}
+
+		return true
+	case rovel.MouseDrag:
+		if !h.drag {
+			return false
+		}
+
+		dw, dh := me.X-h.anchor.X, me.Y-h.anchor.Y
+		if !h.both { // single-axis: right edge → width only, bottom → height only
+			if h.right {
+				dh = 0
+			} else {
+				dw = 0
+			}
+		}
+		h.place.ResizeBy(dw, dh, h.min)
+		h.anchor = geom.Point{X: me.X, Y: me.Y}
+		ctx.InvalidateLayout()
+
+		return true
+	case rovel.MouseRelease:
+		h.drag = false
+		h.both = false
+
+		return true
+	}
+
+	return false
+}
+
+// withResizeHandles adds right/bottom resize handles to the test window.
+func (w *windowView) withResizeHandles(min geom.Size) *windowView {
+	w.right = &resizeHandle{id: rovel.NewID(), place: w.titleBar.place, right: true, min: min}
+	w.bottom = &resizeHandle{id: rovel.NewID(), place: w.titleBar.place, right: false, min: min}
+
+	return w
+}
+
+func TestMovableWindow_ResizeRightEdge(t *testing.T) {
+	screen := geom.Size{W: 40, H: 12}
+	winRect := geom.Rect{X: 2, Y: 2, W: 10, H: 5}
+
+	be, _ := runWindowApp(t, screen, winRect)
+	waitForFrames(t, be, 2)
+
+	// Press the right edge (col X+W-1=11, below the title row) and drag
+	// right 4: the window grows to W=14, content (body fill) follows.
+	frames := be.FrameCount()
+	be.SendEvent(event.MouseEvent{X: 11, Y: 4, Button: event.MouseButtonLeft, Action: event.MousePress})
+	be.SendEvent(event.MouseEvent{X: 15, Y: 4, Button: event.MouseButtonLeft, Action: event.MouseMove})
+	be.SendEvent(event.MouseEvent{X: 15, Y: 4, Button: event.MouseButtonLeft, Action: event.MouseRelease})
+	waitForFrames(t, be, frames+1)
+
+	if got := frameRuneAt(t, be, 15, 4); got != 'B' {
+		t.Fatalf("body rune at new right edge (15,4) = %q, want 'B'", got)
+	}
+
+	if got := frameRuneAt(t, be, 16, 4); got != '.' {
+		t.Fatalf("rune beyond new edge (16,4) = %q, want '.'", got)
+	}
+
+	// Drag the edge back far left: the minimum size (6x3) is enforced and
+	// the origin stays put.
+	frames = be.FrameCount()
+	be.SendEvent(event.MouseEvent{X: 15, Y: 4, Button: event.MouseButtonLeft, Action: event.MousePress})
+	be.SendEvent(event.MouseEvent{X: 0, Y: 4, Button: event.MouseButtonLeft, Action: event.MouseMove})
+	be.SendEvent(event.MouseEvent{X: 0, Y: 4, Button: event.MouseButtonLeft, Action: event.MouseRelease})
+	waitForFrames(t, be, frames+1)
+
+	if got := frameRuneAt(t, be, 2, 2); got != 'W' {
+		t.Fatalf("title rune after min-clamp = %q, want 'W' (origin unchanged)", got)
+	}
+
+	if got := frameRuneAt(t, be, 7, 3); got != 'B' {
+		t.Fatalf("body rune at min width (7,3) = %q, want 'B'", got)
+	}
+
+	if got := frameRuneAt(t, be, 8, 3); got != '.' {
+		t.Fatalf("rune beyond min width (8,3) = %q, want '.'", got)
+	}
+}
+
+func TestMovableWindow_ResizeBottomEdge(t *testing.T) {
+	screen := geom.Size{W: 40, H: 12}
+	winRect := geom.Rect{X: 2, Y: 2, W: 10, H: 5}
+
+	be, _ := runWindowApp(t, screen, winRect)
+	waitForFrames(t, be, 2)
+
+	// Press the bottom edge (row Y+H-1=6, left of the corner) and drag down
+	// 3: the window grows to H=8, the body relayouts to the new bottom row.
+	frames := be.FrameCount()
+	be.SendEvent(event.MouseEvent{X: 5, Y: 6, Button: event.MouseButtonLeft, Action: event.MousePress})
+	be.SendEvent(event.MouseEvent{X: 5, Y: 9, Button: event.MouseButtonLeft, Action: event.MouseMove})
+	be.SendEvent(event.MouseEvent{X: 5, Y: 9, Button: event.MouseButtonLeft, Action: event.MouseRelease})
+	waitForFrames(t, be, frames+1)
+
+	if got := frameRuneAt(t, be, 5, 9); got != 'B' {
+		t.Fatalf("body rune at new bottom row (5,9) = %q, want 'B'", got)
+	}
+
+	if got := frameRuneAt(t, be, 5, 10); got != '.' {
+		t.Fatalf("rune beyond new bottom (5,10) = %q, want '.'", got)
+	}
+}
+
+func TestMovableWindow_ResizeCornerClampsToScreen(t *testing.T) {
+	screen := geom.Size{W: 40, H: 12}
+	winRect := geom.Rect{X: 2, Y: 2, W: 10, H: 5}
+
+	be, _ := runWindowApp(t, screen, winRect)
+	waitForFrames(t, be, 2)
+
+	// Corner press (right edge's bottom cell) and a huge drag: the window
+	// becomes the full screen, clamped.
+	frames := be.FrameCount()
+	be.SendEvent(event.MouseEvent{X: 11, Y: 6, Button: event.MouseButtonLeft, Action: event.MousePress})
+	be.SendEvent(event.MouseEvent{X: 200, Y: 200, Button: event.MouseButtonLeft, Action: event.MouseMove})
+	be.SendEvent(event.MouseEvent{X: 200, Y: 200, Button: event.MouseButtonLeft, Action: event.MouseRelease})
+	waitForFrames(t, be, frames+1)
+
+	if got := frameRuneAt(t, be, 0, 0); got != 'W' {
+		t.Fatalf("title rune at (0,0) after corner resize = %q, want 'W'", got)
+	}
+
+	if got := frameRuneAt(t, be, 39, 11); got != 'B' {
+		t.Fatalf("bottom-right rune after corner resize = %q, want 'B'", got)
+	}
+
+	// Drag the corner back to the top-left: minimum size (6x3) wins.
+	frames = be.FrameCount()
+	be.SendEvent(event.MouseEvent{X: 39, Y: 11, Button: event.MouseButtonLeft, Action: event.MousePress})
+	be.SendEvent(event.MouseEvent{X: 0, Y: 0, Button: event.MouseButtonLeft, Action: event.MouseMove})
+	be.SendEvent(event.MouseEvent{X: 0, Y: 0, Button: event.MouseButtonLeft, Action: event.MouseRelease})
+	waitForFrames(t, be, frames+1)
+
+	// Full-screen window shrank to the 6x3 minimum at the origin.
+	if got := frameRuneAt(t, be, 0, 0); got != 'W' {
+		t.Fatalf("title rune after min corner resize = %q, want 'W'", got)
+	}
+
+	if got := frameRuneAt(t, be, 5, 2); got != 'B' {
+		t.Fatalf("body rune at min size corner (5,2) = %q, want 'B'", got)
+	}
+
+	if got := frameRuneAt(t, be, 6, 2); got != '.' {
+		t.Fatalf("rune beyond min size (6,2) = %q, want '.'", got)
 	}
 }
