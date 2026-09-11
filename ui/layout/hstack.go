@@ -136,7 +136,10 @@ func (s *HStack) Layout(r rovel.Rect) {
 				handed++
 			}
 		}
-	} else if remaining > 0 && totalStretch == 0 {
+	} else if remaining > 0 && totalStretch == 0 && n == 1 {
+		// A lone child with no grow still fills its stack; among siblings
+		// nobody absorbs — the old last-child stretch pushed the trailing
+		// widget wide of its row.
 		infos[n-1].allocated += remaining
 	}
 

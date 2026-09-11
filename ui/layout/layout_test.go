@@ -736,3 +736,54 @@ func TestHStackOddRemainderFillsRect(t *testing.T) {
 		t.Fatalf("growth unequal beyond the unavoidable column: %d vs %d", first.W, second.W)
 	}
 }
+
+// TestVStackNoGrowSiblingsKeepMinSize pins the multi-child no-grow rule:
+// when no sibling grows, none of them absorbs the leftover — the old
+// fallback stretched the LAST child to fill the rect, which vertically
+// centered stretched widgets (a progress bar mid-window while its label
+// stayed on the row above).
+func TestVStackNoGrowSiblingsKeepMinSize(t *testing.T) {
+	stack := NewVStackWithChildren([]Child{
+		NewChild(newSimpleView(10, 1, false)),
+		NewChild(newSimpleView(10, 1, false)),
+		NewChild(newSimpleView(10, 1, false)),
+	})
+	stack.Layout(rovel.Rect{X: 0, Y: 0, W: 10, H: 10})
+	kids := stack.Children()
+	for i, want := range []int{1, 1, 1} {
+		if got := kids[i].Rect().H; got != want {
+			t.Fatalf("child %d height = %d, want min %d (no absorb)", i, got, want)
+		}
+	}
+	if bottom := kids[2].Rect().Y + kids[2].Rect().H; bottom != 3 {
+		t.Fatalf("last child ends at %d, want 3 (leftover stays blank)", bottom)
+	}
+}
+
+// TestHStackNoGrowSiblingsKeepMinSize is the width twin.
+func TestHStackNoGrowSiblingsKeepMinSize(t *testing.T) {
+	stack := NewHStackWithChildren([]Child{
+		NewChild(newSimpleView(1, 5, false)),
+		NewChild(newSimpleView(1, 5, false)),
+	})
+	stack.Layout(rovel.Rect{X: 0, Y: 0, W: 10, H: 5})
+	kids := stack.Children()
+	for i := range kids {
+		if got := kids[i].Rect().W; got != 1 {
+			t.Fatalf("child %d width = %d, want min 1 (no absorb)", i, got)
+		}
+	}
+	if right := kids[1].Rect().X + kids[1].Rect().W; right != 2 {
+		t.Fatalf("last child ends at %d, want 2 (leftover stays blank)", right)
+	}
+}
+
+// TestVStackSingleChildStillFills keeps the one legitimate absorb: a lone
+// child with no grow still fills its stack.
+func TestVStackSingleChildStillFills(t *testing.T) {
+	stack := NewVStackWithChildren([]Child{NewChild(newSimpleView(10, 1, false))})
+	stack.Layout(rovel.Rect{X: 0, Y: 0, W: 10, H: 7})
+	if got := stack.Children()[0].Rect().H; got != 7 {
+		t.Fatalf("single child height = %d, want 7 (lone child fills)", got)
+	}
+}
