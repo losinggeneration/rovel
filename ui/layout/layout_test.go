@@ -690,3 +690,49 @@ func TestFocusTraversalBoundaryBehavior(t *testing.T) {
 		}
 	})
 }
+
+// TestVStackOddRemainderFillsRect pins the fix for the dropped-remainder
+// bug: two equally growing children in a stack whose leftover space is odd
+// must still fill the rect exactly — the old floor division silently left
+// a blank row at the bottom of the stack, so tiled columns ended one row
+// short whenever their leftover was odd.
+func TestVStackOddRemainderFillsRect(t *testing.T) {
+	stack := NewVStackWithChildren([]Child{
+		GrowYChild(newSimpleView(10, 3, false), 1),
+		GrowYChild(newSimpleView(10, 3, false), 1),
+	})
+	// Min heights 3+3=6; leftover 5 is odd: floor gives 2 each and used to
+	// drop the fifth row. The stack must allocate it.
+	stack.Layout(rovel.Rect{X: 0, Y: 0, W: 10, H: 11})
+	kids := stack.Children()
+	first, second := kids[0].Rect(), kids[1].Rect()
+	if first.H+second.H != 11 {
+		t.Fatalf("children fill %d of 11 rows, want all 11", first.H+second.H)
+	}
+	if second.Y+second.H != 11 {
+		t.Fatalf("last child ends at %d, want 11 (flush bottom)", second.Y+second.H)
+	}
+	if d := first.H - second.H; d < -1 || d > 1 {
+		t.Fatalf("growth unequal beyond the unavoidable row: %d vs %d", first.H, second.H)
+	}
+}
+
+// TestHStackOddRemainderFillsRect is the width twin of the VStack test.
+func TestHStackOddRemainderFillsRect(t *testing.T) {
+	stack := NewHStackWithChildren([]Child{
+		GrowXChild(newSimpleView(3, 10, false), 1),
+		GrowXChild(newSimpleView(3, 10, false), 1),
+	})
+	stack.Layout(rovel.Rect{X: 0, Y: 0, W: 11, H: 10})
+	kids := stack.Children()
+	first, second := kids[0].Rect(), kids[1].Rect()
+	if first.W+second.W != 11 {
+		t.Fatalf("children fill %d of 11 columns, want all 11", first.W+second.W)
+	}
+	if second.X+second.W != 11 {
+		t.Fatalf("last child ends at %d, want 11 (flush right)", second.X+second.W)
+	}
+	if d := first.W - second.W; d < -1 || d > 1 {
+		t.Fatalf("growth unequal beyond the unavoidable column: %d vs %d", first.W, second.W)
+	}
+}

@@ -119,10 +119,21 @@ func (s *HStack) Layout(r rovel.Rect) {
 
 	remaining := availableW - totalMinW
 	if remaining > 0 && totalStretch > 0 {
+		handed := 0
 		for i := range infos {
 			if infos[i].opts.GrowX && infos[i].opts.StretchX > 0 {
 				extra := (remaining * infos[i].opts.StretchX) / totalStretch
 				infos[i].allocated += extra
+				handed += extra
+			}
+		}
+		// Integer division drops the remainder; hand the dropped columns
+		// to the earliest growing children so the stack fills its rect
+		// exactly. A dropped column used to leave a blank strip at the right.
+		for i := 0; handed < remaining && i < n; i++ {
+			if infos[i].opts.GrowX && infos[i].opts.StretchX > 0 {
+				infos[i].allocated++
+				handed++
 			}
 		}
 	} else if remaining > 0 && totalStretch == 0 {
