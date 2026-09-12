@@ -746,6 +746,15 @@ func (a *App) SetFocusObserver(fn func(FocusChange)) {
 	a.onFocusChange = fn
 }
 
+// SetKeyResolver installs the ResolveAction closure after construction —
+// for callers that need the built App inside the closure (quitting on a
+// reserved key, for example). It runs before every key dispatch. Call
+// SetKeyResolver before Run or from the app loop (e.g. via App.Post); it is
+// not safe to call concurrently with a running app loop.
+func (a *App) SetKeyResolver(fn func(e KeyEvent, focused View) (action.Action, bool)) {
+	a.opts.ResolveAction = fn
+}
+
 func (a *App) notifyFocusChange(from, to ID) {
 	if a.onFocusChange != nil {
 		a.onFocusChange(FocusChange{From: from, To: to})
@@ -1078,6 +1087,18 @@ func (a *App) handleKeyEvent(e KeyEvent) {
 		// Modal overlay blocks propagation to main tree
 		if top.modal {
 			return
+		}
+	}
+
+	// The focused view may live inside a non-modal overlay (a floating
+	// window): route the key there first, exactly like paste dispatch. The
+	// overlay root had its turn above; the main tree only sees what the
+	// focused subtree declines.
+	if focused := a.findFocusedView(); focused != nil {
+		if entry, ok := a.nodes[focused.ID()]; ok && entry.overlayID != 0 {
+			if focused.Handle(e, ctx) {
+				return
+			}
 		}
 	}
 
