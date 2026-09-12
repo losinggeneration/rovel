@@ -88,7 +88,10 @@ func (b *ProgressBar) Paint(d rovel.Drawer, ctx *rovel.Ctx) {
 		return
 	}
 
-	filled := int(b.value * float64(r.W))
+	// Round to the nearest cell: floor quantization left a bar a hair
+	// under complete one cell short at "100%" (the sine gauges peak just
+	// shy of 1.0), and likewise never lit the first cell until halfway.
+	filled := int(b.value*float64(r.W) + 0.5)
 	if filled > r.W {
 		filled = r.W
 	}
