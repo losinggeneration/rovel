@@ -674,8 +674,19 @@ func acceptsCSIKey(final byte, p0, _ /* mod */, n int) bool {
 			return false
 		}
 	case 'H', 'F', 'Z':
-		// Accept: CSI H, CSI F, CSI Z (no params)
-		return n == 0
+		// Accept: CSI H, CSI F, CSI Z (no params). Home and End also arrive
+		// modified as CSI 1;<mod> H/F — kitty protocol's disambiguate mode and
+		// xterm's modifyFunctionKeys both encode Ctrl+End this way — so take
+		// the same shape the arrows accept. Shift+Tab stays a plain backtab:
+		// terminals don't re-encode it in disambiguate mode.
+		switch n {
+		case 0:
+			return true
+		case 1, 2:
+			return final != 'Z' && p0 == 1
+		default:
+			return false
+		}
 	case '~':
 		// Accept known tilde params with an optional modifier param. Some
 		// terminals encode modified Enter as CSI 13;2~ instead of CSI-u or

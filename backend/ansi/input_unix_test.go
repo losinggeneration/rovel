@@ -451,6 +451,75 @@ func TestInputDecoder_CSI_ShiftArrow_Modifiers(t *testing.T) {
 	}
 }
 
+// Kitty protocol's disambiguate mode and xterm's modifyFunctionKeys encode
+// modified Home/End as CSI 1;<mod> H/F. Rejecting the modifier params turned
+// Ctrl+End into literal garbage instead of a keystroke.
+func TestInputDecoder_CSI_ModifiedHomeEnd(t *testing.T) {
+	tests := []struct {
+		name  string
+		final byte
+		key   event.Key
+	}{
+		{"Ctrl+Home", 'H', event.KeyHome},
+		{"Ctrl+End", 'F', event.KeyEnd},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &InputDecoder{}
+
+			var evs []event.Event
+			// CSI 1;<mod> <final>
+			for _, b := range []byte{0x1b, '[', '1', ';', '5', tt.final} {
+				evs = d.PushByte(evs, b)
+			}
+
+			if len(evs) != 1 {
+				t.Fatalf("got %d events, want 1", len(evs))
+			}
+
+			k := ke(t, evs[0], 0)
+			if k.Key != tt.key {
+				t.Fatalf("got key %v, want %v", k.Key, tt.key)
+			}
+
+			if k.Mod != event.ModCtrl {
+				t.Fatalf("got mod %d, want ModCtrl", k.Mod)
+			}
+		})
+	}
+}
+
+// Plain Home/End without params keeps decoding as before.
+func TestInputDecoder_CSI_PlainHomeEnd(t *testing.T) {
+	tests := []struct {
+		name  string
+		final byte
+		key   event.Key
+	}{
+		{"Home", 'H', event.KeyHome},
+		{"End", 'F', event.KeyEnd},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &InputDecoder{}
+
+			var evs []event.Event
+			for _, b := range []byte{0x1b, '[', tt.final} {
+				evs = d.PushByte(evs, b)
+			}
+
+			if len(evs) != 1 {
+				t.Fatalf("got %d events, want 1", len(evs))
+			}
+
+			k := ke(t, evs[0], 0)
+			if k.Key != tt.key || k.Mod != 0 {
+				t.Fatalf("got (%v, %d), want (%v, 0)", k.Key, k.Mod, tt.key)
+			}
+		})
+	}
+}
+
 func TestInputDecoder_CtrlA(t *testing.T) {
 	d := &InputDecoder{}
 
